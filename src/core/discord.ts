@@ -333,7 +333,7 @@ export function avatarUrl(guildId: string, member: GuildMember): string | null {
 
 export function sendMessage(
   channelId: string,
-  body: { content?: string; allowed_mentions?: unknown },
+  body: { content?: string; allowed_mentions?: unknown; message_reference?: unknown },
 ): Promise<Wrote<{ id: string }>> {
   return write<{ id: string }>("POST", `/channels/${channelId}/messages`, body);
 }

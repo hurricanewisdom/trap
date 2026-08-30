@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 221 commands across five cogs,
+(TypeScript strict, Node 22), run bare with pm2. 236 commands across five cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -28,6 +28,7 @@ rather than turning it into a three-word path with named fields.
 - `,alias` — server shortcuts for existing commands
 - `,stickymessage` — keep a message at the bottom of a channel
 - `,imgonly` — make a channel take images only
+- `,autoresponder` — automatic replies when a message matches a trigger
 - `,filter` — ten chat filters, five of them enforced by Discord's AutoMod
 - `,snipe` — what was deleted, edited or unreacted in this channel
 - `,lf link` DMs an authorisation link; after that `,fm` works
@@ -175,6 +176,54 @@ The `onMessage` hook it rides on runs for every guild message, so the check in
 front of it is a cached set of channel ids rather than a query. Bot messages are
 ignored before the hook is reached, which is also what stops the sticky
 retriggering on itself.
+
+## Autoresponders
+
+```
+,autoresponder add hello, hey {user}!        create one
+,autoresponder update hello, hi {user}!      change the reply
+,autoresponder remove hello                  delete one
+,autoresponder list                          every trigger
+,autoresponder list tickets                   just the ones marked --ticket
+,autoresponder variables                      what a reply can use
+,autoresponder role add @Verified verify      give a role when it fires
+,autoresponder role remove @Muted unmute      take one away
+,autoresponder role add list verify           what it gives
+,autoresponder exclusive #general hello       limit it to a channel or role
+,autoresponder exclusive list hello           who has access
+,autoresponder reset                          clear the lot
+```
+
+Fifteen commands, all **Manage Channels**, up to 100 triggers per server. The
+trigger and the reply are separated by a **comma**, which is what lets a trigger
+contain spaces. Replies take the same variables as the greetings, and `add`
+reports any brace token it did not recognise rather than dropping it.
+
+Flags: `--strict` matches the whole message instead of a word inside it,
+`--delete` removes the message that triggered it, `--reply` answers as a reply,
+`--ticket` marks it for `list tickets`.
+
+**Matching is on word boundaries**, so `cat` answers "look a cat!" and stays
+quiet on "concatenate". That is the difference between a useful autoresponder
+and one that fires on half the sentences in the server.
+
+Three things stop it becoming a nuisance or a weapon:
+
+- **A four second cooldown per trigger per channel**, so one word in a busy
+  channel produces one reply rather than a stream of them.
+- **`@everyone` and `@here` can never be pinged**, whatever the reply says:
+  the send is pinned to `parse: ["users", "roles"]`. Manage Channels is a lower
+  bar than Manage Server, so the reply is not treated as fully trusted.
+- **Role grants are checked against Discord's hierarchy** when they are set up,
+  not silently at fire time: the bot needs Manage Roles and its own role above
+  the one it hands out, and `@everyone` is refused outright.
+
+`exclusive` inverts the default: with nothing listed a trigger answers everyone
+everywhere, and the moment a role or channel is listed it answers only there.
+
+Like every other message-path feature, the matcher reads an in-process cache
+invalidated on write, never the database. A server with no autoresponders costs
+one map lookup per message.
 
 ## Filters
 

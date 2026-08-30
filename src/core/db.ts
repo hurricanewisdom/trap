@@ -310,6 +310,41 @@ export async function migrate(): Promise<void> {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS autoresponders (
+      guild_id   TEXT NOT NULL,
+      trigger    TEXT NOT NULL,
+      reply      TEXT NOT NULL,
+      strict     BOOLEAN NOT NULL DEFAULT false,
+      ticket     BOOLEAN NOT NULL DEFAULT false,
+      wipe       BOOLEAN NOT NULL DEFAULT false,
+      quote      BOOLEAN NOT NULL DEFAULT false,
+      created_by TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, trigger)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS autoresponder_roles (
+      guild_id TEXT NOT NULL,
+      trigger  TEXT NOT NULL,
+      role_id  TEXT NOT NULL,
+      action   TEXT NOT NULL,
+      PRIMARY KEY (guild_id, trigger, role_id, action)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS autoresponder_exclusive (
+      guild_id  TEXT NOT NULL,
+      trigger   TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      kind      TEXT NOT NULL,
+      PRIMARY KEY (guild_id, trigger, target_id)
+    )
+  `;
+
   console.log("db: schema ready");
 }
 

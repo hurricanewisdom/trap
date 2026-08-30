@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 111 source files, no comments — the names and the
+the read path and the cache. 118 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -77,6 +77,9 @@ src/
                         posted without one
       filter/snipe.ts   switches sniping off for a server, and registers the
                         gate the utility cog asks through
+      autoresponder/    automatic replies: store.ts, responder.ts (the matcher
+                        on the message path), roles.ts, exclusive.ts, gate.ts
+                        (the role hierarchy check), shared.ts
     utility/            server tools
       store.ts          bounded in-memory rings: recent messages, snipes,
                         removed reactions, per-message reaction logs
@@ -390,6 +393,13 @@ around it tints.
   it straight back. A forgotten id now goes into a suppression set that
   `remember()` checks. Two handlers on the same event have no defined order
   worth relying on; make the invariant hold either way.
+- **Reply text written by a moderator is not fully trusted.** Autoresponder
+  replies are authored behind Manage Channels, which is a lower bar than Manage
+  Server, so the send pins `allowed_mentions` to users and roles and `@everyone`
+  can never be reached however the reply is written.
+- **Check a role against the hierarchy when it is configured, not when it
+  fires.** A grant that silently fails on the message path is invisible; the
+  same check at setup time is a card that says which role is too high.
 - **Anything on the message path must not do I/O.** `messageCreate` runs for
   every message in every channel: prefix resolution, the sticky check and the
   alias fallback all read an in-process cache invalidated on write, never the

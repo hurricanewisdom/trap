@@ -128,6 +128,12 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "What the bot posts when somebody boosts",
   },
   {
+    slug: "autoresponder",
+    label: "Autoresponder",
+    emoji: "",
+    blurb: "Automatic replies when a message matches a trigger",
+  },
+  {
     slug: "snipe",
     label: "Snipe",
     emoji: "",
@@ -271,6 +277,32 @@ export const DOCS: CommandDoc[] = [
       { name: "remove", usage: ",goodbye remove <channel>", summary: "Stop a channel posting", permission: "Manage Server" },
       { name: "list", usage: ",goodbye list", summary: "Every channel with a goodbye message", permission: "Manage Server" },
       { name: "variables", usage: ",goodbye variables", summary: "Every variable a message can use", permission: "Manage Server" },
+    ],
+  },
+  {
+    name: "autoresponder",
+    category: "autoresponder",
+    usage: ",autoresponder",
+    summary: "Answer automatically when a message matches a trigger",
+    details:
+      "A trigger is matched on word boundaries anywhere in a message, so \"hi\" answers \"hi there\" but not \"this\". --strict narrows that to the whole message. Replies take the same variables the greetings use. Flags: --strict, --delete to remove the message that triggered it, --reply to answer as a reply, --ticket to mark it for ,autoresponder list tickets. A trigger can also give or take roles, and be limited to certain roles or channels. Up to 100 per server. Aliases: ,autoreply and ,ar.",
+    examples: [
+      ",autoresponder add hello, hey {user}!",
+      ",autoresponder add rules, read <#123> --delete",
+      ",autoresponder role add @Verified verify",
+      ",autoresponder exclusive #general hello",
+    ],
+    permission: "Manage Channels",
+    guildOnly: true,
+    subcommands: [
+      { name: "add", usage: ",autoresponder add <trigger>, <reply>", summary: "Create a reply for a trigger", permission: "Manage Channels" },
+      { name: "update", usage: ",autoresponder update <trigger>, <reply>", summary: "Change the reply for a trigger", permission: "Manage Channels" },
+      { name: "remove", usage: ",autoresponder remove <trigger>", summary: "Remove a reply for a trigger", permission: "Manage Channels" },
+      { name: "list", usage: ",autoresponder list", summary: "Every trigger in this server", permission: "Manage Channels" },
+      { name: "variables", usage: ",autoresponder variables", summary: "What a reply can use", permission: "Manage Channels" },
+      { name: "role", usage: ",autoresponder role", summary: "Give or take roles when a trigger fires", permission: "Manage Channels" },
+      { name: "exclusive", usage: ",autoresponder exclusive <role or #channel> <trigger>", summary: "Limit a trigger to some roles or channels", permission: "Manage Channels" },
+      { name: "reset", usage: ",autoresponder reset", summary: "Remove every auto response", permission: "Manage Channels" },
     ],
   },
   {
