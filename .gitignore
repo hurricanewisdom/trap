@@ -1,0 +1,18 @@
+# Secrets. Never commit these: .env holds the bot token, the Last.fm shared
+# secret, and the Postgres and Redis passwords.
+.env
+.env.*
+# except the template, which carries names but no values
+!.env.example
+.dbpass
+*.pem
+*.key
+
+# Build output and dependencies, both reproducible from source.
+dist/
+node_modules/
+
+# Local noise
+*.log
+npm-debug.log*
+.DS_Store

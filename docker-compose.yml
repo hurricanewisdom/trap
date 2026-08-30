@@ -1,0 +1,9 @@
+name: trapbot
+
+services:
+  trap:
+    build: .
+    container_name: trapbot
+    init: true
+    restart: unless-stopped
+    env_file: .env

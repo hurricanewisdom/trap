@@ -1,0 +1,21 @@
+{
+  "name": "trap",
+  "version": "1.1.0",
+  "description": "Trap — Discord bot built on Discordeno",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "discordeno": "^21.0.0",
+    "ioredis": "^5.4.1",
+    "postgres": "^3.4.5",
+    "sharp": "^0.34.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^22.0.0"
+  }
+}
