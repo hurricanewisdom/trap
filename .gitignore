@@ -16,3 +16,7 @@ node_modules/
 *.log
 npm-debug.log*
 .DS_Store
+
+# Python cache from deploy/
+__pycache__/
+*.pyc
