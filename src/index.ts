@@ -12,6 +12,8 @@ import {
   emitMemberJoin,
   emitMemberLeave,
   emitMessage,
+  emitMessageDelete,
+  emitMessageEdit,
   dispatchModal,
   resolveFallback,
   emitReactionAdd,
@@ -175,6 +177,23 @@ const bot = createBot({
         guildId: guildId ? String(guildId) : undefined,
         userId: String(userId),
         emoji: emoji?.name,
+      });
+    },
+    async messageDelete({ id, channelId, guildId }) {
+      await emitMessageDelete({
+        guildId: guildId ? String(guildId) : "",
+        channelId: String(channelId),
+        messageId: String(id),
+      });
+    },
+    async messageUpdate(message) {
+      if (!message.guildId || message.author?.bot) return;
+      await emitMessageEdit({
+        guildId: String(message.guildId),
+        channelId: String(message.channelId ?? ""),
+        messageId: String(message.id ?? ""),
+        authorId: String(message.author?.id ?? ""),
+        content: message.content ?? "",
       });
     },
     async guildMemberAdd(member: any) {

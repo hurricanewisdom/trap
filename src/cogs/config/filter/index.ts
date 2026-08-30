@@ -14,6 +14,7 @@ import { registerMentions } from "./mentions.js";
 import { registerGuarded } from "./automodfilters.js";
 import { registerContent } from "./content.js";
 import { registerPatterns } from "./patterns.js";
+import { registerSnipeFilter } from "./snipe.js";
 
 async function overview(ctx: PrefixContext): Promise<void> {
   const guildId = await requireManageChannels(ctx, "see the filters");
@@ -40,6 +41,7 @@ async function overview(ctx: PrefixContext): Promise<void> {
       "`filter caps`, `filter emoji`, `filter spoilers`, `filter massmention` set thresholds",
       "`filter invites`, `filter links`, `filter musicfiles`, `filter spam` block content",
       "`filter regex <pattern>` filters by pattern, `filter wordmigrate` imports existing rules",
+      "`filter snipe` stops deleted messages being sniped",
       "",
       ours.length
         ? `-# Rules in place: ${ours.map((rule) => `\`${rule.name.slice(6)}\``).join(" · ")}`
@@ -114,5 +116,6 @@ export function registerFilter(): void {
     registerGuarded();
     registerContent();
     registerPatterns();
+    registerSnipeFilter();
   });
 }

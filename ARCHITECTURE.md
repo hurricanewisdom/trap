@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 106 source files, no comments — the names and the
+the read path and the cache. 111 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -29,6 +29,7 @@ src/
     redis.ts            Redis client and key/TTL conventions
     discord.ts          raw Discord REST for member lists and permissions
     automod.ts          Discord AutoMod rules, their caps, and error translation
+    sniping.ts          the two-way link between the snipe store and its filter
     env.ts              typed configuration access
 
   helpers/              feature-agnostic utilities. No I/O of their own except
@@ -74,6 +75,13 @@ src/
                         once the chat settles
       gallery/          channels that only take images; deletes anything
                         posted without one
+      filter/snipe.ts   switches sniping off for a server, and registers the
+                        gate the utility cog asks through
+    utility/            server tools
+      store.ts          bounded in-memory rings: recent messages, snipes,
+                        removed reactions, per-message reaction logs
+      snipe.ts          ,snipe and its four subcommands, plus the hooks that
+                        feed the store
     help/               the command browser
       model.ts          one indexed view of the registry + catalog
       search.ts         ranking, for /help autocomplete and ,help <query>
@@ -103,11 +111,17 @@ The dependency rule is one-way: **cogs may import from `core`, `helpers`,
 import from a sibling cog.** If core needs to reach into a feature, that is a
 missing hook.
 
-Four things follow that shape rather than importing across it — a provider is
+Five things follow that shape rather than importing across it — a provider is
 registered at setup and core asks for it: `core/listening.ts` (who is playing
 what), `core/runner.ts` (run a command from a click), `core/expiry.ts` (edit a
-message later) and `core/accent.ts` (this viewer's colour). Each still works
-when nothing registers.
+message later), `core/accent.ts` (this viewer's colour) and `core/sniping.ts`.
+Each still works when nothing registers.
+
+`sniping.ts` is the one that goes both ways, and it exists because `,filter
+snipe` lives in the config cog while the store lives in the utility cog. The
+utility cog provides the store, the config cog provides the gate, and each side
+asks core rather than importing the other. A missing gate means sniping is
+allowed, so the feature degrades open rather than silently blocking.
 
 ## Cogs
 
@@ -221,6 +235,7 @@ Cogs extend the runtime through `core/hooks.ts` instead of core importing them:
 | `onBoost` | somebody boosted the server |
 | `onMessage` | any message in a guild, command or not |
 | `onMemberJoin` / `onMemberLeave` | somebody joined or left |
+| `onMessageDelete` / `onMessageEdit` | a message went away or changed |
 
 Interactions are routed by custom-id prefix, so two cogs cannot silently
 collide over the same button.
@@ -360,6 +375,21 @@ around it tints.
   last time we looked. `booster_state` holds that baseline and a member seen for
   the first time is recorded silently, or a redeploy announces every existing
   booster at once.
+- **A delete event carries an id and nothing else.** Discord sends no author and
+  no content on `messageDelete`, and `messageUpdate` sends the new message
+  without the old one, so anything that wants either has to have cached it on
+  the way past. The snipe store is that cache: in process, bounded three ways,
+  and gone on restart.
+- **A message the bot deleted must never come back through a read command.**
+  `deleteMessage()` drops the snipe entry before issuing the delete, so the word
+  filter cannot be defeated with `,snipe`. Doing it in the one shared helper
+  covers every caller, including ones added later.
+- **An interlock between two hooks must not depend on their order.** That fix
+  above still leaked, because the config cog loads before the utility cog: the
+  filter forgot the message before it had been remembered, and `remember()` put
+  it straight back. A forgotten id now goes into a suppression set that
+  `remember()` checks. Two handlers on the same event have no defined order
+  worth relying on; make the invariant hold either way.
 - **Anything on the message path must not do I/O.** `messageCreate` runs for
   every message in every channel: prefix resolution, the sticky check and the
   alias fallback all read an in-process cache invalidated on write, never the

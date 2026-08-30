@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 215 commands across four cogs,
+(TypeScript strict, Node 22), run bare with pm2. 221 commands across five cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -29,6 +29,7 @@ rather than turning it into a three-word path with named fields.
 - `,stickymessage` — keep a message at the bottom of a channel
 - `,imgonly` — make a channel take images only
 - `,filter` — ten chat filters, five of them enforced by Discord's AutoMod
+- `,snipe` — what was deleted, edited or unreacted in this channel
 - `,lf link` DMs an authorisation link; after that `,fm` works
 
 Everything else is one of the 116 Last.fm commands. `,help` lists them all.
@@ -240,6 +241,50 @@ Everything here needs **Manage Channels**, except `reset`, `regex` and
 server sees. `wordmigrate` copies words out of keyword rules made by hand or by
 another bot, and leaves those rules alone so nothing is enforced twice by
 accident.
+
+## Snipe
+
+```
+,snipe [index]                  the last message deleted here
+,snipe edit [index]             the last message edited, before and after
+,snipe reaction                 the last reaction removed
+,snipe clear                    clear everything stored for this server
+,snipe reactionhistory <link>   every reaction logged for one message
+```
+
+Reading is open to everyone; `clear` and `reactionhistory` need **Manage
+Messages**. An index picks an older one, so `,snipe 3` is the third most recent.
+
+⚠️ **Discord's delete event carries an id and nothing else** — no author, no
+content, not even for a message sent seconds earlier. So a snipe is only
+possible against a cache the bot keeps itself: `onMessage` records each message
+into a bounded per-channel ring, and the delete event looks the id up there.
+Edits are the same, because `messageUpdate` delivers the new message and never
+the old one. That cache is in process and dies with the process, which is the
+honest shape of the feature: a snipe reaches back minutes, not days, and a
+deploy wipes it.
+
+Nothing here touches the database. `messageCreate` runs for every message in
+every channel, so the write is an in-memory ring bounded three ways: 60 messages
+per channel, 600 channels, and 15 snipeable entries per kind per channel, all
+evicted oldest-first.
+
+⚠️ **Anything the bot deletes itself is never snipeable.** Otherwise the word
+filter is defeated by typing `,snipe`: Trap deletes the offending message and
+then offers to print it back. `deleteMessage()` in `core/discord.ts` drops the
+id before it issues the delete, so every bot-side deletion — filters, gallery
+channels, sticky reposts, and anything added later — is covered by construction
+rather than by each caller remembering.
+
+That interlock has to survive **handler order**, which is where the first
+version failed. The config cog loads before the utility cog, so the filter
+deleted and forgot the message *before* it had been remembered, and the record
+then landed anyway. A forgotten id is now held in a suppression set that
+`remember()` checks, so the order of the two handlers stops mattering.
+
+`,filter snipe` switches the whole thing off for a server, and clears whatever
+is already stored when you do. `,filter snipe #channel off` keeps one channel
+snipeable.
 
 ## Configuration
 

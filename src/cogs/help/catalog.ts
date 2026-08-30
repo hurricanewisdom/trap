@@ -128,6 +128,12 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "What the bot posts when somebody boosts",
   },
   {
+    slug: "snipe",
+    label: "Snipe",
+    emoji: "",
+    blurb: "What was deleted, edited or unreacted in a channel",
+  },
+  {
     slug: "prefix",
     label: "Prefix",
     emoji: "",
@@ -265,6 +271,22 @@ export const DOCS: CommandDoc[] = [
       { name: "remove", usage: ",goodbye remove <channel>", summary: "Stop a channel posting", permission: "Manage Server" },
       { name: "list", usage: ",goodbye list", summary: "Every channel with a goodbye message", permission: "Manage Server" },
       { name: "variables", usage: ",goodbye variables", summary: "Every variable a message can use", permission: "Manage Server" },
+    ],
+  },
+  {
+    name: "snipe",
+    category: "snipe",
+    usage: ",snipe [index]",
+    summary: "Show the last message deleted here",
+    details:
+      "Deleted and edited messages are recovered from an in-process cache of recent messages, because Discord's delete event carries only an id, never the content. That cache is per channel, bounded, and lost on restart, so a snipe reaches back minutes rather than days. An index picks an older one: ,snipe 3 is the third most recent. Anything the bot deleted itself is never snipeable, so a filtered word cannot be recovered with ,snipe. A server manager can switch the whole thing off with ,filter snipe. Alias: ,s.",
+    examples: [",snipe", ",snipe 3", ",snipe edit", ",snipe reaction"],
+    guildOnly: true,
+    subcommands: [
+      { name: "edit", usage: ",snipe edit [index]", summary: "Show the last message edited here, before and after" },
+      { name: "reaction", usage: ",snipe reaction", summary: "Show the last reaction removed here" },
+      { name: "clear", usage: ",snipe clear", summary: "Clear every stored snipe in this server", permission: "Manage Messages" },
+      { name: "reactionhistory", usage: ",snipe reactionhistory <link>", summary: "Every reaction logged for one message", permission: "Manage Messages" },
     ],
   },
   {

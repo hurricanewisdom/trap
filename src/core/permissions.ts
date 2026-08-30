@@ -6,6 +6,8 @@ export const MANAGE_GUILD = "Manage Server";
 
 export const MANAGE_CHANNELS = "Manage Channels";
 
+export const MANAGE_MESSAGES = "Manage Messages";
+
 export function notice(body: string): ReplyPayload {
   return {
     flags: IS_COMPONENTS_V2,
@@ -55,6 +57,26 @@ export async function requireManageChannels(
     notice(
       `### Missing permission\nYou need the **${MANAGE_CHANNELS}** permission to ${action}.` +
         `\n-# Ask a server administrator, or someone who has it.`,
+    ),
+  );
+  return null;
+}
+
+export async function requireManageMessages(
+  ctx: PrefixContext,
+  action: string,
+): Promise<string | null> {
+  const guildId = await requireGuild(ctx, action);
+  if (!guildId) return null;
+
+  if (await hasPermission(guildId, ctx.authorId, PERMISSION.manageMessages)) return guildId;
+
+  await ctx.reply(
+    notice(
+      `### Missing permission
+You need the **${MANAGE_MESSAGES}** permission to ${action}.` +
+        `
+-# Ask a server administrator, or someone who has it.`,
     ),
   );
   return null;

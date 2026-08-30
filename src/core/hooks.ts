@@ -49,6 +49,58 @@ export async function emitMessage(event: MessageEvent): Promise<void> {
   }
 }
 
+export interface DeletedMessageEvent {
+  guildId: string;
+  channelId: string;
+  messageId: string;
+}
+
+export interface EditedMessageEvent {
+  guildId: string;
+  channelId: string;
+  messageId: string;
+  authorId: string;
+  content: string;
+}
+
+export type DeletedMessageHandler = (event: DeletedMessageEvent) => Promise<void>;
+
+export type EditedMessageHandler = (event: EditedMessageEvent) => Promise<void>;
+
+const deletions: DeletedMessageHandler[] = [];
+
+const edits: EditedMessageHandler[] = [];
+
+export function onMessageDelete(handler: DeletedMessageHandler): void {
+  deletions.push(handler);
+}
+
+export function onMessageEdit(handler: EditedMessageHandler): void {
+  edits.push(handler);
+}
+
+export async function emitMessageDelete(event: DeletedMessageEvent): Promise<void> {
+  if (!event.guildId || !event.messageId) return;
+  for (const handler of deletions) {
+    try {
+      await handler(event);
+    } catch (err) {
+      console.error("delete handler failed:", err);
+    }
+  }
+}
+
+export async function emitMessageEdit(event: EditedMessageEvent): Promise<void> {
+  if (!event.guildId || !event.messageId) return;
+  for (const handler of edits) {
+    try {
+      await handler(event);
+    } catch (err) {
+      console.error("edit handler failed:", err);
+    }
+  }
+}
+
 export interface MemberEvent {
   guildId: string;
   userId: string;
