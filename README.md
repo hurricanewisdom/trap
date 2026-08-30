@@ -234,7 +234,7 @@ one map lookup per message.
 ,pagination update <link> 2 {title: Rewrite}  rewrite one
 ,pagination remove <link> 2                   delete one
 ,pagination list                              every pagination here
-,pagination restorereactions <link>           put the buttons back
+,pagination restorebuttons <link>             put the buttons back
 ,pagination delete <link>                     stop paginating that message
 ,pagination reset                             clear them all
 ```

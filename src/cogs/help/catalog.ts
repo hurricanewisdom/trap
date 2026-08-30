@@ -331,7 +331,7 @@ export const DOCS: CommandDoc[] = [
       { name: "update", usage: ",pagination update <link> <id> <code>", summary: "Rewrite one page", permission: "Manage Messages" },
       { name: "remove", usage: ",pagination remove <link> <id>", summary: "Delete one page", permission: "Manage Messages" },
       { name: "list", usage: ",pagination list", summary: "Every pagination in this server", permission: "Manage Messages" },
-      { name: "restorereactions", usage: ",pagination restorereactions <link>", summary: "Put the buttons back", permission: "Manage Messages" },
+      { name: "restorebuttons", usage: ",pagination restorebuttons <link>", summary: "Put the buttons back", permission: "Manage Messages" },
       { name: "delete", usage: ",pagination delete <link>", summary: "Stop paginating a message", permission: "Manage Messages" },
       { name: "reset", usage: ",pagination reset", summary: "Clear every pagination in this server", permission: "Administrator" },
     ],

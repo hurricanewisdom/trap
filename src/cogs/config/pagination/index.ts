@@ -161,7 +161,7 @@ async function overview(ctx: PrefixContext): Promise<void> {
       "`pagination update <link> <id> <code>` rewrites one",
       "`pagination remove <link> <id>` deletes one",
       "`pagination list` shows them all",
-      "`pagination restorereactions <link>` puts the buttons back",
+      "`pagination restorebuttons <link>` puts the buttons back",
       "`pagination delete <link>` stops paginating that message",
       "`pagination reset` clears every one, Administrator only",
       "",
@@ -373,7 +373,7 @@ async function restore(ctx: PrefixContext): Promise<void> {
 
   const spot = target(ctx.argument, guildId);
   if (!spot) {
-    await card(ctx, needLink("pagination restorereactions <link>"));
+    await card(ctx, needLink("pagination restorebuttons <link>"));
     return;
   }
   if (!(await held(ctx, guildId, spot))) return;
@@ -467,7 +467,7 @@ export function registerPagination(): void {
     register({ name: "remove", aliases: ["rm"], description: "Delete one page", handler: remove });
     register({ name: "list", aliases: ["all"], description: "Every pagination in this server", handler: list });
     register({
-      name: "restorereactions",
+      name: "restorebuttons",
       aliases: ["restore", "buttons"],
       description: "Put the buttons back on a pagination",
       handler: restore,
