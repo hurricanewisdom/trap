@@ -1,8 +1,3 @@
-/**
- * Lookups: what Last.fm knows about an artist, album or track, and the
- * artwork that goes with them.
- */
-
 import { paginate } from "../../../core/pager.js";
 import { register, type PrefixContext } from "../../../core/prefix.js";
 import { guard } from "../guard.js";
@@ -11,12 +6,11 @@ import {
   getArtistInfo,
   getArtistTags,
   getArtistTop,
-  getRecentTracks,
   getTrackInfo,
   largestImage,
 } from "../api/index.js";
 import {
-  EMBED_COLOR,
+  USER_ACCENT,
   TargetError,
   artistUrl,
   buildPages,
@@ -30,13 +24,13 @@ import {
   currentArtist,
   currentPair,
 } from "../shared.js";
+import { accented } from "../../../helpers/components.js";
 
 const IS_COMPONENTS_V2 = 1 << 15;
 
 const trackUrl = (artist: string, track: string) =>
   `${artistUrl(artist)}/_/${encodeURIComponent(track)}`;
 
-/** Strips the "Read more on Last.fm" tail and the markup Last.fm embeds. */
 function cleanBio(raw: string | undefined): string {
   if (!raw) return "";
   return raw
@@ -45,8 +39,6 @@ function cleanBio(raw: string | undefined): string {
     .replace(/\s*Read more on Last\.fm.*$/is, "")
     .trim();
 }
-
-/* ------------------------------------------------------------------ */
 
 async function artistInfo(ctx: PrefixContext): Promise<void> {
   const name = ctx.argument.trim() || (await currentArtist(ctx));
@@ -67,7 +59,7 @@ async function artistInfo(ctx: PrefixContext): Promise<void> {
     ...(bio ? ["", bio.slice(0, 600)] : []),
   ].join("\n");
 
-  await paginate(ctx, simpleCard(`${info.name}`, rows, largestImage(info.image)), EMBED_COLOR);
+  await paginate(ctx, simpleCard(`${info.name}`, rows, largestImage(info.image)), USER_ACCENT);
 }
 
 async function bio(ctx: PrefixContext): Promise<void> {
@@ -83,7 +75,7 @@ async function bio(ctx: PrefixContext): Promise<void> {
       text ? text.slice(0, 1500) : "Last.fm has no biography for this artist.",
       largestImage(info.image),
     ),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
@@ -105,7 +97,7 @@ async function albumInfo(ctx: PrefixContext): Promise<void> {
     ...(tracks.length ? ["", `**Tracks** ${tracks.length}`] : []),
   ].join("\n");
 
-  await paginate(ctx, simpleCard(info.name, rows, largestImage(info.image)), EMBED_COLOR);
+  await paginate(ctx, simpleCard(info.name, rows, largestImage(info.image)), USER_ACCENT);
 }
 
 async function trackInfo(ctx: PrefixContext): Promise<void> {
@@ -127,10 +119,9 @@ async function trackInfo(ctx: PrefixContext): Promise<void> {
     ...(length ? [`**Length** ${length}`] : []),
   ].join("\n");
 
-  await paginate(ctx, simpleCard(track, rows, largestImage(info.album?.image)), EMBED_COLOR);
+  await paginate(ctx, simpleCard(track, rows, largestImage(info.album?.image)), USER_ACCENT);
 }
 
-/** The album art on its own, as large as Last.fm serves it. */
 async function cover(ctx: PrefixContext): Promise<void> {
   const pair = splitPair(ctx.argument) ?? (await currentPair(ctx, "album"));
   const [artist, album] = pair;
@@ -141,28 +132,25 @@ async function cover(ctx: PrefixContext): Promise<void> {
     await paginate(
       ctx,
       simpleCard("No artwork", `Last.fm has no cover for **${label(album)}** by **${label(artist)}**.`),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
 
-  // A media gallery renders the art far larger than a thumbnail would.
   await ctx.reply({
     flags: IS_COMPONENTS_V2,
     components: [
-      {
+      accented({
         type: 17,
-        accent_color: EMBED_COLOR,
         components: [
           { type: 10, content: `### ${label(album)}\nby ${label(artist)}` },
           { type: 12, items: [{ media: { url: art }, description: `${album} by ${artist}` }] },
         ],
-      },
+      }),
     ],
   });
 }
 
-/** An artist's globally biggest tracks or albums, not yours. */
 function artistTop(kind: "tracks" | "albums") {
   return async (ctx: PrefixContext): Promise<void> => {
     const name = ctx.argument.trim() || (await currentArtist(ctx));
@@ -170,7 +158,7 @@ function artistTop(kind: "tracks" | "albums") {
     const heading = `${name}'s biggest ${kind}`;
 
     if (found.length === 0) {
-      await paginate(ctx, simpleCard(heading, `Last.fm has no ${kind} for **${label(name)}**.`), EMBED_COLOR);
+      await paginate(ctx, simpleCard(heading, `Last.fm has no ${kind} for **${label(name)}**.`), USER_ACCENT);
       return;
     }
 
@@ -185,7 +173,7 @@ function artistTop(kind: "tracks" | "albums") {
     await paginate(
       ctx,
       buildPages(rows, { heading, username: name, noun: kind, total: found.length }),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
   };
 }
@@ -196,7 +184,7 @@ async function artistTags(ctx: PrefixContext): Promise<void> {
   const heading = `${name} by tag`;
 
   if (found.length === 0) {
-    await paginate(ctx, simpleCard(heading, `No tags on **${label(name)}**.`), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, `No tags on **${label(name)}**.`), USER_ACCENT);
     return;
   }
 
@@ -209,7 +197,7 @@ async function artistTags(ctx: PrefixContext): Promise<void> {
   await paginate(
     ctx,
     buildPages(rows, { heading, username: name, noun: "tags", total: found.length }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 

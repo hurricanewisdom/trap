@@ -1,15 +1,3 @@
-/**
- * The iTunes Search API.
- *
- * Needs no key and no account, which makes it the dependable fallback: where
- * Last.fm has nothing (artwork for anything but an album, and audio of any
- * kind), iTunes still answers.
- *
- * It is, in exchange, undocumented about its limits — roughly twenty calls a
- * minute before it starts refusing — so every lookup here is cached and
- * callers are expected to keep concurrency low.
- */
-
 import { cacheKey, cached } from "../../helpers/cache.js";
 import { HttpError, TimeoutError, getJson } from "../../helpers/http.js";
 
@@ -18,7 +6,6 @@ const TIMEOUT_MS = 8000;
 const SEARCH_TTL = 24 * 60 * 60;
 const ART_TTL = 7 * 24 * 60 * 60;
 
-/** What iTunes calls the kind of thing being searched for. */
 export type ITunesEntity = "song" | "album" | "musicArtist";
 
 export interface ITunesResult {
@@ -42,7 +29,6 @@ export class ITunesError extends Error {
   }
 }
 
-/** Searches the catalogue, cached by term. */
 export async function search(
   term: string,
   entity: ITunesEntity,
@@ -77,30 +63,15 @@ export async function search(
   return results ?? [];
 }
 
-/**
- * Rewrites an artwork URL to a different size.
- *
- * iTunes returns a 100px thumbnail, but the dimensions are just a path
- * segment, so any size can be asked for and the CDN serves it.
- */
 export function artwork(raw: string | undefined, size = 600): string | null {
   if (!raw) return null;
   return raw.replace(/\/\d+x\d+bb\.(jpg|png)$/i, `/${size}x${size}bb.$1`);
 }
 
-/** For comparing names that differ only in case or punctuation. */
 function normalise(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-/**
- * Cover art for a search term.
- *
- * `expectArtist` guards against a real hazard: searching for "Snoop Dogg"
- * returns an album by somebody else that merely features him, and using it
- * would put the wrong face on his tile. When set, only rows whose artist
- * matches are considered.
- */
 export async function lookupArtwork(
   term: string,
   entity: Exclude<ITunesEntity, "musicArtist">,

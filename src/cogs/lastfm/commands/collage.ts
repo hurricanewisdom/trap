@@ -1,12 +1,3 @@
-/**
- * `,collage` builds a grid of album art as a real image.
- *
- * Every tile is a network fetch and a decode, so the grid size, the number of
- * requests in flight and the bytes accepted per image are all bounded. A cover
- * that is missing, too large or undecodable becomes a captioned placeholder
- * rather than failing the whole grid.
- */
-
 import sharp, { type OverlayOptions } from "sharp";
 import { paginate } from "../../../core/pager.js";
 import { register, type PrefixContext } from "../../../core/prefix.js";
@@ -14,7 +5,7 @@ import { guard } from "../guard.js";
 import { getTopAlbums, getTopArtists, getTopTracks, largestImage } from "../api/index.js";
 import { albumImage, artistImage, realLastfmArt, trackImage } from "../../../integrations/artwork.js";
 import {
-  EMBED_COLOR,
+  USER_ACCENT,
   TargetError,
   avatarOf,
   extractPeriod,
@@ -25,12 +16,11 @@ import {
   simpleCard,
 } from "../shared.js";
 
-/** Last.fm serves 300px covers, so that is the natural tile size. */
 const TILE = 300;
 const MAX_SIDE = 5;
 const CONCURRENCY = 6;
 const FETCH_TIMEOUT_MS = 8000;
-/** A cover larger than this is skipped rather than decoded. */
+
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 
 const BACKGROUND = { r: 24, g: 24, b: 28 };
@@ -38,21 +28,13 @@ const BACKGROUND = { r: 24, g: 24, b: 28 };
 type Mode = "albums" | "tracks" | "artists";
 
 interface Cell {
-  /** The bold line: album, track or artist name. */
   title: string;
-  /** The second line, empty for an artist grid. */
   subtitle: string;
   plays: number;
   art: string | null;
-  /** Looks the missing art up, whichever service can answer. */
   findArt: () => Promise<string | null>;
 }
 
-/**
- * Last.fm's own art, unless it is the shared placeholder it returns for every
- * artist and every top track. Anything null here is filled in from iTunes by
- * `fillArtwork`.
- */
 function realArt(images: Parameters<typeof largestImage>[0]): string | null {
   return realLastfmArt(largestImage(images));
 }
@@ -68,7 +50,6 @@ const MODE_WORDS: Record<string, Mode> = {
   artists: "artists",
 };
 
-/** Pulls a mode word out of the argument, defaulting to albums. */
 function parseMode(argument: string): { mode: Mode; rest: string } {
   const words = argument.split(/\s+/).filter(Boolean);
   const index = words.findIndex((w) => MODE_WORDS[w.toLowerCase()] !== undefined);
@@ -79,7 +60,6 @@ function parseMode(argument: string): { mode: Mode; rest: string } {
   };
 }
 
-/** "4x4", "4", or nothing. Returns the side length. */
 function parseSize(argument: string): { side: number; rest: string } {
   const words = argument.split(/\s+/).filter(Boolean);
   const index = words.findIndex((w) => /^\d(?:\s*[x×]\s*\d)?$/i.test(w) || /^\dx\d$/i.test(w));
@@ -103,15 +83,8 @@ function xmlEscape(value: string): string {
     .replace(/'/g, "&apos;");
 }
 
-/** Text usable width inside a tile, once the left and right margins are taken. */
 const TEXT_WIDTH = TILE - 24;
 
-/**
- * Average glyph advance as a fraction of the font size, for DejaVu Sans.
- * Counting characters is not enough: "Echoes - The Best Of Pink Floyd" and
- * "IIIIIIIIIIIIIIIIIIIIIIIIIIIIII" are the same length and nothing like the
- * same width, and the wide one used to run off the edge of the tile.
- */
 const BOLD_ADVANCE = 0.62;
 const REGULAR_ADVANCE = 0.54;
 
@@ -119,10 +92,6 @@ function widthOf(text: string, size: number, advance: number): number {
   return text.length * size * advance;
 }
 
-/**
- * Shrinks the font until the line fits, then truncates if it still does not.
- * Returns the text to draw and the size to draw it at.
- */
 function fit(
   text: string,
   base: number,
@@ -136,7 +105,6 @@ function fit(
   return { text: text.length > budget ? `${text.slice(0, budget)}…` : text, size: min };
 }
 
-/** The caption bar drawn along the bottom of a tile. */
 function captionSvg(album: string, artist: string): Buffer {
   const title = fit(album, 20, 13, BOLD_ADVANCE);
   const by = fit(artist, 16, 11, REGULAR_ADVANCE);
@@ -164,7 +132,6 @@ function captionSvg(album: string, artist: string): Buffer {
   );
 }
 
-/** A tile for a cover that could not be used. */
 async function placeholder(cell: Cell, captions: boolean): Promise<Buffer> {
   const base = sharp({
     create: { width: TILE, height: TILE, channels: 3, background: BACKGROUND },
@@ -180,7 +147,6 @@ async function placeholder(cell: Cell, captions: boolean): Promise<Buffer> {
   return await base.composite(layers).png().toBuffer();
 }
 
-/** Fetches and normalises one cover into a TILE-sized image. */
 async function tileFor(cell: Cell, captions: boolean): Promise<Buffer> {
   if (!cell.art) return await placeholder(cell, captions);
 
@@ -197,7 +163,6 @@ async function tileFor(cell: Cell, captions: boolean): Promise<Buffer> {
     const buffer = Buffer.from(await res.arrayBuffer());
     if (buffer.length > MAX_IMAGE_BYTES) return await placeholder(cell, captions);
 
-    // animated: false takes the first frame; some covers are animated gifs.
     const cover = sharp(buffer, { animated: false }).resize(TILE, TILE, { fit: "cover" });
     if (!captions) return await cover.png().toBuffer();
 
@@ -211,7 +176,6 @@ async function tileFor(cell: Cell, captions: boolean): Promise<Buffer> {
   }
 }
 
-/** Runs a job over items with a bounded number in flight. */
 async function mapLimited<T, R>(items: T[], limit: number, job: (item: T) => Promise<R>): Promise<R[]> {
   const out = new Array<R>(items.length);
   let cursor = 0;
@@ -229,7 +193,6 @@ async function mapLimited<T, R>(items: T[], limit: number, job: (item: T) => Pro
   return out;
 }
 
-/** Turns one period of a user's top X into cells, whatever X is. */
 async function cellsFor(
   username: string,
   mode: Mode,
@@ -255,8 +218,6 @@ async function cellsFor(
     const { items, total } = await getTopArtists(username, period, wanted);
     const cells = items.slice(0, wanted).map<Cell>((artist) => ({
       title: artist.name,
-      // An artist grid has nothing useful for a second line, so it carries the
-      // play count instead of an empty gap.
       subtitle: `${Number(artist.playcount ?? 0).toLocaleString("en-US")} plays`,
       plays: Number(artist.playcount ?? 0),
       art: realArt(artist.image),
@@ -279,13 +240,6 @@ async function cellsFor(
   return { cells, total, noun: "album" };
 }
 
-/**
- * Fills in art Last.fm does not have.
- *
- * Kept to a low concurrency because iTunes throttles at around twenty calls a
- * minute and a 5x5 artist grid needs twenty-five lookups. Every answer is
- * cached, so the same grid costs nothing the second time.
- */
 const LOOKUP_CONCURRENCY = 3;
 
 async function fillArtwork(cells: Cell[]): Promise<void> {
@@ -312,7 +266,7 @@ async function collage(ctx: PrefixContext): Promise<void> {
   const heading = `${target.username}'s ${periodLabel(period)} ${noun}s`;
 
   if (cells.length === 0) {
-    await paginate(ctx, simpleCard(heading, `No ${noun}s for that period.`, icon), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, `No ${noun}s for that period.`, icon), USER_ACCENT);
     return;
   }
 
@@ -340,7 +294,7 @@ async function collage(ctx: PrefixContext): Promise<void> {
     files: [
       {
         name: `collage-${target.username}-${mode}-${side}x${side}.jpg`,
-        blob: new Blob([image], { type: "image/jpeg" }),
+        blob: new Blob([new Uint8Array(image)], { type: "image/jpeg" }),
       },
     ],
   });

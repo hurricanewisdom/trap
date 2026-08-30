@@ -1,14 +1,4 @@
-/**
- * Components V2 primitives.
- *
- * discordeno v21 predates Components V2, so its `MessageComponentTypes` stops
- * at select menus and it has no types for Container/Section/Separator. The
- * REST layer posts the interaction body untransformed, so these
- * Discord-shaped (snake_case) objects go over the wire as-is.
- *
- * Values mirror the official reference:
- * https://discord.com/developers/docs/components/reference
- */
+import { resolveAccent } from "../core/accent.js";
 
 export const ComponentType = {
   ActionRow: 1,
@@ -42,8 +32,7 @@ export const SeparatorSpacing = {
   Large: 2,
 } as const;
 
-/** Any message using V2 components must set this flag, and may not send `content` or `embeds`. */
-export const IS_COMPONENTS_V2 = 1 << 15; // 32768
+export const IS_COMPONENTS_V2 = 1 << 15;
 
 export interface UnfurledMedia {
   url: string;
@@ -103,20 +92,17 @@ export interface ActionRow {
 
 export interface Section {
   type: typeof ComponentType.Section;
-  /** One to three text displays. */
   components: TextDisplay[];
   accessory: Thumbnail | Button;
 }
 
 export interface MediaGallery {
   type: typeof ComponentType.MediaGallery;
-  /** One to ten items. */
   items: { media: UnfurledMedia; description?: string; spoiler?: boolean }[];
 }
 
 export interface FileComponent {
   type: typeof ComponentType.File;
-  /** Only supports `attachment://<filename>` references. */
   file: UnfurledMedia;
   spoiler?: boolean;
 }
@@ -138,16 +124,11 @@ export type ContainerChild =
 export interface Container {
   type: typeof ComponentType.Container;
   components: ContainerChild[];
-  /** RGB accent stripe, 0x000000–0xFFFFFF. */
   accent_color?: number | null;
   spoiler?: boolean;
 }
 
 export type TopLevelComponent = Container | ContainerChild;
-
-/* ------------------------------------------------------------------ */
-/* Builders — thin, typed wrappers so call sites stay readable.        */
-/* ------------------------------------------------------------------ */
 
 export const text = (content: string): TextDisplay => ({
   type: ComponentType.TextDisplay,
@@ -194,11 +175,12 @@ export const row = (...components: (Button | SelectMenu)[]): ActionRow => ({
   components,
 });
 
+export function accented<T extends object>(node: T, accent: number | null = null): T {
+  const accentColor = resolveAccent(accent);
+  return accentColor === null ? node : { ...node, accent_color: accentColor };
+}
+
 export const container = (
-  accentColor: number | null,
+  accent: number | null,
   ...components: ContainerChild[]
-): Container => ({
-  type: ComponentType.Container,
-  accent_color: accentColor,
-  components,
-});
+): Container => accented<Container>({ type: ComponentType.Container, components }, accent);

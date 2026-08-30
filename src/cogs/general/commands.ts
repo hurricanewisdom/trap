@@ -1,7 +1,3 @@
-/**
- * The always-available commands: ping and botinfo.
- */
-
 import os from "node:os";
 import process from "node:process";
 import { IS_COMPONENTS_V2, container, separator, text } from "../../helpers/components.js";
@@ -17,7 +13,7 @@ import {
   type SystemInfo,
 } from "../../helpers/sysinfo.js";
 
-const ACCENT = 0x2b2d31;
+const ACCENT: number | null = null;
 
 export interface GeneralEnv {
   botVersion: string;
@@ -27,7 +23,6 @@ export interface GeneralEnv {
   prefix: string;
 }
 
-/** Two columns of `label value`, so the panel reads across as well as down. */
 function pair(label: string, value: string, width = 9): string {
   return `${label.padEnd(width)}${value}`;
 }
@@ -38,17 +33,8 @@ function row(left: string, right: string, gap = 26): string {
 
 const RULE = "─".repeat(46);
 
-/** Kept as a constant so no string in this file has to escape a backtick. */
 const FENCE = "``" + "`";
 
-/**
- * The statistics panel.
- *
- * A fenced block, because proportional text will not hold columns in line and
- * the bars would stagger. Deliberately plain rather than coloured: the rest of
- * the bot's copy is monochrome, and an ANSI block renders as unstyled text in
- * clients that do not support it.
- */
 function panel(
   system: SystemInfo,
   source: { files: number; lines: number },
@@ -88,7 +74,6 @@ function panel(
     row(pair("lines", source.lines.toLocaleString("en-US")), pair("platform", `${os.type()} ${os.arch()}`)),
   );
 
-  // Two to a line, so the block never runs wider than the rule above it.
   if (deps.length > 0) {
     lines.push(RULE);
     for (let i = 0; i < deps.length; i += 2) {
@@ -113,7 +98,7 @@ export function registerGeneral(env: GeneralEnv): void {
     handler: async (ctx: PrefixContext) => {
       await ctx.reply({
         flags: IS_COMPONENTS_V2,
-        components: [container(ACCENT, text(`### Pong\n\`${env.latency()}\` gateway latency`))],
+        components: [container(ACCENT, text(env.latency()))],
       });
     },
   });

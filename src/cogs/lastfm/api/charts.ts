@@ -1,7 +1,3 @@
-/**
- * The "top" charts over a period, and the stats for a single artist or album.
- */
-
 import { call } from "./client.js";
 import type { RecentTrack } from "./users.js";
 
@@ -14,10 +10,8 @@ import type {
   TopTrack,
 } from "../types.js";
 
-/** Last.fm's period values, used by every "top" chart. */
 export type Period = "overall" | "7day" | "1month" | "3month" | "6month" | "12month";
 
-/** Normalises the `@attr` block that carries paging totals. */
 function totals(attr: { total?: string; totalPages?: string } | undefined): {
   total: number;
   pages: number;
@@ -28,7 +22,6 @@ function totals(attr: { total?: string; totalPages?: string } | undefined): {
   };
 }
 
-/** Last.fm collapses a single-element list into a bare object. */
 function list<T>(value: T | T[] | undefined): T[] {
   return Array.isArray(value) ? value : value ? [value] : [];
 }
@@ -88,7 +81,6 @@ export async function getLovedTracks(
   };
 }
 
-/** A page of scrobbles. Used by `recent` and by the milestone lookup. */
 export async function getRecentPage(
   user: string,
   page: number,

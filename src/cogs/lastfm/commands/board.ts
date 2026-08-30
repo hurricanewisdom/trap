@@ -1,14 +1,3 @@
-/**
- * Reaction scoreboards.
- *
- * Every `,np` card is posted with up and down reactions, so the gateway can
- * turn those into votes: `recordNpPost` remembers which post belongs to whom,
- * and `recordVote` / `removeVote` keep one row per (post, reactor). The two
- * commands here are just tallies over that pair of tables: `,scoreboard` for
- * the current guild and `,globalboard` across every guild, keyed by Last.fm
- * name so one person's score follows them between servers.
- */
-
 import process from "node:process";
 import { sql } from "../../../core/db.js";
 import { displayName } from "../../../core/discord.js";
@@ -16,7 +5,7 @@ import { paginate } from "../../../core/pager.js";
 import { register, type PrefixContext } from "../../../core/prefix.js";
 import { guard } from "../guard.js";
 import {
-  EMBED_COLOR,
+  USER_ACCENT,
   buildPages,
   label,
   plural,
@@ -24,35 +13,15 @@ import {
   url,
 } from "../shared.js";
 
-/**
- * Rows past this are dropped rather than rendered. The guild board resolves a
- * display name per row over the Discord API, so an unbounded board would mean
- * an unbounded fan-out; the footer says when the list was cut.
- */
 const MAX_ROWS = 100;
 
-/** In-flight display-name lookups. Small: these are REST calls, not queries. */
 const NAME_CONCURRENCY = 5;
 
 const UP = "up";
 const DOWN = "down";
 
-/** Ids arrive as strings from the prefix layer and as bigints from the gateway. */
 type Id = string | bigint;
 
-/**
- * The bot's own user id.
- *
- * `,np` seeds every card with both reactions, and Discord dispatches the bot's
- * own reactions as ordinary MESSAGE_REACTION_ADD events. Without this the bot
- * votes on every post it makes: two inserts under the same (message, reactor)
- * key, so the downvote overwrites the upvote and every card carries a phantom
- * -1. The author is not voting on themselves, but nobody cast that vote either.
- *
- * The id is the first token segment base64-decoded, which is how the gateway
- * library derives it too. Resolved lazily and only cached once it parses, so
- * import order relative to the environment cannot pin it to an empty string.
- */
 let cachedSelfId = "";
 function selfId(): string {
   if (cachedSelfId) return cachedSelfId;
@@ -67,33 +36,20 @@ function selfId(): string {
   return cachedSelfId;
 }
 
-/** One tallied row, before it is turned into a line. */
 interface Tally {
   up: number;
   down: number;
   net: number;
 }
 
-/* ------------------------------------------------------------------ */
-/* Event-side helpers                                                  */
-/* ------------------------------------------------------------------ */
-
-/**
- * These three run from gateway events, where there is no command context to
- * report into and a rejection would surface as an unhandled promise. They
- * swallow everything and never throw.
- */
-
 const asId = (value: Id): string => String(value);
 
-/** Remembers a now-playing post so its reactions can be counted. */
 export async function recordNpPost(
   messageId: Id,
   guildId: Id | null | undefined,
   discordId: Id,
 ): Promise<void> {
   try {
-    // DM posts have nobody to compete with, so they are not tracked.
     if (guildId === null || guildId === undefined) return;
     const message = asId(messageId);
     const guild = asId(guildId);
@@ -110,30 +66,14 @@ export async function recordNpPost(
   }
 }
 
-/**
- * Casts one vote, replacing that reactor's previous one.
- *
- * The insert selects from lastfm_np_posts rather than checking first: an
- * untracked message (anything the bot did not post as `,np`) matches no row, so
- * nothing is inserted and the foreign key is never violated, and the same WHERE
- * drops a self-vote in the one round trip.
- *
- * The select-list values are cast explicitly because a parameter in an
- * `INSERT ... SELECT` target list has no column to take its type from.
- * Postgres would reject the statement with "could not determine data type".
- */
 export async function recordVote(messageId: Id, reactorId: Id, vote: number): Promise<void> {
   try {
     const message = asId(messageId);
     const reactor = asId(reactorId);
     if (!message || !reactor) return;
 
-    // The bot's own seeded reactions are not votes. removeVote deliberately
-    // has no such guard, so a bot reaction that predates this check can still
-    // be cleared by taking the reaction off.
     if (reactor === selfId()) return;
 
-    // Anything that is not a clear up or down is not a vote.
     const value = vote > 0 ? 1 : vote < 0 ? -1 : 0;
     if (value === 0) return;
 
@@ -151,7 +91,6 @@ export async function recordVote(messageId: Id, reactorId: Id, vote: number): Pr
   }
 }
 
-/** Withdraws a vote, for when the reaction is removed again. */
 export async function removeVote(messageId: Id, reactorId: Id): Promise<void> {
   try {
     const message = asId(messageId);
@@ -167,14 +106,6 @@ export async function removeVote(messageId: Id, reactorId: Id): Promise<void> {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* Rendering                                                           */
-/* ------------------------------------------------------------------ */
-
-/**
- * Runs `worker` over `items` a few at a time, preserving order. A board of a
- * hundred members would otherwise open a hundred simultaneous REST calls.
- */
 async function mapLimit<T, R>(
   items: readonly T[],
   limit: number,
@@ -189,8 +120,7 @@ async function mapLimit<T, R>(
       const index = cursor++;
       if (index >= items.length) return;
       const item = items[index];
-      // A hole skips its own slot; returning here would retire the runner and
-      // leave every later row unresolved.
+
       if (item === undefined) continue;
       results[index] = await worker(item, index);
     }
@@ -200,7 +130,6 @@ async function mapLimit<T, R>(
   return results;
 }
 
-/** `1` Name: **+12** • up 14 • down 2 */
 function boardLine(rank: number, name: string, row: Tally): string {
   const sign = row.net > 0 ? "+" : "";
   const net = `${sign}${row.net.toLocaleString("en-US")}`;
@@ -211,19 +140,16 @@ function boardLine(rank: number, name: string, row: Tally): string {
   );
 }
 
-/** Counts are cast to int in SQL, but a driver surprise should not render NaN. */
 const num = (value: number | string | null | undefined): number => {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-/** `noun` is the singular; plural() handles the rest. */
 function footerFor(shown: number, capped: boolean, noun: string): string {
   const base = `${plural(shown, noun)} ranked`;
   return capped ? `${base} • capped at the top ${MAX_ROWS}` : base;
 }
 
-/** Shown when a board has no votes on it yet. */
 function emptyCard(heading: string, scope: string): unknown[][] {
   return simpleCard(
     heading,
@@ -239,10 +165,6 @@ function emptyCard(heading: string, scope: string): unknown[][] {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* ,scoreboard                                                         */
-/* ------------------------------------------------------------------ */
-
 interface GuildRow extends Tally {
   discord_id: string;
 }
@@ -254,16 +176,14 @@ async function scoreboard(ctx: PrefixContext): Promise<void> {
     await paginate(
       ctx,
       simpleCard(heading, "This board is per-server. Run it in a server, not in a DM."),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
   const guildId = ctx.guildId;
-  // Rows the bot cast before recordVote learned to refuse itself are still in
-  // the table; excluding it here keeps old data from skewing the tally.
+
   const self = selfId();
 
-  // One extra row is fetched purely to detect that the board was cut.
   const rows = await sql<GuildRow[]>`
     SELECT
       p.discord_id AS discord_id,
@@ -286,16 +206,14 @@ async function scoreboard(ctx: PrefixContext): Promise<void> {
   `;
 
   if (rows.length === 0) {
-    await paginate(ctx, emptyCard(heading, "in this server"), EMBED_COLOR);
+    await paginate(ctx, emptyCard(heading, "in this server"), USER_ACCENT);
     return;
   }
 
   const capped = rows.length > MAX_ROWS;
-  // Sliced unconditionally so this is a plain array rather than the driver's
-  // own row list, which only some of the time behaves like one.
+
   const shown: GuildRow[] = rows.slice(0, MAX_ROWS);
 
-  // Bounded fan-out: display names come from the REST API, a few at a time.
   const names = await mapLimit(shown, NAME_CONCURRENCY, (row) =>
     displayName(guildId, row.discord_id),
   );
@@ -312,20 +230,15 @@ async function scoreboard(ctx: PrefixContext): Promise<void> {
     ctx,
     buildPages(lines, {
       heading,
-      // buildPages does not render this; the board is not one person's card.
       username: "",
       icon: null,
       noun: "members",
       total: shown.length,
       footer: footerFor(shown.length, capped, "member"),
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
-
-/* ------------------------------------------------------------------ */
-/* ,globalboard                                                        */
-/* ------------------------------------------------------------------ */
 
 interface GlobalRow extends Tally {
   username: string;
@@ -338,8 +251,6 @@ async function globalboard(ctx: PrefixContext): Promise<void> {
   const heading = "Global scoreboard";
   const self = selfId();
 
-  // Grouped on the lowercased name so a re-link with different casing does not
-  // split one listener into two rows; MIN() picks a stable spelling to show.
   const rows = await sql<GlobalRow[]>`
     SELECT
       MIN(u.username) AS username,
@@ -362,7 +273,7 @@ async function globalboard(ctx: PrefixContext): Promise<void> {
   `;
 
   if (rows.length === 0) {
-    await paginate(ctx, emptyCard(heading, "anywhere"), EMBED_COLOR);
+    await paginate(ctx, emptyCard(heading, "anywhere"), USER_ACCENT);
     return;
   }
 
@@ -371,7 +282,7 @@ async function globalboard(ctx: PrefixContext): Promise<void> {
 
   const lines = shown.map((row, i) => {
     const name = row.username ?? "";
-    // An empty name would render as a literal "[](…)" rather than a link.
+
     const link = name ? `[${label(name)}](${lastfmUser(name)})` : "unknown";
     return boardLine(i + 1, link, {
       up: num(row.up),
@@ -390,7 +301,7 @@ async function globalboard(ctx: PrefixContext): Promise<void> {
       total: shown.length,
       footer: footerFor(shown.length, capped, "listener"),
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 

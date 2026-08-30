@@ -1,20 +1,6 @@
-/**
- * The methods that change something on Last.fm.
- *
- * All of these need the user's session key and must be POSTed. The session
- * key is part of the signature, so `call` signs it with everything else.
- */
-
-import { LastfmError, call } from "./client.js";
+import { call } from "./client.js";
 import type { TaggableKind } from "./tags.js";
 
-/**
- * Write methods need the user's session key and must be POSTed. The session
- * key is part of the signature, so `call` signs it along with everything else.
- *
- * Last.fm reports a dead or revoked session as error 9, which callers turn
- * into "link again" rather than a generic failure.
- */
 export const INVALID_SESSION = 9;
 
 export async function loveTrack(
@@ -33,13 +19,11 @@ export async function loveTrack(
 export interface ScrobbleResult {
   accepted: number;
   ignored: number;
-  /** Last.fm's reason when it declines a scrobble, e.g. a timestamp too old. */
   reason?: string;
   artist?: string;
   track?: string;
 }
 
-/** Records a play. The timestamp is when listening *started*, in seconds. */
 export async function scrobbleTrack(
   entry: { artist: string; track: string; album?: string; timestamp: number },
   sessionKey: string,
@@ -77,7 +61,6 @@ export async function scrobbleTrack(
   };
 }
 
-/** Marks a track as playing right now, without recording a play. */
 export async function updateNowPlaying(
   entry: { artist: string; track: string; album?: string },
   sessionKey: string,
@@ -94,20 +77,8 @@ export async function updateNowPlaying(
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Tagging                                                             */
-/* ------------------------------------------------------------------ */
-
-/** Last.fm accepts at most ten tags in one call. */
 export const MAX_TAGS_PER_CALL = 10;
 
-/**
- * Attaches tags to an artist, album or track for one listener.
- *
- * The tags are sent as a single comma-separated value, and that whole string
- * is what gets signed — splitting it into repeated parameters produces a
- * signature Last.fm rejects with the same opaque message as a wrong secret.
- */
 export async function addTags(
   kind: TaggableKind,
   params: { artist: string; album?: string; track?: string },
@@ -124,7 +95,6 @@ export async function addTags(
   );
 }
 
-/** Removes one tag. Last.fm takes exactly one per call, not a list. */
 export async function removeTag(
   kind: TaggableKind,
   params: { artist: string; album?: string; track?: string },

@@ -1,5 +1,3 @@
-/** Shapes returned by the Last.fm endpoints this bot uses. */
-
 export interface LfImage {
   "#text": string;
   size: string;

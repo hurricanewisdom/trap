@@ -1,22 +1,5 @@
-/**
- * The Last.fm cog.
- *
- * Everything Last.fm lives under this folder:
- *   api.ts        the Last.fm HTTP client and response types
- *   store.ts      account links, in Postgres with a Redis read path
- *   settings.ts   per-user and per-guild preferences
- *   shared.ts     helpers every command here uses (targets, periods, cards)
- *   guard.ts      the error wrapper every handler is wrapped in
- *   hooks.ts      reaction votes and user-defined command words
- *   listening.ts  publishes "what is playing" for other cogs to read
- *   web.ts        the OAuth callback route
- *   slash.ts      how the commands are laid out as /lastfm <group> <name>
- *   slashsetup.ts builds that tree and checks it against the registry
- *   session.ts    the caller's own credentials, for the commands that write
- *   commands/     one file per group of commands
- */
-
 import type { Cog } from "../../core/cog.js";
+import { groupUnder, inCategory } from "../../core/prefix.js";
 import { registerAccount } from "./commands/account.js";
 import { registerAlbumArt } from "./commands/albumart.js";
 import { registerBoard } from "./commands/board.js";
@@ -46,44 +29,44 @@ import { registerSettings } from "./settings.js";
 import { registerLastfmHooks } from "./hooks.js";
 import { registerListeningProvider } from "./listening.js";
 import { registerLastfmRoutes } from "./web.js";
-import { registerLastfmSlash } from "./slashsetup.js";
 
 export const lastfmCog: Cog = {
   name: "lastfm",
+  label: "LastFM",
   description: "Last.fm accounts, listening stats, server charts and customisation",
   setup(ctx) {
-    registerAccount();
-    registerNowPlaying();
-    registerCharts();
-    registerPlays();
-    registerProfile();
-    registerCompare();
-    registerWhoKnows();
-    registerCrowns();
-    registerBoard();
-    registerCustomCommands();
-    registerAlbumArt();
-    registerInsights();
-    registerDiscovery();
-    registerInfo();
-    registerWeekly();
-    registerSocial();
-    registerPersonal();
-    registerScrobbling();
-    registerCardEditor();
-    registerItunes();
-    registerCollage();
-    registerSearch();
-    registerTagBrowser();
-    registerTagging();
-    registerFriends();
-    registerSettings();
+    inCategory("account", registerAccount);
+    inCategory("nowplaying", registerNowPlaying);
+
+    groupUnder("lastfm", () => {
+      inCategory("charts", registerCharts);
+      inCategory("plays", registerPlays);
+      inCategory("profile", registerProfile);
+      inCategory("compare", registerCompare);
+      inCategory("server", registerWhoKnows);
+      inCategory("server", registerCrowns);
+      inCategory("server", registerBoard);
+      inCategory("customize", registerCustomCommands);
+      inCategory("artwork", registerAlbumArt);
+      inCategory("insights", registerInsights);
+      inCategory("discovery", registerDiscovery);
+      inCategory("info", registerInfo);
+      inCategory("weekly", registerWeekly);
+      inCategory("social", registerSocial);
+      inCategory("library", registerPersonal);
+      inCategory("scrobbling", registerScrobbling);
+      inCategory("customize", registerCardEditor);
+      inCategory("search", registerItunes);
+      inCategory("artwork", registerCollage);
+      inCategory("search", registerSearch);
+      inCategory("tags", registerTagBrowser);
+      inCategory("tags", registerTagging);
+      inCategory("social", registerFriends);
+      inCategory("customize", registerSettings);
+    });
 
     registerLastfmHooks();
     registerListeningProvider();
     registerLastfmRoutes(ctx.web);
-
-    // Last, so every command above is in the registry when the tree is built.
-    registerLastfmSlash();
   },
 };

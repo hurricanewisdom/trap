@@ -1,12 +1,3 @@
-/**
- * Writing back to Last.fm: loving tracks and scrobbling from Discord.
- *
- * These are the only commands that use the stored session key, and they act
- * solely on the account of whoever ran them. A mention or a `user:` token is
- * deliberately not honoured here: naming someone else must never write to
- * their account.
- */
-
 import { redis } from "../../../core/redis.js";
 import { paginate } from "../../../core/pager.js";
 import { register, type PrefixContext } from "../../../core/prefix.js";
@@ -18,27 +9,21 @@ import {
   updateNowPlaying,
 } from "../api/index.js";
 import {
-  EMBED_COLOR,
+  USER_ACCENT,
   TargetError,
-  artistUrl,
   label,
   plain,
   simpleCard,
   PAIR_SEPARATOR,
-  splitPair,
   trackUrl,
-  url,
 } from "../shared.js";
 import { explain, ownAccount } from "../session.js";
 
-/** Scrobbles allowed per user per minute, so the bot cannot be used to flood. */
 const SCROBBLE_LIMIT = 10;
 const SCROBBLE_WINDOW = 60;
 
-/** Last.fm rejects plays dated more than two weeks back or in the future. */
 const MAX_BACKDATE_SECONDS = 14 * 24 * 60 * 60;
 
-/** "artist - track", or whatever the caller is playing right now. */
 async function subject(
   ctx: PrefixContext,
   username: string,
@@ -66,8 +51,6 @@ function card(heading: string, body: string) {
   return simpleCard(heading, body);
 }
 
-/* ------------------------------------------------------------------ */
-
 function loveCommand(loved: boolean) {
   return async (ctx: PrefixContext): Promise<void> => {
     const account = await ownAccount(ctx);
@@ -86,23 +69,19 @@ function loveCommand(loved: boolean) {
       `-# ${loved ? "Loved" : "Removed from your loved tracks"} on **${plain(account.username)}**.`,
     ].join("\n");
 
-    await paginate(ctx, card(loved ? "Loved" : "Unloved", body), EMBED_COLOR);
+    await paginate(ctx, card(loved ? "Loved" : "Unloved", body), USER_ACCENT);
   };
 }
 
 async function scrobble(ctx: PrefixContext): Promise<void> {
   const account = await ownAccount(ctx);
 
-  // Bounded per user: a bot that can write to Last.fm should not be able to
-  // flood an account, whatever the caller types.
   const key = `trap:lf:scrobblerate:${ctx.authorId}`;
   let used = 0;
   try {
     used = await redis.incr(key);
     if (used === 1) await redis.expire(key, SCROBBLE_WINDOW);
-  } catch {
-    // Cache down: allow the scrobble rather than blocking on the limiter.
-  }
+  } catch {}
   if (used > SCROBBLE_LIMIT) {
     throw new TargetError(
       `That is ${SCROBBLE_LIMIT} scrobbles in a minute. Give it a moment before the next one.`,
@@ -141,7 +120,7 @@ async function scrobble(ctx: PrefixContext): Promise<void> {
           "\n-# Check the artist and track are spelled as Last.fm has them.",
         ].join(""),
       ),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -153,11 +132,10 @@ async function scrobble(ctx: PrefixContext): Promise<void> {
     `-# Scrobbled to **${plain(account.username)}** just now.`,
   ].join("\n");
 
-  await paginate(ctx, card("Scrobbled", body), EMBED_COLOR);
+  await paginate(ctx, card("Scrobbled", body), USER_ACCENT);
   void MAX_BACKDATE_SECONDS;
 }
 
-/** Shows a track as playing without recording a play for it. */
 async function nowScrobbling(ctx: PrefixContext): Promise<void> {
   const account = await ownAccount(ctx);
   const argument = ctx.argument.trim();
@@ -184,7 +162,7 @@ async function nowScrobbling(ctx: PrefixContext): Promise<void> {
     `-# Showing as playing on **${plain(account.username)}**. This does not add a play.`,
   ].join("\n");
 
-  await paginate(ctx, card("Now playing", body), EMBED_COLOR);
+  await paginate(ctx, card("Now playing", body), USER_ACCENT);
 }
 
 export function registerScrobbling(): void {

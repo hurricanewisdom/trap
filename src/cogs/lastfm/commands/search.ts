@@ -1,11 +1,3 @@
-/**
- * Searching Last.fm's own catalogue, and asking it to fix a misspelling.
- *
- * Distinct from the stats commands: nothing here is about a listener. These
- * answer "does Last.fm know this record, and under what name" — which is what
- * you need before `,plays` or `,tag` will match anything.
- */
-
 import { paginate } from "../../../core/pager.js";
 import { register, type PrefixContext } from "../../../core/prefix.js";
 import { guard } from "../guard.js";
@@ -17,7 +9,7 @@ import {
   searchTracks,
 } from "../api/index.js";
 import {
-  EMBED_COLOR,
+  USER_ACCENT,
   TargetError,
   albumUrl,
   artistUrl,
@@ -40,7 +32,7 @@ async function searchArtist(ctx: PrefixContext): Promise<void> {
   const heading = `Artists matching "${query.slice(0, 40)}"`;
 
   if (results.length === 0) {
-    await paginate(ctx, simpleCard(heading, `Last.fm knows no artist like **${plain(query)}**.`), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, `Last.fm knows no artist like **${plain(query)}**.`), USER_ACCENT);
     return;
   }
 
@@ -56,7 +48,7 @@ async function searchArtist(ctx: PrefixContext): Promise<void> {
   await paginate(
     ctx,
     buildPages(rows, { heading, username: query, noun: "results", total: results.length }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
@@ -68,7 +60,7 @@ async function searchAlbum(ctx: PrefixContext): Promise<void> {
   const heading = `Albums matching "${query.slice(0, 40)}"`;
 
   if (results.length === 0) {
-    await paginate(ctx, simpleCard(heading, `Last.fm knows no album like **${plain(query)}**.`), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, `Last.fm knows no album like **${plain(query)}**.`), USER_ACCENT);
     return;
   }
 
@@ -80,7 +72,7 @@ async function searchAlbum(ctx: PrefixContext): Promise<void> {
   await paginate(
     ctx,
     buildPages(rows, { heading, username: query, noun: "results", total: results.length }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
@@ -92,7 +84,7 @@ async function searchTrack(ctx: PrefixContext): Promise<void> {
   const heading = `Tracks matching "${query.slice(0, 40)}"`;
 
   if (results.length === 0) {
-    await paginate(ctx, simpleCard(heading, `Last.fm knows no track like **${plain(query)}**.`), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, `Last.fm knows no track like **${plain(query)}**.`), USER_ACCENT);
     return;
   }
 
@@ -108,16 +100,10 @@ async function searchTrack(ctx: PrefixContext): Promise<void> {
   await paginate(
     ctx,
     buildPages(rows, { heading, username: query, noun: "results", total: results.length }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
-/**
- * `,correct <artist>` or `,correct <artist> - <track>`.
- *
- * Last.fm answers with nothing when the spelling was already canonical, which
- * is a useful result in itself and is reported as such.
- */
 async function correct(ctx: PrefixContext): Promise<void> {
   const argument = ctx.argument.trim();
   if (!argument) throw new TargetError("Give an artist, or `artist - track`.");
@@ -131,7 +117,7 @@ async function correct(ctx: PrefixContext): Promise<void> {
       await paginate(
         ctx,
         simpleCard("Correction", `Last.fm has no correction for **${plain(track)}** by **${plain(artist)}**.`),
-        EMBED_COLOR,
+        USER_ACCENT,
       );
       return;
     }
@@ -150,7 +136,7 @@ async function correct(ctx: PrefixContext): Promise<void> {
           ? `**${plain(track)}** by **${plain(artist)}**\nis filed as **[${label(fix.name)}](${link})** by **${plain(canonicalArtist)}**.`
           : `**[${label(fix.name)}](${link})** by **${plain(canonicalArtist)}** is already the canonical spelling.`,
       ),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -160,7 +146,7 @@ async function correct(ctx: PrefixContext): Promise<void> {
     await paginate(
       ctx,
       simpleCard("Correction", `Last.fm has no correction for **${plain(argument)}**.`),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -176,7 +162,7 @@ async function correct(ctx: PrefixContext): Promise<void> {
         ? `**${plain(argument)}** is filed as **[${label(fix.name)}](${link})**.`
         : `**[${label(fix.name)}](${link})** is already the canonical spelling.`,
     ),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 

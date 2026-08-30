@@ -1,19 +1,13 @@
-/**
- * Last.fm's own weekly charts, which are a different data source from the
- * period charts: they are fixed calendar weeks rather than a rolling window.
- */
-
 import { paginate } from "../../../core/pager.js";
 import { register, type PrefixContext } from "../../../core/prefix.js";
 import { guard } from "../guard.js";
 import { getWeeklyChart, getWeeklyChartList, type WeekRange } from "../api/index.js";
 import {
-  EMBED_COLOR,
+  USER_ACCENT,
   artistUrl,
   avatarOf,
   buildPages,
   chartLine,
-  label,
   plain,
   plural,
   profile,
@@ -25,7 +19,6 @@ import {
 const trackUrl = (artist: string, track: string) =>
   `${artistUrl(artist)}/_/${encodeURIComponent(track)}`;
 
-/** `,weeklyartists 2` means two weeks back. */
 function weeksBack(argument: string): number {
   const match = argument.trim().match(/(\d+)\s*$/);
   const n = match ? Number.parseInt(match[1] ?? "0", 10) : 0;
@@ -43,7 +36,7 @@ function weeklyCommand(kind: "artist" | "album" | "track") {
     let when = "this week";
     if (back > 0) {
       const weeks = await getWeeklyChartList(target.username);
-      // The list is oldest first, so counting back means counting from the end.
+
       const index = weeks.length - 1 - back;
       if (index < 0) {
         await paginate(
@@ -53,7 +46,7 @@ function weeklyCommand(kind: "artist" | "album" | "track") {
             `Only ${plural(weeks.length, "week")} of history exist for this account.`,
             icon,
           ),
-          EMBED_COLOR,
+          USER_ACCENT,
         );
         return;
       }
@@ -65,7 +58,7 @@ function weeklyCommand(kind: "artist" | "album" | "track") {
     const heading = `${target.username}'s weekly ${kind}s`;
 
     if (entries.length === 0) {
-      await paginate(ctx, simpleCard(heading, `Nothing scrobbled in that week.`, icon), EMBED_COLOR);
+      await paginate(ctx, simpleCard(heading, `Nothing scrobbled in that week.`, icon), USER_ACCENT);
       return;
     }
 
@@ -88,12 +81,11 @@ function weeklyCommand(kind: "artist" | "album" | "track") {
         total: entries.length,
         footer: `${plural(entries.length, kind)} · ${plural(played, "play")} · ${when}`,
       }),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
   };
 }
 
-/** How many weeks of chart history the account has. */
 async function weeks(ctx: PrefixContext): Promise<void> {
   const { target } = await resolveTarget(ctx, ctx.argument);
   const icon = avatarOf(await profile(target.username));
@@ -101,7 +93,7 @@ async function weeks(ctx: PrefixContext): Promise<void> {
   const heading = `${target.username}'s chart weeks`;
 
   if (list.length === 0) {
-    await paginate(ctx, simpleCard(heading, "Last.fm has no weekly charts for this account.", icon), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, "Last.fm has no weekly charts for this account.", icon), USER_ACCENT);
     return;
   }
 
@@ -122,7 +114,7 @@ async function weeks(ctx: PrefixContext): Promise<void> {
       total: list.length,
       footer: `${plural(list.length, "week")} of history, first on <t:${first?.from ?? 0}:D>. Use the number with ,weeklyartists.`,
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 

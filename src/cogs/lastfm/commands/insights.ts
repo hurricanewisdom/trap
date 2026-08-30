@@ -1,16 +1,8 @@
-/**
- * Time-shaped views of a listening history: when you listen, how long for,
- * and what you were playing at some point in the past.
- *
- * These all read the same cached page-run of recent scrobbles, so running
- * several in a row costs one fetch rather than one each.
- */
-
 import { paginate } from "../../../core/pager.js";
 import { register, type PrefixContext } from "../../../core/prefix.js";
 import { guard } from "../guard.js";
 import {
-  EMBED_COLOR,
+  USER_ACCENT,
   artistUrl,
   avatarOf,
   bar,
@@ -27,7 +19,6 @@ import {
   url,
 } from "../shared.js";
 
-/** A gap longer than this ends a listening session. */
 const SESSION_GAP_SECONDS = 30 * 60;
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -36,7 +27,6 @@ function card(heading: string, body: string, icon: string | null) {
   return simpleCard(heading, body, icon);
 }
 
-/** Resolves the target and pulls their history in one step. */
 async function load(ctx: PrefixContext) {
   const { target } = await resolveTarget(ctx, ctx.argument);
   const info = await profile(target.username);
@@ -48,15 +38,11 @@ function noHistory(username: string) {
   return `No scrobbles with timestamps for **${label(username)}** yet.`;
 }
 
-/* ------------------------------------------------------------------ */
-/* When you listen                                                     */
-/* ------------------------------------------------------------------ */
-
 async function clock(ctx: PrefixContext): Promise<void> {
   const { target, icon, stamped } = await load(ctx);
   const heading = `${target.username}'s listening clock`;
   if (stamped.length === 0) {
-    await paginate(ctx, card(heading, noHistory(target.username), icon), EMBED_COLOR);
+    await paginate(ctx, card(heading, noHistory(target.username), icon), USER_ACCENT);
     return;
   }
 
@@ -80,7 +66,7 @@ async function clock(ctx: PrefixContext): Promise<void> {
       total: stamped.length,
       footer: `Busiest hour ${String(busiest).padStart(2, "0")}:00 UTC across the last ${plural(stamped.length, "scrobble")}`,
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
@@ -88,7 +74,7 @@ async function weekday(ctx: PrefixContext): Promise<void> {
   const { target, icon, stamped } = await load(ctx);
   const heading = `${target.username}'s week`;
   if (stamped.length === 0) {
-    await paginate(ctx, card(heading, noHistory(target.username), icon), EMBED_COLOR);
+    await paginate(ctx, card(heading, noHistory(target.username), icon), USER_ACCENT);
     return;
   }
 
@@ -104,7 +90,7 @@ async function weekday(ctx: PrefixContext): Promise<void> {
   await paginate(
     ctx,
     card(heading, `${body}\n\n-# Busiest day: **${best}**, over ${plural(stamped.length, "scrobble")}`, icon),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
@@ -112,7 +98,7 @@ async function nightowl(ctx: PrefixContext): Promise<void> {
   const { target, icon, stamped } = await load(ctx);
   const heading = `${target.username}'s hours`;
   if (stamped.length === 0) {
-    await paginate(ctx, card(heading, noHistory(target.username), icon), EMBED_COLOR);
+    await paginate(ctx, card(heading, noHistory(target.username), icon), USER_ACCENT);
     return;
   }
 
@@ -146,12 +132,8 @@ async function nightowl(ctx: PrefixContext): Promise<void> {
     rows.map(([name, v]) => `\`${name}\` ${bar(v, peak)} ${pct(v)}`).join("\n") +
     `\n\n-# ${verdict} Based on the last ${plural(n, "scrobble")}, times in UTC.`;
 
-  await paginate(ctx, card(heading, body, icon), EMBED_COLOR);
+  await paginate(ctx, card(heading, body, icon), USER_ACCENT);
 }
-
-/* ------------------------------------------------------------------ */
-/* Sessions and gaps                                                   */
-/* ------------------------------------------------------------------ */
 
 interface Session {
   start: number;
@@ -159,7 +141,6 @@ interface Session {
   tracks: number;
 }
 
-/** Splits the history wherever the listener went quiet for half an hour. */
 function sessionsOf(stamped: { at: number }[]): Session[] {
   const ordered = [...stamped].sort((a, b) => a.at - b.at);
   const out: Session[] = [];
@@ -186,7 +167,7 @@ async function sessions(ctx: PrefixContext): Promise<void> {
   const heading = `${target.username}'s recent sessions`;
   const found = sessionsOf(stamped);
   if (found.length === 0) {
-    await paginate(ctx, card(heading, noHistory(target.username), icon), EMBED_COLOR);
+    await paginate(ctx, card(heading, noHistory(target.username), icon), USER_ACCENT);
     return;
   }
 
@@ -208,7 +189,7 @@ async function sessions(ctx: PrefixContext): Promise<void> {
       total: found.length,
       footer: `${found.length} sessions in the last ${plural(stamped.length, "scrobble")}. A 30 minute break starts a new one.`,
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
@@ -217,7 +198,7 @@ async function binge(ctx: PrefixContext): Promise<void> {
   const heading = `${target.username}'s longest session`;
   const found = sessionsOf(stamped);
   if (found.length === 0) {
-    await paginate(ctx, card(heading, noHistory(target.username), icon), EMBED_COLOR);
+    await paginate(ctx, card(heading, noHistory(target.username), icon), USER_ACCENT);
     return;
   }
 
@@ -236,14 +217,14 @@ async function binge(ctx: PrefixContext): Promise<void> {
     ),
   ].join("\n");
 
-  await paginate(ctx, card(heading, body, icon), EMBED_COLOR);
+  await paginate(ctx, card(heading, body, icon), USER_ACCENT);
 }
 
 async function gaps(ctx: PrefixContext): Promise<void> {
   const { target, icon, stamped } = await load(ctx);
   const heading = `${target.username}'s quiet spells`;
   if (stamped.length < 2) {
-    await paginate(ctx, card(heading, noHistory(target.username), icon), EMBED_COLOR);
+    await paginate(ctx, card(heading, noHistory(target.username), icon), USER_ACCENT);
     return;
   }
 
@@ -257,7 +238,7 @@ async function gaps(ctx: PrefixContext): Promise<void> {
   found.sort((a, b) => b.length - a.length);
 
   if (found.length === 0) {
-    await paginate(ctx, card(heading, "No breaks longer than 30 minutes in this stretch.", icon), EMBED_COLOR);
+    await paginate(ctx, card(heading, "No breaks longer than 30 minutes in this stretch.", icon), USER_ACCENT);
     return;
   }
 
@@ -275,13 +256,9 @@ async function gaps(ctx: PrefixContext): Promise<void> {
       total: found.length,
       footer: `Longest quiet spell: ${span(found[0]!.length)}`,
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
-
-/* ------------------------------------------------------------------ */
-/* Points in time                                                      */
-/* ------------------------------------------------------------------ */
 
 async function firstScrobble(ctx: PrefixContext): Promise<void> {
   const { target } = await resolveTarget(ctx, ctx.argument);
@@ -291,18 +268,16 @@ async function firstScrobble(ctx: PrefixContext): Promise<void> {
 
   const total = Number(info?.playcount ?? 0);
   if (total < 1) {
-    await paginate(ctx, card(heading, "Nothing scrobbled yet.", icon), EMBED_COLOR);
+    await paginate(ctx, card(heading, "Nothing scrobbled yet.", icon), USER_ACCENT);
     return;
   }
 
-  // The API pages newest first, so the oldest scrobble is the last item on the
-  // last page. One page of 1 gets us there without walking the history.
   const { getRecentPage } = await import("../api/index.js");
   const probe = await getRecentPage(target.username, 1, 1);
   const last = await getRecentPage(target.username, Math.max(1, probe.pages), 1);
   const track = last.items[last.items.length - 1];
   if (!track) {
-    await paginate(ctx, card(heading, "Could not read that far back.", icon), EMBED_COLOR);
+    await paginate(ctx, card(heading, "Could not read that far back.", icon), USER_ACCENT);
     return;
   }
 
@@ -315,7 +290,7 @@ async function firstScrobble(ctx: PrefixContext): Promise<void> {
     `-# ${when}`,
   ].join("\n");
 
-  await paginate(ctx, card(heading, body, icon), EMBED_COLOR);
+  await paginate(ctx, card(heading, body, icon), USER_ACCENT);
 }
 
 async function onThisDay(ctx: PrefixContext): Promise<void> {
@@ -338,7 +313,7 @@ async function onThisDay(ctx: PrefixContext): Promise<void> {
         "Nothing from this date in earlier years, at least within the scrobbles I can reach.",
         icon,
       ),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -350,19 +325,15 @@ async function onThisDay(ctx: PrefixContext): Promise<void> {
   await paginate(
     ctx,
     buildPages(rows, { heading, username: target.username, icon, noun: "scrobbles", total: matches.length }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
-
-/* ------------------------------------------------------------------ */
-/* Volume                                                              */
-/* ------------------------------------------------------------------ */
 
 async function pace(ctx: PrefixContext): Promise<void> {
   const { target, icon, stamped, total } = await load(ctx);
   const heading = `${target.username}'s pace`;
   if (stamped.length < 2) {
-    await paginate(ctx, card(heading, noHistory(target.username), icon), EMBED_COLOR);
+    await paginate(ctx, card(heading, noHistory(target.username), icon), USER_ACCENT);
     return;
   }
 
@@ -379,15 +350,13 @@ async function pace(ctx: PrefixContext): Promise<void> {
     `-# Measured over the last ${plural(stamped.length, "scrobble")}, spanning ${days.toFixed(1)} days.`,
   ].join("\n");
 
-  await paginate(ctx, card(heading, body, icon), EMBED_COLOR);
+  await paginate(ctx, card(heading, body, icon), USER_ACCENT);
 }
 
 async function listeningTime(ctx: PrefixContext): Promise<void> {
   const { target, icon, scrobbles, total } = await load(ctx);
   const heading = `${target.username}'s listening time`;
 
-  // Last.fm does not return a duration per scrobble, so this is an estimate at
-  // a typical track length rather than a measurement.
   const AVERAGE_TRACK_SECONDS = 210;
   const seconds = total * AVERAGE_TRACK_SECONDS;
   const hours = seconds / 3600;
@@ -400,7 +369,7 @@ async function listeningTime(ctx: PrefixContext): Promise<void> {
     `-# Estimated at ${AVERAGE_TRACK_SECONDS / 60} minutes a track, since Last.fm does not store a length per scrobble.`,
   ].join("\n");
 
-  await paginate(ctx, card(heading, body, icon), EMBED_COLOR);
+  await paginate(ctx, card(heading, body, icon), USER_ACCENT);
   void scrobbles;
 }
 

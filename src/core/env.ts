@@ -1,5 +1,3 @@
-/** Typed access to configuration, with loud failure for anything required. */
-
 import process from "node:process";
 
 export function required(name: string): string {
@@ -21,7 +19,6 @@ export function optionalInt(name: string, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-/** True when every named variable has a value. */
 export function configured(...names: string[]): boolean {
   return names.every((name) => Boolean(process.env[name]));
 }

@@ -1,21 +1,20 @@
-/**
- * The `,lastfm` group.
- *
- * `,lf`         link status
- * `,lf link`    sends an authorisation link by DM
- * `,lf unlink`  removes the link (alias: remove)
- */
-
 import { configured } from "../../../core/env.js";
-import { lookup, register, type PrefixContext } from "../../../core/prefix.js";
-import { ButtonStyle, ComponentType, IS_COMPONENTS_V2, container, row, section, separator, text } from "../../../helpers/components.js";
+import { lookupIn, register, type PrefixContext } from "../../../core/prefix.js";
+import {
+  ButtonStyle,
+  ComponentType,
+  IS_COMPONENTS_V2,
+  container,
+  section,
+  separator,
+  text,
+} from "../../../helpers/components.js";
 import { authorizeUrl, getUserInfo, LastfmError } from "../api/index.js";
 import { createLinkState, getUsername, removeLink } from "../store.js";
 import { nowPlayingHandler } from "./nowplaying.js";
 
-const ACCENT = 0xd51007; // Last.fm red
+const ACCENT: number | null = null;
 
-/** Renders a Components V2 card so replies match the rest of the bot. */
 function card(body: string, accent = ACCENT) {
   return {
     flags: IS_COMPONENTS_V2,
@@ -26,7 +25,7 @@ function card(body: string, accent = ACCENT) {
 function notConfigured() {
   return card(
     "### Last.fm is not set up\nThe bot has no Last.fm API credentials, so linking cannot run here.",
-    0x2b2d31,
+    ACCENT,
   );
 }
 
@@ -51,7 +50,6 @@ async function showStatus(ctx: PrefixContext): Promise<void> {
     return;
   }
 
-  // The profile call is best-effort: a linked account still shows without it.
   let detail = "";
   try {
     const info = await getUserInfo(username);
@@ -93,8 +91,6 @@ async function startLink(ctx: PrefixContext): Promise<void> {
   const state = await createLinkState(ctx.authorId);
   const url = authorizeUrl(state);
 
-  // The link carries a single-use token that binds whoever authorises it to
-  // this Discord account, so it goes by DM rather than into a channel.
   const sent = await ctx.dm({
     flags: IS_COMPONENTS_V2,
     components: [
@@ -130,7 +126,7 @@ async function startLink(ctx: PrefixContext): Promise<void> {
         "Your privacy settings block direct messages from this server.",
         "Allow them and run `,lf link` again.",
       ].join("\n"),
-      0x2b2d31,
+      ACCENT,
     ),
   );
 }
@@ -142,7 +138,7 @@ async function unlink(ctx: PrefixContext): Promise<void> {
       removed
         ? `### Unlinked\nThe link to **${removed}** is gone.`
         : "### Nothing to unlink\nNo Last.fm account is linked to you.",
-      removed ? ACCENT : 0x2b2d31,
+      ACCENT,
     ),
   );
 }
@@ -167,18 +163,12 @@ async function handle(ctx: PrefixContext): Promise<void> {
       case "np":
       case "now":
       case "nowplaying":
-        // Same command, reached as a subcommand; strip "np" from the argument.
+
         await nowPlayingHandler({ ...ctx, argument: ctx.argument.replace(/^\S+\s*/, "") });
         break;
       default: {
-        /**
-         * Anything else is looked up as a command in this cog, so every
-         * Last.fm command is reachable as a subcommand: ",lf tt" runs the
-         * same handler as ",toptracks". The group itself is excluded, or
-         * ",lf lastfm" would call straight back into here.
-         */
-        const command = lookup(sub);
-        if (command && command.cog === "lastfm" && command.name !== "lastfm") {
+        const command = lookupIn("lastfm", sub);
+        if (command && command.name !== "lastfm") {
           await command.handler({ ...ctx, argument: ctx.argument.replace(/^\S+\s*/, "") });
           break;
         }
@@ -194,7 +184,7 @@ async function handle(ctx: PrefixContext): Promise<void> {
               `Every Last.fm command also works here: \`,lf tt\`, \`,lf np\`, \`,lf wk radiohead\`.`,
               "-# `,help lastfm` lists them all.",
             ].join("\n"),
-            0x2b2d31,
+            ACCENT,
           ),
         );
       }
@@ -203,7 +193,7 @@ async function handle(ctx: PrefixContext): Promise<void> {
     const message =
       err instanceof LastfmError ? `Last.fm said: ${err.message}` : "Something went wrong.";
     console.error("lastfm command failed:", err);
-    await ctx.reply(card(`### Error\n${message}`, 0x2b2d31));
+    await ctx.reply(card(`### Error\n${message}`, ACCENT));
   }
 }
 

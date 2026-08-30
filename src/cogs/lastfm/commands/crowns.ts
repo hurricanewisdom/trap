@@ -1,13 +1,3 @@
-/**
- * Guild-wide Last.fm commands: crowns, the crown leaderboard, who is playing
- * something right now, and the hide list that keeps a member out of listings.
- *
- * Everything here fans out over guild members, so every loop is bounded: at
- * most CONCURRENCY requests in flight and at most SCAN_CAP members touched.
- * An unbounded promise per member would take a 4,000-person guild and turn one
- * message into 4,000 simultaneous Last.fm calls.
- */
-
 import { sql } from "../../../core/db.js";
 import { canManageGuild, displayName, guildMemberIds } from "../../../core/discord.js";
 import { paginate } from "../../../core/pager.js";
@@ -15,7 +5,7 @@ import { register, type PrefixContext } from "../../../core/prefix.js";
 import { getRecentTracks, type RecentTrack } from "../api/index.js";
 import { guard } from "../guard.js";
 import {
-  EMBED_COLOR,
+  USER_ACCENT,
   artistUrl,
   avatarOf,
   buildPages,
@@ -28,35 +18,23 @@ import {
 } from "../shared.js";
 import { getUsername } from "../store.js";
 
-/** Requests in flight at once, for every fan-out in this file. */
 const CONCURRENCY = 5;
-/** Members whose Last.fm account is actually contacted by `,playing`. */
+
 const SCAN_CAP = 100;
-/** Rows read for a paginated list; the footer reports the true total. */
+
 const CROWN_LIMIT = 250;
 const LEADER_LIMIT = 100;
 const HIDDEN_LIMIT = 100;
 
-/** A member argument: a mention, a nickname mention, or a bare id. */
 const MEMBER = /^(?:<@!?(\d{15,25})>|(\d{15,25}))(?=\s|$)/;
 
-/* ------------------------------------------------------------------ */
-/* Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
-/**
- * Maps over items with at most `limit` workers running at once. Workers pull
- * from a shared cursor rather than being handed a slice, so one slow member
- * does not stall a whole chunk.
- */
 async function mapLimited<T, R>(
   items: readonly T[],
   limit: number,
   worker: (item: T) => Promise<R>,
 ): Promise<R[]> {
   const results: R[] = [];
-  // Fixing the length up front keeps result[i] aligned with items[i] even when
-  // the final slot is skipped, so callers can index by position safely.
+
   results.length = items.length;
   let cursor = 0;
 
@@ -67,9 +45,7 @@ async function mapLimited<T, R>(
         const index = cursor++;
         if (index >= items.length) return;
         const item = items[index];
-        // A hole skips its own slot — `return` here would retire the runner and
-        // silently leave every later member unqueried, which on a full pool
-        // means the listing quietly drops most of the server.
+
         if (item === undefined) continue;
         results[index] = await worker(item);
       }
@@ -80,26 +56,14 @@ async function mapLimited<T, R>(
   return results;
 }
 
-/**
- * url() only sanitises its first argument — a fallback is handed back
- * untouched. artistUrl() builds its path with encodeURIComponent, which leaves
- * "(" and ")" alone, so "Sunday (Live)" would close its own markdown link.
- * Passing the fallback through url() as well closes that hole.
- */
 function link(value: string | undefined, fallback: string): string {
   return url(value, url(fallback, fallback));
 }
 
 const artistLink = (name: string) => link(undefined, artistUrl(name));
 
-/**
- * Display names are attacker-chosen text. label() swaps the square brackets
- * for fullwidth lookalikes, so a nickname of "[click me](https://evil)" cannot
- * render as a real link in a heading or a list row.
- */
 const memberName = (name: string) => label(name);
 
-/** A relative Discord timestamp, tolerating a driver that hands back a string. */
 function when(value: Date | string | null | undefined): string | null {
   if (!value) return null;
   const date = value instanceof Date ? value : new Date(value);
@@ -107,39 +71,31 @@ function when(value: Date | string | null | undefined): string | null {
   return Number.isFinite(seconds) ? `<t:${seconds}:R>` : null;
 }
 
-/** Reads a leading member argument, defaulting to the caller. */
 function targetOf(ctx: PrefixContext): { id: string; explicit: boolean } {
   const match = MEMBER.exec(ctx.argument.trim());
   const id = match?.[1] ?? match?.[2];
   return id ? { id, explicit: true } : { id: ctx.authorId, explicit: false };
 }
 
-/** Guild-only guard: DMs have no member list, no crowns and no hide list. */
 async function requireGuild(ctx: PrefixContext, heading: string): Promise<string | null> {
   if (ctx.guildId) return ctx.guildId;
   await paginate(
     ctx,
     simpleCard(heading, "This only works inside a server, not in DMs."),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
   return null;
 }
 
-/** Best-effort avatar: an unlinked member simply gets no thumbnail. */
 async function iconFor(discordId: string): Promise<string | null> {
   const username = await getUsername(discordId);
   if (!username) return null;
   return avatarOf(await profile(username));
 }
 
-/* ------------------------------------------------------------------ */
-/* ,crowns                                                            */
-/* ------------------------------------------------------------------ */
-
 interface CrownRow {
   artist_name: string;
   plays: number;
-  /** COUNT(*) OVER () — bigint, so the driver hands it back as a string. */
   total: string;
 }
 
@@ -170,7 +126,7 @@ async function crowns(ctx: PrefixContext): Promise<void> {
           : "You have no crowns yet. Run `,whoknows <artist>` and take one.",
         icon,
       ),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -194,18 +150,13 @@ async function crowns(ctx: PrefixContext): Promise<void> {
           }
         : {}),
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
-
-/* ------------------------------------------------------------------ */
-/* ,mostcrowns                                                        */
-/* ------------------------------------------------------------------ */
 
 interface LeaderRow {
   discord_id: string;
   crowns: number;
-  /** Number of holders, counted after the grouping. */
   holders: string;
 }
 
@@ -215,9 +166,6 @@ async function mostCrowns(ctx: PrefixContext): Promise<void> {
 
   const heading = "Crown leaderboard";
 
-  // `,hide` promises "hidden from whoknows and server listings", and whoknows
-  // already refuses to hand a hidden member a crown. A leaderboard that still
-  // names them would break that promise with data they can no longer add to.
   const rows = await sql<LeaderRow[]>`
     SELECT c.discord_id, COUNT(*)::int AS crowns, COUNT(*) OVER () AS holders
     FROM lastfm_crowns c
@@ -235,13 +183,11 @@ async function mostCrowns(ctx: PrefixContext): Promise<void> {
     await paginate(
       ctx,
       simpleCard(heading, "Nobody holds a crown in this server yet."),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
 
-  // displayName() is cached but still a REST call on a miss, so the leaderboard
-  // resolves its names through the same bounded fan-out as everything else.
   const names = await mapLimited(rows, CONCURRENCY, (row) =>
     displayName(guildId, row.discord_id),
   );
@@ -266,13 +212,9 @@ async function mostCrowns(ctx: PrefixContext): Promise<void> {
           }
         : {}),
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
-
-/* ------------------------------------------------------------------ */
-/* ,playing                                                           */
-/* ------------------------------------------------------------------ */
 
 interface LinkedRow {
   discord_id: string;
@@ -296,13 +238,11 @@ async function playing(ctx: PrefixContext): Promise<void> {
     await paginate(
       ctx,
       simpleCard(heading, "I could not read this server's member list."),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
 
-  // Hiding is a request not to be listed; honouring it here as well as in
-  // whoknows costs nothing and is what a hidden member expects.
   const linked = await sql<LinkedRow[]>`
     SELECT u.discord_id, u.username
     FROM lastfm_users u
@@ -318,7 +258,7 @@ async function playing(ctx: PrefixContext): Promise<void> {
     await paginate(
       ctx,
       simpleCard(heading, "Nobody here has linked a Last.fm account yet. Run `,lf link`."),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -329,12 +269,10 @@ async function playing(ctx: PrefixContext): Promise<void> {
     try {
       const { tracks } = await getRecentTracks(row.username, 1);
       const track = tracks[0];
-      // Only a live scrobble counts; the endpoint returns the last played
-      // track either way, and "@attr" is what separates the two.
+
       if (!track || track["@attr"]?.nowplaying !== "true") return null;
       return { discordId: row.discord_id, username: row.username, track };
     } catch {
-      // One member's dead account must not sink the whole listing.
       return null;
     }
   });
@@ -348,7 +286,7 @@ async function playing(ctx: PrefixContext): Promise<void> {
         heading,
         `Nobody is listening to anything right now. Checked ${plural(scanned.length, "member")}.`,
       ),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -388,13 +326,9 @@ async function playing(ctx: PrefixContext): Promise<void> {
       total: live.length,
       footer: `${plural(live.length, "member")} listening now${capped}`,
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
-
-/* ------------------------------------------------------------------ */
-/* ,hide                                                              */
-/* ------------------------------------------------------------------ */
 
 interface HiddenRow {
   discord_id: string;
@@ -416,7 +350,7 @@ async function hideList(ctx: PrefixContext, guildId: string): Promise<void> {
     await paginate(
       ctx,
       simpleCard(heading, "Nobody is hidden in this server."),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -441,7 +375,7 @@ async function hideList(ctx: PrefixContext, guildId: string): Promise<void> {
           ? `first ${HIDDEN_LIMIT} hidden members • \`,hide @user\` to unhide`
           : `${plural(rows.length, "hidden member")} • \`,hide @user\` to unhide`,
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
@@ -449,7 +383,6 @@ async function hide(ctx: PrefixContext): Promise<void> {
   const guildId = await requireGuild(ctx, "Hide");
   if (!guildId) return;
 
-  // `list` is a subcommand of hide rather than a command of its own.
   const first = (ctx.argument.trim().split(/\s+/)[0] ?? "").toLowerCase();
   if (first.startsWith("list")) {
     await hideList(ctx, guildId);
@@ -459,7 +392,6 @@ async function hide(ctx: PrefixContext): Promise<void> {
   const target = targetOf(ctx);
   const heading = "Hide";
 
-  // Hiding yourself is always allowed; hiding anyone else is moderation.
   if (target.id !== ctx.authorId && !(await canManageGuild(guildId, ctx.authorId))) {
     await paginate(
       ctx,
@@ -467,16 +399,13 @@ async function hide(ctx: PrefixContext): Promise<void> {
         heading,
         "Hiding someone else needs the **Manage Server** permission. You can always hide yourself with `,hide`.",
       ),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
 
   const name = memberName(await displayName(guildId, target.id));
 
-  // Delete-then-insert makes the toggle a single decision: whether a row was
-  // actually removed. A read followed by a write could race two moderators
-  // into both believing they hid the same member.
   const removed = await sql<{ discord_id: string }[]>`
     DELETE FROM lastfm_hidden
     WHERE guild_id = ${guildId} AND discord_id = ${target.id}
@@ -487,7 +416,7 @@ async function hide(ctx: PrefixContext): Promise<void> {
     await paginate(
       ctx,
       simpleCard(heading, `**${name}** is no longer hidden and will appear in listings again.`),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -504,13 +433,9 @@ async function hide(ctx: PrefixContext): Promise<void> {
       heading,
       `**${name}** is now hidden from whoknows and server listings.\n-# Run \`,hide\` on them again to undo it.`,
     ),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
-
-/* ------------------------------------------------------------------ */
-/* Registration                                                       */
-/* ------------------------------------------------------------------ */
 
 export function registerCrowns(): void {
   register({

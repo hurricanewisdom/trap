@@ -1,57 +1,88 @@
-/**
- * Entry point.
- *
- * Creates the bot, translates gateway events into the core hooks, loads the
- * cogs and connects. Feature logic lives in `src/cogs`; this file only wires
- * things together.
- */
-
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
-import { createBot, Intents, InteractionTypes } from "discordeno";
+import { createBot, Intents, InteractionResponseTypes, InteractionTypes } from "discordeno";
 
 import { loadCogs } from "./core/cog.js";
-import { closeDb, migrate } from "./core/db.js";
+import { closeDb, migrate, sql } from "./core/db.js";
 import {
   dispatchComponent,
+  emitBoost,
+  emitMemberJoin,
+  emitMemberLeave,
+  emitMessage,
   dispatchModal,
+  resolveFallback,
   emitReactionAdd,
   emitReactionRemove,
 } from "./core/hooks.js";
 import { registerPagerInteractions } from "./core/pager.js";
-import { type PrefixContext, type ReplyPayload, type SentMessage } from "./core/prefix.js";
+import { lookup, split, type PrefixContext, type ReplyPayload, type SentMessage } from "./core/prefix.js";
 import {
   argumentFrom,
-  argumentOverride,
   buildAllSlashCommands,
-  focusedOption,
   resolveInvocation,
   resolveSlash,
-  suggestionsFor,
   type ReceivedOption,
 } from "./core/slash.js";
-import { closeRedis } from "./core/redis.js";
+import { closeRedis, redis } from "./core/redis.js";
 import { cogs } from "./cogs/index.js";
 import { router, startWebServer } from "./web/server.js";
-import { slashifyPayload } from "./helpers/slashtext.js";
 import { provideRunner } from "./core/runner.js";
-import { rememberCommandIds } from "./core/slash.js";
+import { accentFor, withAccent } from "./core/accent.js";
+
+const LASTFM_COG = "lastfm";
+import { provideMessageEditor } from "./core/expiry.js";
+import { completeSlash, rememberCommandIds } from "./core/slash.js";
+import { matchPrefix } from "./core/prefixes.js";
+
+const BOOST_MESSAGES = new Set([8, 9, 10, 11]);
+
+const JOIN_MESSAGE = 7;
+
+const WANT_MEMBERS = process.env.GUILD_MEMBERS_INTENT === "1";
+
+const BOOST_SEEN_TTL = 300;
+
+async function announceBoost(guildId: string, channelId: string, userId: string): Promise<void> {
+  if (!guildId || !userId) return;
+
+  const key = `trap:boost:seen:${guildId}:${userId}`;
+  try {
+    const fresh = await redis.set(key, "1", "EX", BOOST_SEEN_TTL, "NX");
+    if (fresh !== "OK") return;
+  } catch {}
+
+  await emitBoost({ guildId, channelId, userId });
+}
+
+async function notedBoost(guildId: string, userId: string, since: string | null): Promise<boolean> {
+  const rows = await sql<{ premium_since: Date | null }[]>`
+    SELECT premium_since FROM booster_state WHERE guild_id = ${guildId} AND user_id = ${userId}
+  `;
+
+  await sql`
+    INSERT INTO booster_state (guild_id, user_id, premium_since, seen_at)
+    VALUES (${guildId}, ${userId}, ${since}, now())
+    ON CONFLICT (guild_id, user_id) DO UPDATE
+      SET premium_since = EXCLUDED.premium_since, seen_at = now()
+  `;
+
+  if (rows.length === 0) return false;
+  return rows[0]?.premium_since === null && since !== null;
+}
 
 const require = createRequire(import.meta.url);
 const botVersion: string = require("../package.json").version;
 
-/** The package's exports map may hide package.json, so walk up from the entry point. */
 function packageVersion(name: string): string {
   let dir = path.dirname(require.resolve(name));
   for (let i = 0; i < 6; i++) {
     try {
       const pkg = JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8"));
       if (pkg.name === name) return pkg.version;
-    } catch {
-      // keep walking up
-    }
+    } catch {}
     dir = path.dirname(dir);
   }
   return "unknown";
@@ -64,20 +95,11 @@ if (!token || token === "PASTE_YOUR_BOT_TOKEN_HERE" || !looksLikeBotToken(token)
   process.exit(78);
 }
 
-/**
- * Discordeno derives the bot id from the token's first segment at createBot()
- * time and throws an opaque error on junk, so the shape is checked first.
- */
 function looksLikeBotToken(t: string): boolean {
   const first = t.split(".")[0] ?? "";
   return /^\d+$/.test(Buffer.from(first, "base64").toString("utf8"));
 }
 
-/** Prefix for text commands, e.g. ",lf link". */
-/**
- * Kept only so the help text can name it. Nothing dispatches on it any more:
- * the bot is slash-only.
- */
 const PREFIX = process.env.PREFIX ?? ",";
 
 const bot = createBot({
@@ -85,11 +107,11 @@ const bot = createBot({
   intents:
     Intents.Guilds |
     Intents.GuildMessages |
-    // Privileged, and already enabled for this application: prefix commands
-    // cannot read message text without it.
+
     Intents.MessageContent |
-    // Needed to tally the votes on now-playing posts.
-    Intents.GuildMessageReactions,
+
+    Intents.GuildMessageReactions |
+    (WANT_MEMBERS ? Intents.GuildMembers : 0),
   desiredProperties: {
     interaction: {
       id: true,
@@ -107,33 +129,35 @@ const bot = createBot({
       author: true,
       channelId: true,
       guildId: true,
+      type: true,
+      attachments: true,
+      embeds: true,
     },
     user: {
       id: true,
       username: true,
       toggles: true,
     },
-    // getDmChannel returns a channel and we need its id to send there.
+    member: {
+      id: true,
+      guildId: true,
+      user: true,
+      roles: true,
+      premiumSince: true,
+    },
     channel: { id: true },
-    // Reaction events run every emoji through the transformer.
     emoji: { id: true, name: true },
   },
   events: {
     ready({ shardId }) {
       console.log(`Trap is ready (shard ${shardId}).`);
     },
-
-    /** TRAP_TRACE=1 logs every dispatch name; the fastest way to tell
-     *  "the event never arrived" from "the handler threw". */
     raw(data, shardId) {
       if (process.env.TRAP_TRACE === "1" && data.t) {
         console.log(`[trace] shard ${shardId} <- ${data.t}`);
       }
     },
-
     async reactionAdd({ messageId, channelId, userId, emoji, guildId }) {
-      // Cards seed their own reactions, and Discord dispatches those back as
-      // ordinary events, so the bot must never react to itself.
       if (userId === bot.id) return;
       await emitReactionAdd({
         messageId: String(messageId),
@@ -143,7 +167,6 @@ const bot = createBot({
         emoji: emoji?.name,
       });
     },
-
     async reactionRemove({ messageId, channelId, userId, emoji, guildId }) {
       if (userId === bot.id) return;
       await emitReactionRemove({
@@ -154,22 +177,116 @@ const bot = createBot({
         emoji: emoji?.name,
       });
     },
+    async guildMemberAdd(member: any) {
+      await emitMemberJoin({
+        guildId: String(member?.guildId ?? ""),
+        userId: String(member?.id ?? member?.user?.id ?? ""),
+      });
+    },
+    async guildMemberUpdate(member: any) {
+      const guildId = String(member?.guildId ?? "");
+      const userId = String(member?.id ?? member?.user?.id ?? "");
+      if (!guildId || !userId) return;
 
+      const since = member?.premiumSince ? new Date(Number(member.premiumSince)).toISOString() : null;
+      if (await notedBoost(guildId, userId, since)) {
+        await announceBoost(guildId, "", userId);
+      }
+    },
+    async guildMemberRemove(user: any, guildId: any) {
+      await emitMemberLeave({
+        guildId: String(guildId ?? ""),
+        userId: String(user?.id ?? ""),
+      });
+    },
+    async messageCreate(message) {
+      try {
+        if (Number(message.type) === JOIN_MESSAGE) {
+          await emitMemberJoin({
+            guildId: String(message.guildId ?? ""),
+            userId: String(message.author?.id ?? ""),
+          });
+          return;
+        }
+
+        if (BOOST_MESSAGES.has(Number(message.type))) {
+          await announceBoost(
+            String(message.guildId ?? ""),
+            String(message.channelId ?? ""),
+            String(message.author?.id ?? ""),
+          );
+          return;
+        }
+
+        if (message.author?.bot) return;
+
+        if (message.guildId) {
+          await emitMessage({
+            guildId: String(message.guildId),
+            channelId: String(message.channelId ?? ""),
+            messageId: String(message.id ?? ""),
+            authorId: String(message.author?.id ?? ""),
+            content: message.content ?? "",
+            attachments: [...((message as any).attachments ?? [])].map((file: any) => ({
+              contentType: file?.contentType ?? file?.content_type,
+              filename: file?.filename,
+            })),
+          });
+        }
+
+        const content = message.content ?? "";
+        if (!content) return;
+
+        const authorId = String(message.author?.id ?? "");
+        if (!authorId) return;
+
+        const guildId = message.guildId ? String(message.guildId) : undefined;
+        const used = mentionPrefix(content) ?? (await matchPrefix(content, guildId));
+        if (used === null) return;
+
+        const { name, argument } = split(content.slice(used.length));
+        const context = buildContext(message, authorId);
+
+        const command = lookup(name);
+        if (command) {
+          if (command.groupedUnder) {
+            await context.reply({
+              content: `That is \`${used}${command.groupedUnder} ${command.name}\`.`,
+            });
+            return;
+          }
+          const accent = command.cog === LASTFM_COG ? await accentFor(authorId) : null;
+          await withAccent(accent, () => command.handler({ ...context, argument }));
+          return;
+        }
+
+        const fallback = await resolveFallback(name, context);
+        if (!fallback) return;
+
+        const accent = await accentFor(authorId);
+        await withAccent(accent, () => fallback({ ...context, argument }));
+      } catch (err) {
+        console.error("prefix command failed:", err);
+      }
+    },
     async interactionCreate(interaction) {
       try {
         if (interaction.type === InteractionTypes.ApplicationCommand) {
           await dispatchSlash(interaction);
           return;
         }
+
         if (interaction.type === InteractionTypes.ApplicationCommandAutocomplete) {
-          await answerAutocomplete(interaction);
+          await dispatchAutocomplete(interaction);
           return;
         }
+
         const customId = String(interaction.data?.customId ?? "");
         if (interaction.type === InteractionTypes.ModalSubmit) {
           await dispatchModal(customId, interaction);
           return;
         }
+
         if (interaction.type !== InteractionTypes.MessageComponent) return;
         await dispatchComponent(customId, interaction);
       } catch (err) {
@@ -179,53 +296,60 @@ const bot = createBot({
   },
 });
 
-/* ------------------------------------------------------------------ */
-/* Command context                                                     */
-/* ------------------------------------------------------------------ */
-
-/* ------------------------------------------------------------------ */
-/* Slash commands                                                      */
-/* ------------------------------------------------------------------ */
-
-/**
- * Runs one slash invocation against the handler registered for it.
- *
- * The response is deferred first. Discord discards an interaction that is not
- * acknowledged within three seconds, and plenty of these commands are slower
- * than that on purpose — a server-wide who-knows makes one Last.fm request per
- * member, and a collage fetches and composites twenty-five covers.
- *
- * After deferring, the first reply edits that placeholder (so it reads as the
- * command's answer rather than a second message) and any further reply is a
- * followup. Both return a real message, which is what the pager needs to
- * attach its state to.
- */
-/**
- * Answers the search box on an autocompleting field.
- *
- * Discord expects a reply within three seconds and shows nothing if it is
- * late, so this stays synchronous: the suggestions come from an in-memory
- * list, never from the network.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function answerAutocomplete(interaction: any): Promise<void> {
-  const name = String(interaction.data?.name ?? "");
-  const focused = focusedOption(interaction.data?.options as ReceivedOption[] | undefined);
-  const context = {
-    guildId: interaction.guildId ? String(interaction.guildId) : undefined,
-    userId: String(interaction.user?.id ?? interaction.member?.user?.id ?? ""),
-  };
-  const choices = focused ? await suggestionsFor(name, focused.name, focused.value, context) : [];
-
-  await bot.helpers.sendInteractionResponse(interaction.id, interaction.token, {
-    // Type 8: autocomplete result.
-    type: 8,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data: { choices } as any,
-  });
+function mentionPrefix(content: string): string | null {
+  const match = /^<@!?(\d{15,25})>\s*/.exec(content);
+  if (!match) return null;
+  return match[1] === String(bot.id ?? "") ? match[0] : null;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildContext(message: any, authorId: string): Omit<PrefixContext, "argument"> {
+  const channelId = String(message.channelId);
+  return {
+    authorId,
+    channelId,
+    guildId: message.guildId ? String(message.guildId) : undefined,
+    messageId: String(message.id),
+    reply: (payload) => send(channelId, payload, String(message.id)),
+    react: async (target, targetMessage, emoji) => {
+      try {
+        await bot.helpers.addReaction(target, targetMessage, emoji);
+      } catch {}
+    },
+    dm: async (payload) => {
+      try {
+        const channel = await bot.helpers.getDmChannel(authorId);
+        await send(String(channel.id), payload);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  };
+}
+
+async function dispatchAutocomplete(interaction: any): Promise<void> {
+  const name = String(interaction.data?.name ?? "");
+  const options = (interaction.data?.options ?? []) as {
+    name?: string;
+    value?: unknown;
+    focused?: boolean;
+  }[];
+  const focused = options.find((option) => option.focused) ?? options[0];
+
+  const choices = completeSlash(
+    name,
+    String(focused?.value ?? ""),
+    String(focused?.name ?? ""),
+  );
+
+  await bot.helpers
+    .sendInteractionResponse(interaction.id, interaction.token, {
+      type: InteractionResponseTypes.ApplicationCommandAutocompleteResult,
+      data: { choices },
+    } as any)
+    .catch(() => {});
+}
+
 async function dispatchSlash(interaction: any): Promise<void> {
   const name = String(interaction.data?.name ?? "");
   const raw = interaction.data?.options as ReceivedOption[] | undefined;
@@ -241,27 +365,10 @@ async function dispatchSlash(interaction: any): Promise<void> {
   const channelId = String(interaction.channelId ?? "");
   if (!userId || !channelId) return;
 
-  // A field whose value stands for something else — a custom command word for
-  // the member who claimed it — is resolved by the cog that owns it.
-  const context = {
-    guildId: interaction.guildId ? String(interaction.guildId) : undefined,
-    userId: String(interaction.user?.id ?? interaction.member?.user?.id ?? ""),
-  };
-  const override = await argumentOverride(name, group, sub, options, context);
-  const argument = override ?? argumentFrom(options, found.options);
-
-  await runInteraction(interaction, found.handler, argument, `/${name}`);
+  await runInteraction(interaction, found.handler, argumentFrom(options, found.options), `/${name}`);
 }
 
-/**
- * Runs one handler against an interaction, deferring first.
- *
- * Shared by slash invocations and by the help menu's run dropdown, so a
- * command behaves identically whether it was typed or clicked.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function runInteraction(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   interaction: any,
   command: { handler: (ctx: PrefixContext) => Promise<void> },
   argument: string,
@@ -271,21 +378,19 @@ async function runInteraction(
   const channelId = String(interaction.channelId ?? "");
   if (!userId || !channelId) return;
 
-  // Type 5 is "thinking", as a NEW message. A component click must not use
-  // type 6, which would replace the card that was clicked.
   await bot.helpers
     .sendInteractionResponse(interaction.id, interaction.token, { type: 5 })
     .catch(() => {});
 
   let answered = false;
   const reply = async (payload: ReplyPayload): Promise<SentMessage> => {
-    const body = { ...slashifyPayload(payload), allowed_mentions: { parse: [] } };
+    const body = { ...payload, allowed_mentions: { parse: [] } };
     if (!answered) {
       answered = true;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       return (await bot.helpers.editOriginalInteractionResponse(interaction.token, body as any)) as SentMessage;
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     return (await bot.helpers.sendFollowupMessage(interaction.token, body as any)) as SentMessage;
   };
 
@@ -294,15 +399,12 @@ async function runInteraction(
     authorId: userId,
     channelId,
     guildId: interaction.guildId ? String(interaction.guildId) : undefined,
-    // There is no invoking message; reactions attach to the answer instead.
     messageId: "",
     reply,
     react: async (target, targetMessage, emoji) => {
       try {
         await bot.helpers.addReaction(target, targetMessage, emoji);
-      } catch {
-        /* ignore */
-      }
+      } catch {}
     },
     dm: async (payload) => {
       try {
@@ -321,14 +423,11 @@ async function runInteraction(
     console.error(`${label} failed:`, err);
   }
 
-  // A handler that returned without replying would leave the placeholder
-  // spinning until it times out, which reads as the bot being broken.
   if (!answered) {
     await reply({ content: "That command produced no output." }).catch(() => {});
   }
 }
 
-/** Sends a message, optionally as a reply, never mentioning anyone. */
 async function send(
   channelId: string,
   payload: ReplyPayload,
@@ -336,26 +435,18 @@ async function send(
 ): Promise<SentMessage> {
   return await bot.helpers.sendMessage(
     channelId,
-    // Components V2 bodies are raw Discord shapes, which this version of
-    // discordeno has no types for; the REST layer posts them verbatim.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     {
-      ...slashifyPayload(payload),
+      ...payload,
       allowed_mentions: { parse: [] },
       ...(replyTo ? { message_reference: { message_id: replyTo, fail_if_not_exists: false } } : {}),
     } as any,
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Lifecycle                                                           */
-/* ------------------------------------------------------------------ */
-
 process.on("unhandledRejection", (err) => {
   console.error("unhandled rejection:", err);
 });
 
-/** Without this a stop never closes the gateway socket cleanly. */
 const shutdown = async () => {
   console.log("Shutting down…");
   try {
@@ -400,14 +491,6 @@ try {
     },
   });
 
-  /**
-   * Register the slash commands the cogs contributed.
-   *
-   * Exactly one scope is live and the other is actively cleared, or a client
-   * shows both copies of every command. Guild scope applies instantly, which
-   * is what you want while iterating; global takes up to an hour to propagate
-   * but reaches servers the bot has not been invited to individually.
-   */
   const guildIds = (process.env.GUILD_IDS ?? "")
     .split(",")
     .map((id) => id.trim())
@@ -419,7 +502,6 @@ try {
   if (scope === "guild" && guildIds.length > 0) {
     await bot.rest.upsertGlobalApplicationCommands([]);
     for (const guildId of guildIds) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const registered = await bot.rest.upsertGuildApplicationCommands(guildId, commands as any);
       rememberCommandIds(registered as { name?: string; id?: string | bigint }[]);
     }
@@ -428,14 +510,16 @@ try {
     for (const guildId of guildIds) {
       await bot.rest.upsertGuildApplicationCommands(guildId, []);
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const registered = await bot.rest.upsertGlobalApplicationCommands(commands as any);
     rememberCommandIds(registered as { name?: string; id?: string | bigint }[]);
     console.log(`slash: registered ${commands.length} commands globally`);
   }
 
-  // The help menu runs a chosen command through the same path a slash
-  // invocation takes; only this module can reply to an interaction.
+  provideMessageEditor(async (channelId, messageId, payload) => {
+    await bot.helpers.editMessage(channelId, messageId, payload as any);
+  });
+
   provideRunner(async (interaction, command, argument) => {
     await runInteraction(interaction, command, argument, `/${command.name}`);
   });

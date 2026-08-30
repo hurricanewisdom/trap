@@ -1,27 +1,14 @@
-/**
- * Prefix command router.
- *
- * Commands are registered with a name and any aliases, and dispatch is a plain
- * map lookup so adding groups costs nothing at runtime. Subcommands are left
- * to each handler, which keeps groups such as `,lf link` self-contained.
- */
-
 export interface PrefixContext {
-  /** Raw text after the command name, e.g. "link" for ",lf link". */
   argument: string;
   authorId: string;
   channelId: string;
   guildId?: string;
   messageId: string;
-  /** Replies in the invoking channel; resolves to the created message. */
   reply: (payload: ReplyPayload) => Promise<SentMessage>;
-  /** Adds a reaction, ignoring missing permissions. */
   react: (channelId: string, messageId: string, emoji: string) => Promise<void>;
-  /** Sends a direct message; resolves false when the user has DMs closed. */
   dm: (payload: ReplyPayload) => Promise<boolean>;
 }
 
-/** Just enough of the created message to react to it. */
 export interface SentMessage {
   id?: string | bigint;
   channelId?: string | bigint;
@@ -29,7 +16,6 @@ export interface SentMessage {
 
 export interface ReplyPayload {
   content?: string;
-  // Components V2 payloads are raw Discord objects; see ../components.ts.
   components?: unknown[];
   flags?: number;
   embeds?: unknown[];
@@ -43,16 +29,36 @@ export interface PrefixCommand {
   aliases?: string[];
   description: string;
   handler: PrefixHandler;
-  /** The cog that registered this command; filled in automatically. */
   cog?: string;
+  groupedUnder?: string;
+  category?: string;
 }
 
-/**
- * Set while a cog's setup() runs, so registrations are attributed without
- * every command having to name its own cog. loadCogs() runs setups
- * sequentially, which is what makes this safe.
- */
 let attributing: string | null = null;
+
+let grouping: string | null = null;
+
+let categorising: string | null = null;
+
+export function groupUnder(owner: string, register: () => void): void {
+  const previous = grouping;
+  grouping = owner;
+  try {
+    register();
+  } finally {
+    grouping = previous;
+  }
+}
+
+export function inCategory(slug: string, register: () => void): void {
+  const previous = categorising;
+  categorising = slug;
+  try {
+    register();
+  } finally {
+    categorising = previous;
+  }
+}
 
 export function beginCogAttribution(name: string): void {
   attributing = name;
@@ -64,43 +70,72 @@ export function endCogAttribution(): void {
 
 const registry = new Map<string, PrefixCommand>();
 
-/**
- * Adds a command and its aliases to the registry.
- *
- * A name claimed twice used to overwrite in silence, so whichever cog happened
- * to load last won and the other command became unreachable with nothing to
- * show for it. Collisions are now reported at startup; the first claim keeps
- * the name, since the later one is the accident.
- */
+const groups = new Map<string, Map<string, PrefixCommand>>();
+
+function namespaceFor(group: string | null | undefined): Map<string, PrefixCommand> {
+  if (!group) return registry;
+  const existing = groups.get(group);
+  if (existing) return existing;
+  const created = new Map<string, PrefixCommand>();
+  groups.set(group, created);
+  return created;
+}
+
 export function register(command: PrefixCommand): void {
   if (attributing && !command.cog) command.cog = attributing;
+  if (grouping && !command.groupedUnder) command.groupedUnder = grouping;
+  if (categorising && !command.category) command.category = categorising;
+
+  const scope = namespaceFor(command.groupedUnder);
+  const where = command.groupedUnder ? `,${command.groupedUnder} ` : "";
 
   const claim = (key: string, kind: string): void => {
-    const taken = registry.get(key);
+    const taken = scope.get(key);
     if (taken && taken.name !== command.name) {
       console.warn(
-        `prefix: ${kind} "${key}" is already taken by ${taken.name}` +
+        `prefix: ${kind} "${where}${key}" is already taken by ${taken.name}` +
           `${taken.cog ? ` (${taken.cog})` : ""}, ignoring it for ${command.name}` +
           `${command.cog ? ` (${command.cog})` : ""}`,
       );
       return;
     }
-    registry.set(key, command);
+    scope.set(key, command);
   };
 
   claim(command.name.toLowerCase(), "command");
   for (const alias of command.aliases ?? []) claim(alias.toLowerCase(), "alias");
 }
 
+export function lookupIn(group: string, name: string): PrefixCommand | undefined {
+  return groups.get(group)?.get(name.toLowerCase());
+}
+
+export function lookupPath(path: string): PrefixCommand | undefined {
+  const parts = path.split(/\s+/).filter(Boolean);
+  const leaf = parts.pop();
+  if (!leaf) return undefined;
+
+  const owner = parts.join(" ");
+  return owner ? lookupIn(owner, leaf) : registry.get(leaf.toLowerCase());
+}
+
 export function lookup(name: string): PrefixCommand | undefined {
-  return registry.get(name.toLowerCase());
+  const key = name.toLowerCase();
+  const top = registry.get(key);
+  if (top) return top;
+  for (const scope of groups.values()) {
+    const hit = scope.get(key);
+    if (hit) return hit;
+  }
+  return undefined;
 }
 
 export function allCommands(): PrefixCommand[] {
-  return [...new Set(registry.values())];
+  const seen = new Set(registry.values());
+  for (const scope of groups.values()) for (const command of scope.values()) seen.add(command);
+  return [...seen];
 }
 
-/** Splits "lf link foo" into the command name and the remaining argument. */
 export function split(body: string): { name: string; argument: string } {
   const trimmed = body.trim();
   const match = trimmed.match(/^(\S+)\s*([\s\S]*)$/);

@@ -1,44 +1,51 @@
-/**
- * The help cog.
- *
- * Loaded last, because the menu is generated from whatever is in the command
- * registry at setup time.
- */
-
 import type { Cog } from "../../core/cog.js";
 import { lookup } from "../../core/prefix.js";
-import { flatProvider, provideSlash } from "../../core/slash.js";
+import { flatProvider, provideAutocomplete, provideSlash } from "../../core/slash.js";
 import { onComponent, onModal } from "../../core/hooks.js";
-import { handleFindModal, handleHelpInteraction, registerHelp, setHelpPrefix } from "./commands.js";
+import {
+  handleFindModal,
+  handleHelpInteraction,
+  handleJumpModal,
+  helpChoices,
+  registerHelp,
+} from "./commands.js";
+import { FIND_MODAL_PREFIX, JUMP_PREFIX } from "./render.js";
 
 export const helpCog: Cog = {
   name: "help",
+  label: "Help",
   description: "The command browser",
   setup(ctx) {
-    setHelpPrefix(ctx.prefix);
     registerHelp();
 
     onComponent("help|", async (interaction) => {
       const outcome = await handleHelpInteraction(interaction);
-      // The close button asks for its own message to be removed.
       if (outcome) await ctx.messages.delete(String(interaction.channelId), outcome.deleteMessageId);
     });
 
-    onModal("helpfind:", (interaction) => handleFindModal(interaction));
+    onModal(FIND_MODAL_PREFIX, (interaction) => handleFindModal(interaction));
+    onModal(JUMP_PREFIX, (interaction) => handleJumpModal(interaction));
 
     const help = lookup("help");
-    if (help) {
-      provideSlash(
-        flatProvider([
-          {
-            name: "help",
-            command: help,
-            options: [
-              { kind: "text", name: "query", description: "A command, group or category to look up" },
-            ],
-          },
-        ]),
-      );
-    }
+    if (!help) return;
+
+    provideSlash(
+      flatProvider([
+        {
+          name: "help",
+          command: help,
+          options: [
+            {
+              kind: "text",
+              name: "query",
+              description: "Search every command by name, alias or description",
+              autocomplete: true,
+            },
+          ],
+        },
+      ]),
+    );
+
+    provideAutocomplete("help", (query) => helpChoices(query));
   },
 };

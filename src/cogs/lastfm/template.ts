@@ -1,22 +1,5 @@
-/**
- * A small markup for building your own now-playing card.
- *
- * Users write one block per line and the parser turns it into Components V2.
- * Nothing here trusts the input: only known blocks are built, text is escaped,
- * URLs are checked, and every Discord limit is enforced before the card is
- * ever sent. A bad line is reported rather than silently dropped.
- *
- *   {title: {user} is listening}
- *   {text: **{track}** by {artist}}
- *   {separator}
- *   {footer: {plays} plays · {scrobbles} scrobbles}
- *   {button: Open|{trackurl}}
- *   {image: {art}}
- */
-
 import { label, plain } from "./shared.js";
 
-/** Discord caps a message at 40 components and 5 action rows. */
 const MAX_BLOCKS = 20;
 const MAX_BUTTONS = 5;
 const MAX_TEXT = 1000;
@@ -36,7 +19,6 @@ export interface Variables {
   when: string;
 }
 
-/** Every placeholder a template may use, for the helper card. */
 export const VARIABLE_NAMES: (keyof Variables)[] = [
   "user",
   "track",
@@ -80,14 +62,12 @@ export interface ParseResult {
   errors: string[];
 }
 
-/** Substitutes placeholders, escaping each value for where it lands. */
 function fill(text: string, vars: Variables, forLink: boolean): string {
   return text.replace(/\{([a-z]+)\}/gi, (whole, name: string) => {
     const key = name.toLowerCase() as keyof Variables;
     if (!VARIABLE_NAMES.includes(key)) return whole;
     const value = vars[key] ?? "";
-    // A track called "*x" would otherwise open italics and bleed into the
-    // rest of the card, so values are escaped for the context they land in.
+
     return forLink ? label(value) : plain(value);
   });
 }
@@ -103,10 +83,6 @@ function safeUrl(raw: string): string | null {
   }
 }
 
-/**
- * Parses a template into container children.
- * Errors are collected rather than thrown so the editor can show all of them.
- */
 export function parseTemplate(source: string, vars: Variables): ParseResult {
   const components: unknown[] = [];
   const errors: string[] = [];
@@ -166,7 +142,6 @@ export function parseTemplate(source: string, vars: Variables): ParseResult {
         if (kind === "image") {
           components.push({ type: 12, items: [{ media: { url } }] });
         } else {
-          // A thumbnail is an accessory, so it needs a text line to sit beside.
           const previous = components[components.length - 1] as { type?: number } | undefined;
           if (!previous || previous.type !== 10) {
             errors.push(`${at}: {thumbnail} has to follow a {text} or {title} line.`);
@@ -222,7 +197,6 @@ export function parseTemplate(source: string, vars: Variables): ParseResult {
   return { components, accent, errors };
 }
 
-/** True when a template can be rendered at all. */
 export function validateTemplate(source: string): string[] {
   const sample: Variables = {
     user: "you",

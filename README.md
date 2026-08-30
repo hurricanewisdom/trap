@@ -1,59 +1,324 @@
 # Trap
 
-Slash-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 119 commands, covering every
-live method of the Last.fm API.
+Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
+(TypeScript strict, Node 22), run bare with pm2. 215 commands across four cogs,
+covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
 the conventions — read that first if you are adding a feature.
 
 ## Commands
 
-Slash only; there is no prefix. Six top-level commands:
-
-| Command | What it is |
-| --- | --- |
-| `/fm` | now playing — the one everybody runs |
-| `/lastfm <group> <name>` | your account, charts and listening stats |
-| `/lfmusic <group> <name>` | music, tags, discovery and who else listens |
-| `/help [query]` | the command browser |
-| `/ping` | gateway latency |
-| `/botinfo` | host, process and codebase statistics |
-
-The 115 Last.fm commands are real subcommands under the two parents. Each
-area's headline is promoted to sit directly under its parent, so the common
-ones stay short:
+Prefix commands, `,` by default and configurable per server. **`/help` is the
+one slash command** — everything else is typed, which keeps `,toptracks` short
+rather than turning it into a three-word path with named fields.
 
 ```
-/fm                              /lfmusic crowns
-/lastfm plays  query:radiohead   /lfmusic whoknows query:radiohead
-/lastfm scrobble                 /lfmusic discover
-/lastfm charts toptracks  user:@dylan period:30d
-/lfmusic listeners wkalbum  query:radiohead - kid a
-/lfmusic tagging tagartist  query:Radiohead | shoegaze
+,fm                      ,whoknows radiohead
+,toptracks @dylan 30d    ,crowns
+,lf link                 ,taginfo shoegaze
+,collage 4x4 tracks      ,tagartist Radiohead | shoegaze
 ```
 
-Getting started: `/lastfm account lastfm query:link` DMs an authorisation link,
-after which `/fm` works. `/help` browses everything, and its Find button
-searches all 119 by name.
+- `,help` / `/help` — the command browser and search
+- `,ping`, `,botinfo` — latency, and the host/process/codebase panel
+- `,prefix` — what this server answers to
+- `,boosterrole` — personal colour roles for boosters
+- `,welcome`, `,goodbye`, `,boosts` — messages posted when someone joins, leaves or boosts
+- `,alias` — server shortcuts for existing commands
+- `,stickymessage` — keep a message at the bottom of a channel
+- `,imgonly` — make a channel take images only
+- `,filter` — ten chat filters, five of them enforced by Discord's AutoMod
+- `,lf link` DMs an authorisation link; after that `,fm` works
 
-**Why two parents rather than one**, and why the groups are named as they are,
-is in [ARCHITECTURE.md](ARCHITECTURE.md#slash-commands) — it comes down to
-Discord's 8000-character cap per command.
+Everything else is one of the 116 Last.fm commands. `,help` lists them all.
+
+Most Last.fm commands are **subcommands of `,lastfm`** (`,lf`): `,lf toptracks`,
+`,lf wk radiohead`. Typing one at top level answers with where it lives.
+`,fm` and `,lastfm` are the two that stand alone.
 
 ### Custom commands
 
 A member can claim one word in a server as a shorthand for their own now
-playing. With no prefix to type it against, the word lives on the command it
-aliases: **`/fm custom:<word>`**, autocompleted from what has been claimed
-there. `/lastfm customize customcommand` manages them. A private word is
-invisible in anyone else's autocomplete and refuses to resolve for them.
+playing — typing `,<word>` shows their listening. `,customcommand` manages
+them; a private word only answers to its owner.
+
+## Prefixes
+
+A server can hold as many as 25 prefixes at once, each at most 8 characters and
+without spaces. The dispatcher matches longest-first, so `,,` wins over `,`.
+
+```
+,prefix              what this server answers to, and how to change it
+,prefix list         just the prefixes
+,prefix add ! ?      add one or more, keeping what is set
+,prefix remove !     take one away
+,prefix set !        replace every prefix with this one
+,prefix reset        back to the default
+```
+
+Reading is open to everyone; changing needs **Manage Server**. Anyone without
+it gets a card saying which permission is missing rather than silence.
+
+Two rules stop a server breaking itself. `add` keeps the default when nothing
+custom was set yet, so adding `!` does not silently kill `,` — only `set` does
+that, which is the point of `set`. And **mentioning the bot always works as a
+prefix**, so a server that sets something unusable can always reach
+`@trap prefix reset`.
+
+Prefixes live in Postgres and are cached in process, because the dispatcher
+consults them on every message in every channel. If the database is briefly
+unreachable the last known value is used, so the bot does not go silent.
+
+## Booster roles
+
+Each booster gets one role of their own, coloured and named by them.
+
+```
+,boosterrole #1db954 night owl   make or update yours
+,br blue purple                  a two-colour gradient
+,br random                       a random colour
+,br dominant                     the main colour out of your avatar
+,br rename <name>                rename it
+,br icon <url>                   set its icon, or clear it with no url
+,br share @someone               let someone else wear it
+,br remove                       delete it
+```
+
+Admin side, all Manage Server: `base` (what new roles sit under), `limit`
+(how many the server can hold), `award` (a role handed to anyone who boosts),
+`filter` (blocked words in names), `list`, `link` (adopt an existing role) and
+`cleanup` (delete roles whose owner stopped boosting). `share max` and
+`share limit` cap how many members a role holds and how many roles a member
+wears.
+
+Three things bound what the bot can do here, and each says so rather than
+failing quietly:
+
+- **Manage Roles**, and the bot's own role has to sit *above* the role it is
+  editing. Discord's hierarchy is not a permission you can grant around.
+- **Gradients and icons need boost level 2.** The API carries
+  `colors: { primary_color, secondary_color, tertiary_color }` regardless, so
+  the request is well-formed at any tier; Discord rejects it below the
+  threshold and the card repeats what it said.
+- **The award role is handed out on the boost itself**, from the same
+  `guildMemberUpdate` the greetings use. It is also granted the first time a
+  booster runs any booster command, so a boost that happened while the bot was
+  down is not missed.
+
+## Greetings
+
+`,welcome`, `,goodbye` and `,boosts` are the same feature three times: one
+message per channel, as many channels as you like, `add` / `view` / `remove` /
+`list` / `variables` each, six commands apiece, all behind Manage Server. They
+share one store and one command factory in `cogs/config/greetings/`, but each
+is its own group in `,help` with its own registrar and its own gateway hook —
+a shared implementation is not a reason to present them as one thing.
+
+Variables in braces are filled in (`{user}`, `{guild}`, `{guild.members}`,
+`{guild.boosts}`, `{guild.level}`, `{user.avatar}` and so on); anything in
+braces that is not a variable is left exactly as written, and `add` says which
+tokens it did not recognise rather than silently dropping them.
+
+**What actually triggers them is the awkward part**, and it differs per event:
+
+| | how the bot finds out |
+| --- | --- |
+| boost | `guildMemberUpdate`, `premium_since` going from null to set |
+| join | `guildMemberAdd`, or the type 7 system message |
+| leave | `guildMemberRemove` |
+
+All three now run off gateway member events, which needs the privileged
+**GuildMembers** intent. That cannot simply be requested: asking for an intent
+that is not enabled in the Developer Portal closes the gateway with 4014 and the
+bot never starts. So the handlers are always wired but the intent is only added
+when `GUILD_MEMBERS_INTENT=1` is set, which it now is.
+
+Boost detection needs a little care, because an update event carries no "before"
+state. `booster_state` remembers each member's last known `premium_since`, and a
+boost is announced only on a **null to set** transition that was actually
+observed: a member seen for the first time is recorded silently, so a redeploy
+does not announce every existing booster. A Redis key holds the announcement for
+five minutes, so the system message and the member update cannot both fire for
+the same boost.
+
+## Aliases
+
+`,alias add <shortcut> <command>` makes one word run another command, per
+server, up to 100 of them. `remove`, `removeall`, `view`, `list` and `reset`
+do the rest, all behind Manage Server.
+
+Whatever is typed after the shortcut is passed straight through, so a shortcut
+for `lastfm toptracks` still takes a member and a period. A shortcut may also
+carry preset arguments, and `removeall <command>` clears those too rather than
+only the bare form.
+
+**A shortcut can never shadow a real command.** They resolve through
+`onUnmatchedCommand`, which only runs once nothing in the registry matched, and
+`add` refuses a word that is already a command or subcommand. That ordering is
+the safety property: adding an alias can never take a working command away from
+the server.
+
+## Sticky messages
+
+`,stickymessage add <channel> <message>` keeps one message as the last thing in
+a channel. `view`, `remove` and `list` do the rest, all behind Manage Server.
+
+It **waits for the chat to settle** rather than reposting on every message: each
+message resets a short timer and only the last one fires, so a burst of six
+produces one repost instead of six. The previous copy is deleted before the new
+one goes up, so the channel never accumulates duplicates, which means the bot
+needs Manage Messages there.
+
+The `onMessage` hook it rides on runs for every guild message, so the check in
+front of it is a cached set of channel ids rather than a query. Bot messages are
+ignored before the hook is reached, which is also what stops the sticky
+retriggering on itself.
+
+## Filters
+
+`,filter` is ten filters behind one command, 34 commands in all.
+
+```
+,filter add <word>                filter a word, * wildcards allowed
+,filter whitelist <word>          let one through
+,filter caps on --threshold 60    percent uppercase, default 70
+,filter emoji on --threshold 3    emoji per message, default 10
+,filter spoilers on               spoilers per message, default 5
+,filter massmention on -t 5       mentions per message
+,filter invites on                server invites
+,filter links on                  any link
+,filter links whitelist github.com
+,filter musicfiles on             audio attachments
+,filter spam on --threshold 5     messages per five seconds
+,filter regex <pattern>           filter by pattern
+```
+
+`,filter` on its own reports what is set and how much AutoMod budget is left.
+Every filter takes `exempt <role>` and `<#channel> off`, and each reads back its
+own state when run bare. Arguments are **flags** (`helpers/flags.ts`), so
+`--threshold`, `--limit` and `-t` are the same thing and order does not matter.
+
+**Five of the ten are enforced by Discord, not by the bot.** Words, invites,
+links, patterns and mass mentions are written into the server's own **AutoMod**
+rules, so a blocked message is refused as it is typed and never posts at all.
+Nothing is deleted after the fact, no Manage Messages is needed, and the filter
+keeps working while the bot is down.
+
+The other five — caps, emoji, spoilers, music files and rate — are deleted by
+the bot from `onMessage`, because AutoMod cannot express them.
+
+⚠️ **AutoMod only ever sees message text.** It cannot read attachments at all,
+which is why `,filter musicfiles` has to be bot-side: an `.mp3` is matched on
+its content type and its extension, after the message exists. Anything that
+depends on what was uploaded rather than what was typed lands on the same side
+of that line.
+
+What Discord allows, all discovered by asking it rather than from the docs:
+
+| | |
+| --- | --- |
+| keyword rules per server | **6**, and Trap uses up to 4 of them |
+| regex patterns per rule | 10 |
+| keywords / allow-list entries | 1000 / 100 |
+| exempt roles / channels | 20 / 50 |
+| mass-mention rules | **one per server, and undeletable in a Community server** |
+
+Two of those shape the commands. The 6-rule cap is a server-wide budget shared
+with every other bot, so `,filter` prints what is left rather than letting rule
+7 fail with a bare 400. And because `MENTION_SPAM` is a singleton,
+`,filter massmention` **edits whatever mention rule already exists** rather than
+making its own, and the card names the rule it is touching when that rule is not
+one of Trap's.
+
+AutoMod's regex is the Rust engine, which has **no backreferences and no
+lookaround**. `,filter regex (a)\1` is rejected by Discord, and the card says
+which feature is missing instead of showing a raw 400.
+
+Everything here needs **Manage Channels**, except `reset`, `regex` and
+`wordmigrate`, which need Manage Server — they clear or rewrite rules the whole
+server sees. `wordmigrate` copies words out of keyword rules made by hand or by
+another bot, and leaves those rules alone so nothing is enforced twice by
+accident.
+
+## Configuration
+
+Everything is read from `.env`, which pm2 loads with `node --env-file=.env`.
+That means the values live in `process.env` inside Node and **never appear in
+the process environment**, so checking `/proc/<pid>/environ` to confirm one is
+set gives a false negative.
+
+| | |
+| --- | --- |
+| `DISCORD_TOKEN` | required; a malformed one exits 78 and pm2 gives up |
+| `DATABASE_URL`, `REDIS_*`, `PG_POOL_MAX` | Postgres and Redis |
+| `PREFIX` | the default prefix, `,`; a server can set its own |
+| `GUILD_IDS` | guilds to register `/help` in |
+| `COMMAND_SCOPE` | `guild` registers `/help` only in those guilds, which is instant |
+| `LASTFM_API_KEY`, `LASTFM_API_SECRET` | without these, linking says so |
+| `LASTFM_CALLBACK_BASE` | where Last.fm sends the user back, `https://trap.rocks` |
+| `HTTP_BIND`, `HTTP_PORT` | the callback listener |
+| `GUILD_MEMBERS_INTENT` | `1` to request the members intent |
+| `TRAP_TRACE` | `1` logs raw gateway dispatch names |
+
+`.env.example` carries all seventeen with their defaults.
+
+Three privileged intents are enabled for this application: **Message Content**
+(every prefix command depends on it), **Server Members** (joins, leaves and
+boosts), and Presence, which the bot does not ask for.
+
+⚠️ Only request an intent that is actually enabled in the Developer Portal.
+Asking for one that is not closes the gateway with **4014** and the bot never
+starts, which is why `GUILD_MEMBERS_INTENT` is a switch rather than a constant.
+Note that the application flags report an enabled intent on an unverified bot as
+`*_LIMITED`; that means enabled, not disabled.
+
+## Gallery channels
+
+`,imgonly add <channel>` makes a channel images only; `remove` and `list` do the
+rest, all behind Manage Server.
+
+A post has to carry an image, and a caption alongside it is fine — that is the
+point of the feature. An image means an attachment Discord typed as one, a file
+with an image extension, or a direct link to one. Everything else is deleted, so
+the bot needs Manage Messages there.
+
+**Members with Manage Server are exempt**, because otherwise setting the channel
+up from inside it would delete the command that did it.
 
 ## Run
 
 1. Put the bot token in `.env` (`DISCORD_TOKEN=...`).
 2. `npm install && npm run build`
 3. `pm2 start ecosystem.config.cjs && pm2 save`
+
+## Deploy
+
+```
+python deploy/deploy.py              upload what changed, build, restart
+python deploy/deploy.py --dry-run    say what would go, change nothing
+python deploy/deploy.py --status     what pm2 thinks is running
+python deploy/deploy.py --logs 40    tail the bot log
+```
+
+Credentials come from `TRAP_PASSWORD`, or `TRAP_KEY` for a private key, or a
+prompt. Run it from PowerShell rather than Git Bash, which rewrites a
+`TRAP_REMOTE` beginning with a slash into a Windows path.
+
+Four things it does on purpose:
+
+- **It never uploads `.env`.** The payload is an allowlist, and the archive is
+  checked for one before it is sent. The server's copy is the only copy.
+- **It deletes `src/` on the server before extracting.** Unpacking over the top
+  leaves a locally-deleted file still sitting there, still compiled into `dist`,
+  still registering its commands.
+- **It installs from the lockfile.** `npm install` re-resolves every dependency,
+  and an unpinned `@types/node` moving to 22.20.1 mid-deploy broke a `Buffer`
+  that had compiled for weeks. `package-lock.json` is part of the payload and
+  `npm ci` is what runs.
+- **It waits for a *new* ready line before calling it done.** Matching on the
+  log tail alone finds the previous boot's line and reports a crashed restart as
+  a success, so it counts them and requires the count to rise.
 
 ## Operate
 
@@ -66,18 +331,76 @@ restart-looping (`stop_exit_codes`).
 
 ## Components V2
 
-discordeno v21 predates Components V2, so `src/components.ts` defines the types
-and builders itself. This is safe because the REST layer posts the interaction
-body verbatim — no camelCase conversion — so Discord-shaped (snake_case)
-component JSON goes over the wire untouched.
+discordeno v21 predates Components V2, so `helpers/components.ts` defines the
+types and builders itself. This is safe because the REST layer posts the
+interaction body verbatim — no camelCase conversion — so Discord-shaped
+(snake_case) component JSON goes over the wire untouched.
 
 A V2 message must set flag `1 << 15` and may not also send `content` or
-`embeds`. A message may hold at most five action rows, which is why the help
-card's controls are two selects and one button row rather than more.
+`embeds`. The limits that actually bite: **4000 characters of text** across the
+whole message, **25 options** per select, **every custom id unique**, and
+**every option value within a select unique**. Five action rows inside one
+container is fine.
+
+The last two have no local symptom. Either duplicate is a 400 from Discord, the
+edit never lands, and the user sees "Trap didn't respond in time" — so component
+payloads are checked by posting one to a channel and reading the status, not
+only by inspecting the structure. Both have shipped: first as selects sharing a
+custom id, then as the repeated `exempt` and `list` subcommands under `,filter`
+colliding on option value, which killed 18 of the browser's 302 views at once.
+
+## Help
+
+`,help` opens the browser; `/help` is the same thing from Discord's picker,
+with **autocomplete** — 25 ranked matches appear as you type, out of every
+command. That is what makes the browser usable at this size, and what will keep
+it usable at ten times it.
+
+Anything else searches. `,help top` ranks 21 matches; `,help colour` finds
+`,lfcolor` from its description; `,help tpt` finds `toptracks` by subsequence.
+A command, cog or category name goes straight there instead.
+
+The card is one Components V2 container:
+
+- **Home** lists the cogs as an aligned block of names and counts.
+- **A cog** lists only what you can type. A command that owns subcommands is
+  marked `,prefix`\*, and opening it shows those subcommands. A large cog opens
+  as its categories instead, with **All** for the flat list and an **A-Z** index.
+- **A command** shows usage, aliases, details and examples, with **Run**.
+- Controls: a cog jump, **Open a command**, **Run a command**, first/back/page
+  /next/last, **Search** and **Close**.
+
+Usage and examples are rewritten on the way out, so a catalog line written as
+`,tt` before the command moved under `,lastfm` renders as `,lf tt` rather than
+telling you to type something that no longer resolves.
+
+The view is **stateless**: which page of which thing, and who owns it, is
+encoded in the component custom ids, so it survives a restart and stores
+nothing. Only the person who ran it can drive the controls, and the controls
+disable themselves after 60 seconds of no clicks.
+
+`cogs/help/catalog.ts` is data only. The browser is generated from the *live
+registry* — cog, group and category attribution included — and merely decorated
+with the catalog, so a command that is registered but undocumented still
+appears rather than silently vanishing. A catalog entry is matched to one
+command, not to every command sharing its name: `,filter` and
+`,boosterrole filter` are different commands, and before that rule the second
+wore the first's documentation and filed itself under the wrong group.
+
+**Nothing in help identifies a command by its bare name.** Names are unique only
+within a group, and with 201 subcommands `exempt`, `list`, `add` and `remove`
+each belong to a dozen owners. Every id, option value and lookup carries the
+full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
+a path too, so `,help filter links whitelist` opens that exact command.
+
+The check that keeps this honest renders **all 302 views** and asserts unique
+option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
+posts the ones that changed to a real channel. Space those posts out: Discord
+answers a burst with 429s that read exactly like component failures.
 
 ## Last.fm
 
-`/lastfm account lastfm query:link` mints a random single-use state, stores it in Redis for ten minutes,
+`,lf link` mints a random single-use state, stores it in Redis for ten minutes,
 and DMs the user a Last.fm authorisation URL whose callback carries that state.
 Last.fm redirects to `https://trap.rocks/lastfm/callback/<state>?token=…`, which
 nginx proxies to the bot. The bot claims the state with `GETDEL` (so a replayed
@@ -102,7 +425,7 @@ rather than after a TTL. Every Redis key carries a TTL, because the server runs
 
 ### Now playing
 
-`/fm` reads `user.getRecentTracks` (extended, for the loved flag) and adds the
+`,fm` reads `user.getRecentTracks` (extended, for the loved flag) and adds the
 personal play count from `track.getInfo` as a best-effort second call — a
 failure there drops the count rather than the reply. Responses are cached for
 eight seconds per Last.fm username: long enough to absorb repeat calls and
@@ -142,7 +465,7 @@ API (`src/core/discord.ts`) and are cached for ten minutes; `hide` computes
 Manage Guild from role bitfields, because a gateway message carries no resolved
 permissions.
 
-Voting works off the reactions `/fm` already adds. The bot's own seed reactions
+Voting works off the reactions `,fm` already adds. The bot's own seed reactions
 are ignored — Discord dispatches those back as ordinary reaction events — and
 nobody can vote on their own post. Votes cascade away with the post.
 
@@ -150,10 +473,15 @@ nobody can vote on their own post. Votes cascade away with the post.
 
 Now-playing has four styles. Three are embeds because inline fields are the
 only way to get columns; `container` matches the Components V2 card the rest of
-the bot uses. Colour, style and voting emoji are per-user, with the server
-providing a fallback pair for reactions.
+the bot uses.
 
-Everything read on the `/fm` path — style, colour, reactions, artwork override
+Cards carry **no colour by default**. `,lfcolor` sets one, and it then follows
+that person across every Last.fm card they pull up, not just now-playing. It
+travels as an ambient value rather than an argument through a hundred call
+sites; `,ping`, `,botinfo` and `,help` are outside the Last.fm cog and stay
+colourless.
+
+Everything read on the `,fm` path — style, colour, reactions, artwork override
 — is cached in Redis for a minute and invalidated on write.
 
 A custom command is a member's own word for "show my now playing", scoped to
@@ -239,42 +567,9 @@ A truncated scan never writes the table. Its "top listener" is the top of a
 sample, and storing that would leave the wrong holder in place for every later
 `crowns` and `mostcrowns` read.
 
-## Help
-
-`/help` lists the loaded **cogs**, mirroring the source layout. Opening one
-shows its sections (or its commands outright, for a small cog), and a section
-lists its commands — one Components V2 card with a cog dropdown, a **Run a
-command** dropdown, and Home / paging / Find / Close buttons inside the
-container.
-
-Every entry is a real command mention, so it renders as a clickable chip and
-inserts the full path. Running one is the dropdown's job: a mention can only
-insert, never execute, and cannot pre-fill a field.
-
-`/help <query>` jumps straight to a command and resolves aliases, so
-`/help ta` finds `toptracks`. Cogs and sections work too, and a leading group
-name is dropped when the whole query does not match, so `/help charts
-toptracks` lands on the command. The full query is tried first, which keeps
-multi-word section labels like `/help Now playing` intact. Where a cog shares a
-name with a command the **cog wins**, and the cog view points at the same-named
-command so nothing becomes unreachable.
-
-Because a dropdown holds 25 options and a page shows 8, neither could ever
-reach all 119 commands. **Find** opens a modal that takes anything `/help`
-takes, which is the only control that can.
-
-The menu is **stateless**: the whole view — which page of which category, and
-who owns it — is encoded in the component custom ids, so it keeps working after
-a restart and stores nothing. Only the person who ran it can drive the controls.
-
-`src/cogs/help/catalog.ts` is data only, keyed by the primary command name. The
-menu is generated from the *live registry* — including which cog registered
-each command — and merely decorated with the catalog, so a command that is
-registered but undocumented still appears rather than silently vanishing.
-
 ## Statistics
 
-`/botinfo` is a monospace panel: CPU, host memory and disk as proportional
+`,botinfo` is a monospace panel: CPU, host memory and disk as proportional
 bars, then process figures, then the codebase.
 
 CPU comes from two samples of `os.cpus()` about 120ms apart rather than

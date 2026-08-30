@@ -1,10 +1,3 @@
-/**
- * Postgres access.
- *
- * One pooled connection set for the process, with prepared statements enabled
- * (the default in this driver) so repeated lookups skip parse and plan.
- */
-
 import postgres from "postgres";
 import { optionalInt, required } from "./env.js";
 
@@ -12,15 +5,10 @@ export const sql = postgres(required("DATABASE_URL"), {
   max: optionalInt("PG_POOL_MAX", 8),
   idle_timeout: 30,
   connect_timeout: 10,
-  // Bot workloads are bursty and tiny; keeping prepares on is the win here.
   prepare: true,
   onnotice: () => {},
 });
 
-/**
- * Schema, applied on boot. Written to be safe to run repeatedly rather than
- * tracked with migration files — the schema is small and additive so far.
- */
 export async function migrate(): Promise<void> {
   await sql`
     CREATE TABLE IF NOT EXISTS lastfm_users (
@@ -32,14 +20,11 @@ export async function migrate(): Promise<void> {
     )
   `;
 
-  // Looking a Discord user up by their Last.fm name (for future commands such
-  // as "whose account is this") should not scan the table.
   await sql`
     CREATE INDEX IF NOT EXISTS lastfm_users_username_idx
       ON lastfm_users (lower(username))
   `;
 
-  // A crown is "top listener for this artist in this guild".
   await sql`
     CREATE TABLE IF NOT EXISTS lastfm_crowns (
       guild_id    TEXT NOT NULL,
@@ -56,7 +41,6 @@ export async function migrate(): Promise<void> {
       ON lastfm_crowns (guild_id, discord_id)
   `;
 
-  // Members a moderator has removed from whoknows listings.
   await sql`
     CREATE TABLE IF NOT EXISTS lastfm_hidden (
       guild_id   TEXT NOT NULL,
@@ -67,7 +51,6 @@ export async function migrate(): Promise<void> {
     )
   `;
 
-  // Now-playing posts, so their reactions can be tallied into a scoreboard.
   await sql`
     CREATE TABLE IF NOT EXISTS lastfm_np_posts (
       message_id TEXT PRIMARY KEY,
@@ -89,7 +72,6 @@ export async function migrate(): Promise<void> {
     )
   `;
 
-  // Per-user Last.fm preferences: now-playing style, embed colour, reactions.
   await sql`
     CREATE TABLE IF NOT EXISTS lastfm_user_settings (
       discord_id TEXT PRIMARY KEY,
@@ -101,10 +83,9 @@ export async function migrate(): Promise<void> {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `;
-  // Added after the table shipped, so it is a separate statement.
+
   await sql`ALTER TABLE lastfm_user_settings ADD COLUMN IF NOT EXISTS np_template TEXT`;
 
-  // Server-wide defaults, set by moderators.
   await sql`
     CREATE TABLE IF NOT EXISTS lastfm_guild_settings (
       guild_id   TEXT PRIMARY KEY,
@@ -114,7 +95,6 @@ export async function migrate(): Promise<void> {
     )
   `;
 
-  // A member's own word for "show my now playing", scoped to one guild.
   await sql`
     CREATE TABLE IF NOT EXISTS lastfm_custom_commands (
       guild_id   TEXT NOT NULL,
@@ -125,7 +105,7 @@ export async function migrate(): Promise<void> {
       PRIMARY KEY (guild_id, discord_id)
     )
   `;
-  // One word cannot belong to two members in the same guild.
+
   await sql`
     CREATE UNIQUE INDEX IF NOT EXISTS lastfm_custom_commands_word_idx
       ON lastfm_custom_commands (guild_id, lower(command))
@@ -140,7 +120,6 @@ export async function migrate(): Promise<void> {
     )
   `;
 
-  // Community-submitted album covers, used when Last.fm's artwork is poor.
   await sql`
     CREATE TABLE IF NOT EXISTS lastfm_album_art (
       id           BIGSERIAL PRIMARY KEY,
@@ -167,13 +146,167 @@ export async function migrate(): Promise<void> {
     )
   `;
 
-  // Per-user command preferences, kept apart from the Last.fm card settings.
   await sql`
     CREATE TABLE IF NOT EXISTS lastfm_prefs (
       discord_id     TEXT PRIMARY KEY,
       default_period TEXT,
       chart_size     INTEGER,
       updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS guild_prefixes (
+      guild_id   TEXT NOT NULL,
+      prefix     TEXT NOT NULL,
+      added_by   TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, prefix)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS booster_roles (
+      guild_id   TEXT NOT NULL,
+      user_id    TEXT NOT NULL,
+      role_id    TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, user_id)
+    )
+  `;
+
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS booster_roles_role_idx
+      ON booster_roles (guild_id, role_id)
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS booster_config (
+      guild_id      TEXT PRIMARY KEY,
+      base_role_id  TEXT,
+      award_role_id TEXT,
+      role_limit    INTEGER,
+      share_max     INTEGER,
+      share_limit   INTEGER,
+      updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS booster_filters (
+      guild_id TEXT NOT NULL,
+      word     TEXT NOT NULL,
+      PRIMARY KEY (guild_id, word)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS booster_shares (
+      guild_id  TEXT NOT NULL,
+      role_id   TEXT NOT NULL,
+      user_id   TEXT NOT NULL,
+      shared_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, role_id, user_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS boost_messages (
+      guild_id   TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      message    TEXT NOT NULL,
+      created_by TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, channel_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS command_aliases (
+      guild_id   TEXT NOT NULL,
+      shortcut   TEXT NOT NULL,
+      command    TEXT NOT NULL,
+      created_by TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, shortcut)
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS command_aliases_command_idx
+      ON command_aliases (guild_id, command)
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS sticky_messages (
+      guild_id   TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      message    TEXT NOT NULL,
+      posted_id  TEXT,
+      created_by TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, channel_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS channel_messages (
+      guild_id   TEXT NOT NULL,
+      kind       TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      message    TEXT NOT NULL,
+      created_by TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, kind, channel_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS booster_state (
+      guild_id      TEXT NOT NULL,
+      user_id       TEXT NOT NULL,
+      premium_since TIMESTAMPTZ,
+      seen_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, user_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS gallery_channels (
+      guild_id   TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      added_by   TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, channel_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS filter_settings (
+      guild_id   TEXT NOT NULL,
+      kind       TEXT NOT NULL,
+      enabled    BOOLEAN NOT NULL DEFAULT false,
+      threshold  INTEGER,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, kind)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS filter_exempt_roles (
+      guild_id TEXT NOT NULL,
+      kind     TEXT NOT NULL,
+      role_id  TEXT NOT NULL,
+      PRIMARY KEY (guild_id, kind, role_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS filter_exempt_channels (
+      guild_id   TEXT NOT NULL,
+      kind       TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      PRIMARY KEY (guild_id, kind, channel_id)
     )
   `;
 

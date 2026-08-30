@@ -1,8 +1,3 @@
-/**
- * A listener and what they have been playing: profile, recent scrobbles,
- * loved tracks and per-track stats.
- */
-
 import { LastfmError, call } from "./client.js";
 
 export interface UserInfo {
@@ -35,7 +30,6 @@ export interface RecentTrack {
   "@attr"?: { nowplaying?: string };
 }
 
-/** Picks the largest usable image, since Last.fm pads the array with blanks. */
 export function largestImage(images: Image[] | undefined): string | null {
   if (!images?.length) return null;
   const order = ["mega", "extralarge", "large", "medium", "small"];
@@ -51,11 +45,6 @@ export interface RecentTracks {
   "@attr"?: { total?: string; user?: string };
 }
 
-/**
- * Most recent scrobble. `extended` adds the loved flag and a richer artist
- * object; the API returns a bare object rather than an array when limit is 1,
- * so callers must tolerate both.
- */
 export async function getRecentTracks(username: string, limit = 1): Promise<{
   tracks: RecentTrack[];
   total: number;
@@ -77,7 +66,6 @@ export interface TrackInfo {
   album?: { title?: string; image?: Image[] };
 }
 
-/** Per-user play count for a track. Best-effort: callers treat failure as absent. */
 export async function getTrackInfo(
   artist: string,
   track: string,
@@ -95,10 +83,6 @@ export async function getTrackInfo(
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* Friends and library                                                 */
-/* ------------------------------------------------------------------ */
-
 export interface Friend {
   name: string;
   url?: string;
@@ -109,11 +93,6 @@ export interface Friend {
   registered?: { unixtime?: string };
 }
 
-/**
- * Who a listener follows. Paged, and the page count is what matters for the
- * footer — Last.fm reports the true total even when a page is short.
- */
-/** Last.fm answers "no such page" instead of an empty list. */
 const NO_SUCH_PAGE = 6;
 
 export async function getFriends(
@@ -128,10 +107,6 @@ export async function getFriends(
       friends?: { user?: Friend | Friend[]; "@attr"?: { total?: string } };
     }>("user.getFriends", { user: username, limit: String(limit), page: String(page) });
   } catch (err) {
-    // Alone among the list endpoints, this one reports "you follow nobody" as
-    // an error rather than an empty array — every other user.* method returns
-    // an empty list. The same code also means the page is past the end, and
-    // both are "there is nothing here", so both answer with no friends.
     if (err instanceof LastfmError && err.code === NO_SUCH_PAGE) {
       return { friends: [], total: 0 };
     }
@@ -153,13 +128,6 @@ export interface LibraryArtist {
   image?: Image[];
 }
 
-/**
- * Every artist in a listener's library, most played first.
- *
- * Distinct from `user.getTopArtists`: this is the whole library rather than a
- * period chart, so it is the only way to page through all of it — rj's runs
- * to 12,763 artists across 6,382 pages at the default page size.
- */
 export async function getLibraryArtists(
   username: string,
   limit = 50,

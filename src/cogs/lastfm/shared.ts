@@ -1,14 +1,3 @@
-/**
- * Pieces every Last.fm stats command needs: period parsing, target
- * resolution, listening history and the Last.fm-specific formatting.
- *
- * The generic presentation helpers - markdown escaping, card and page
- * building - are not Last.fm's to own; a second cog would otherwise have to
- * import them from inside this one. They live in `src/helpers` and are
- * re-exported here so the twenty command files in this folder keep a single
- * import site.
- */
-
 import {
   getRecentPage,
   getRecentTracks,
@@ -24,7 +13,7 @@ import type { PrefixContext } from "../../core/prefix.js";
 import { TargetError } from "./guard.js";
 
 export {
-  EMBED_COLOR,
+  USER_ACCENT,
   PAGE_SIZE,
   bar,
   buildPages,
@@ -52,9 +41,9 @@ export {
 
 const MENTION = /^<@!?(\d{15,25})>$/;
 
-/* ------------------------------------------------------------------ */
-/* Periods                                                            */
-/* ------------------------------------------------------------------ */
+const USERNAME = /^[A-Za-z0-9_.-]{2,20}$/;
+
+const TARGET_TOKEN = /^(?:user|lfm|fm):.+/i;
 
 const PERIODS: Record<string, Period> = {
   overall: "overall",
@@ -89,7 +78,6 @@ const PERIODS: Record<string, Period> = {
   y: "12month",
 };
 
-/** Human label used in the embed heading, matching Last.fm's own wording. */
 const PERIOD_LABEL: Record<Period, string> = {
   overall: "overall",
   "7day": "weekly",
@@ -103,7 +91,6 @@ export function periodLabel(period: Period): string {
   return PERIOD_LABEL[period];
 }
 
-/** Pulls a period token out of the argument, returning the rest untouched. */
 export function extractPeriod(argument: string): { period: Period; rest: string } {
   const words = argument.split(/\s+/).filter(Boolean);
   for (let i = words.length - 1; i >= 0; i--) {
@@ -116,50 +103,47 @@ export function extractPeriod(argument: string): { period: Period; rest: string 
   return { period: "overall", rest: argument.trim() };
 }
 
-/* ------------------------------------------------------------------ */
-/* Targets                                                            */
-/* ------------------------------------------------------------------ */
-
 export interface Target {
   username: string;
-  /** Discord id when the target came from a mention or is the caller. */
   discordId?: string;
+}
+
+export interface TargetOptions {
+  allowBare?: boolean;
+}
+
+export function possessive(ctx: PrefixContext, target: Target): string | null {
+  if (!target.discordId) return `**${target.username.replaceAll("[", "［").replaceAll("]", "］")}**`;
+  return target.discordId === ctx.authorId ? null : `<@${target.discordId}>`;
 }
 
 export { TargetError } from "./guard.js";
 
-/**
- * Works out whose stats to show, consuming a leading mention or username.
- * Returns the remaining argument so callers can parse their own operands.
- */
 export async function resolveTarget(
   ctx: PrefixContext,
   argument: string,
+  options: TargetOptions = {},
 ): Promise<{ target: Target; rest: string }> {
   const words = argument.split(/\s+/).filter(Boolean);
 
-  /**
-   * An explicit token can name any Last.fm account, from anywhere in the
-   * argument. A bare word cannot be used for this: ",plays Twxn" names an
-   * artist, not a user, so guessing would break every command that takes an
-   * operand.
-   */
-  const tokenAt = words.findIndex((w) => /^(?:user|lfm|fm):.+/i.test(w));
+  const tokenAt = words.findIndex((word) => TARGET_TOKEN.test(word));
   if (tokenAt !== -1) {
     const username = (words[tokenAt] ?? "").split(":").slice(1).join(":");
-    if (!/^[A-Za-z0-9_.-]{2,20}$/.test(username)) {
-      throw new TargetError("That does not look like a Last.fm username.");
-    }
-    const rest = words.filter((_, i) => i !== tokenAt).join(" ");
-    return { target: { username }, rest };
+    if (!USERNAME.test(username)) throw badUsername();
+    return { target: { username }, rest: words.filter((_, i) => i !== tokenAt).join(" ") };
   }
 
   const first = words[0] ?? "";
   const mention = MENTION.exec(first);
   if (mention) {
     const username = await getUsername(mention[1] as string);
-    if (!username) throw new TargetError("That user has not linked a Last.fm account.");
+    if (!username) throw new TargetError("That user has not linked a Last.fm account.", "Not linked");
     return { target: { username, discordId: mention[1] }, rest: words.slice(1).join(" ") };
+  }
+
+  if (options.allowBare && first) {
+    if (!USERNAME.test(first)) throw badUsername();
+    return { target: { username: first }, rest: words.slice(1).join(" ") };
   }
 
   const own = await getUsername(ctx.authorId);
@@ -167,18 +151,20 @@ export async function resolveTarget(
 
   throw new TargetError(
     "You have not linked a Last.fm account. Run `,lf link`, or name one with `user:<name>`.",
+    "Not linked",
   );
 }
 
-/** Cached profile lookup, for avatars and totals. */
+function badUsername(): TargetError {
+  return new TargetError("That does not look like a Last.fm username.", "Bad username");
+}
+
 export async function profile(username: string): Promise<UserInfo | null> {
   const cacheKey = `trap:lf:profile:${username.toLowerCase()}`;
   try {
     const hit = await redis.get(cacheKey);
     if (hit) return JSON.parse(hit) as UserInfo;
-  } catch {
-    /* fall through to the API */
-  }
+  } catch {}
   try {
     const info = await getUserInfo(username);
     redis.set(cacheKey, JSON.stringify(info), "EX", TTL.user).catch(() => {});
@@ -188,14 +174,6 @@ export async function profile(username: string): Promise<UserInfo | null> {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* What the caller is playing                                          */
-/* ------------------------------------------------------------------ */
-
-/**
- * The artist of the most recent scrobble, for commands that take an artist
- * but should default to what you are listening to.
- */
 export async function currentArtist(ctx: PrefixContext): Promise<string> {
   const { target } = await resolveTarget(ctx, "");
   const { tracks } = await getRecentTracks(target.username, 1);
@@ -204,7 +182,6 @@ export async function currentArtist(ctx: PrefixContext): Promise<string> {
   return artist;
 }
 
-/** The same, as an `[artist, album]` or `[artist, track]` pair. */
 export async function currentPair(
   ctx: PrefixContext,
   kind: "album" | "track",
@@ -220,10 +197,6 @@ export async function currentPair(
   return [artist, second];
 }
 
-/* ------------------------------------------------------------------ */
-/* Last.fm rendering                                                  */
-/* ------------------------------------------------------------------ */
-
 export const artistUrl = (name: string) =>
   `https://www.last.fm/music/${encodeURIComponent(name)}`;
 
@@ -233,17 +206,8 @@ export const trackUrl = (artist: string, track: string) =>
 export const albumUrl = (artist: string, album: string) =>
   `${artistUrl(artist)}/${encodeURIComponent(album)}`;
 
-/**
- * The separator in "artist - album". En and em dashes are accepted because
- * phones substitute them for a typed hyphen without asking.
- */
 export const PAIR_SEPARATOR = /\s+[-–—]\s+/;
 
-/**
- * Splits "artist - album" into its two halves, or null if there is no
- * separator. Everything after the first separator stays with the second half,
- * so "Radiohead - Everything In Its Right Place - Live" keeps its own dash.
- */
 export function splitPair(argument: string): [string, string] | null {
   const parts = argument.trim().split(PAIR_SEPARATOR);
   if (parts.length < 2 || !parts[0]?.trim() || !parts[1]?.trim()) return null;
@@ -254,28 +218,15 @@ export function avatarOf(info: UserInfo | null): string | null {
   return largestImage(info?.image);
 }
 
-/* ------------------------------------------------------------------ */
-/* Listening history                                                   */
-/* ------------------------------------------------------------------ */
-
-/** A scrobble reduced to what the time analyses need. */
 export interface Scrobble {
   artist: string;
   album: string;
   track: string;
-  /** Unix seconds. Absent for a track that is playing right now. */
   at: number | null;
 }
 
-/** How many 200-track pages the history commands may pull. */
 export const HISTORY_PAGES = 5;
 
-/**
- * Recent scrobbles, flattened and cached.
- *
- * Each page is one API call, so this is the expensive part of every time
- * analysis; the cache is what makes running several of them in a row cheap.
- */
 export async function history(
   username: string,
   pages = HISTORY_PAGES,
@@ -284,9 +235,7 @@ export async function history(
   try {
     const hit = await redis.get(key);
     if (hit) return JSON.parse(hit) as { scrobbles: Scrobble[]; total: number };
-  } catch {
-    /* fall through to the API */
-  }
+  } catch {}
 
   const scrobbles: Scrobble[] = [];
   let total = 0;
@@ -311,12 +260,10 @@ function push(into: Scrobble[], track: RecentTrack): void {
   });
 }
 
-/** Scrobbles that carry a timestamp, newest first. */
 export function timed(scrobbles: Scrobble[]): (Scrobble & { at: number })[] {
   return scrobbles.filter((s): s is Scrobble & { at: number } => s.at !== null);
 }
 
-/** Counts values and returns them sorted, most common first. */
 export function tally<T>(items: T[], key: (item: T) => string): { name: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const item of items) {

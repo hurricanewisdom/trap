@@ -1,14 +1,3 @@
-/**
- * Per-item play counts: an artist, an album, one track, or every track on a
- * record, plus the two artist-scoped top tens and a combined overview.
- *
- * Two argument shapes appear throughout. `<artist>` is taken verbatim, and
- * `<artist - album>` splits on a space-dash-space so titles keep their own
- * hyphens ("Post-Punk", "Jay-Z"). Leaving the operand out entirely falls back
- * to whatever the target is playing right now, which is what people reach for
- * straight after `,np`.
- */
-
 import { paginate } from "../../../core/pager.js";
 import { register, type PrefixContext } from "../../../core/prefix.js";
 import {
@@ -23,7 +12,7 @@ import {
 } from "../api/index.js";
 import { guard } from "../guard.js";
 import {
-  EMBED_COLOR,
+  USER_ACCENT,
   TargetError,
   avatarOf,
   buildPages,
@@ -40,58 +29,35 @@ import {
 } from "../shared.js";
 import type { LfArtistRef } from "../types.js";
 
-/** How many entries the artist-scoped charts show. */
 const TOP_N = 10;
-/** How many albums/tracks the overview card lists. */
+
 const OVERVIEW_N = 3;
-/**
- * `,playsall` costs one track.getInfo per track, so a 90-track compilation is
- * capped rather than allowed to fire ninety requests. The heading says so.
- */
+
 const MAX_ALBUM_TRACKS = 50;
-/** Small enough to stay well under Last.fm's rate limit on a long tracklist. */
+
 const LOOKUP_CONCURRENCY = 4;
 
-/** Space, dash, space. The en/em dashes are accepted because phones insert them. */
 const SEPARATOR = /\s+[-–—]\s+/;
 
-/** One entry of album.getInfo's track list. */
 interface AlbumTrack {
   name: string;
   url?: string;
   duration?: string | null;
 }
 
-/* ------------------------------------------------------------------ */
-/* Small helpers                                                      */
-/* ------------------------------------------------------------------ */
-
-/** Last.fm collapses a single-element list into a bare object. */
 function list<T>(value: T | T[] | undefined): T[] {
   return Array.isArray(value) ? value : value ? [value] : [];
 }
 
-/** The artist reference is `name` on some endpoints and `#text` on others. */
 function artistNameOf(ref: LfArtistRef | undefined): string {
   return ref?.name ?? ref?.["#text"] ?? "";
 }
 
-/**
- * Case-insensitive membership test over the names an artist may appear under:
- * what the user typed and whatever autocorrect resolved it to.
- */
 function matcher(...names: string[]): (candidate: string) => boolean {
   const wanted = new Set(names.map((n) => n.trim().toLowerCase()).filter(Boolean));
   return (candidate) => wanted.has(candidate.trim().toLowerCase());
 }
 
-/**
- * encodeURIComponent leaves `(` and `)` untouched, and url() hands back its
- * *fallback* verbatim rather than running it through the paren-encoder it
- * applies to real URLs. A title like "Everlong (Live)" would therefore close
- * its own `[label](url)` the moment Last.fm omits the canonical link, so every
- * path segment is escaped here instead.
- */
 const segment = (value: string) =>
   encodeURIComponent(value).replaceAll("(", "%28").replaceAll(")", "%29");
 
@@ -103,17 +69,11 @@ const albumUrl = (artist: string, album: string) =>
 const trackUrl = (artist: string, track: string) =>
   `${artistLink(artist)}/_/${segment(track)}`;
 
-/**
- * Last.fm sends counts as strings and occasionally omits or mangles one.
- * Number("") is 0 but Number("1,024") is NaN, which would otherwise render as
- * "NaN plays" and poison the summed total on `,playsall`.
- */
 const playCount = (value: string | undefined): number => {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-/** Adds the global figures as a subtext line when Last.fm supplied them. */
 function withGlobals(line: string, listeners?: string, playcount?: string): string {
   const parts = [
     Number(listeners) ? `${Number(listeners).toLocaleString("en-US")} listeners` : null,
@@ -122,13 +82,6 @@ function withGlobals(line: string, listeners?: string, playcount?: string): stri
   return parts.length > 0 ? `${line}\n-# ${parts.join(" • ")}` : line;
 }
 
-/**
- * Runs `worker` over `items` a few at a time, preserving order.
- *
- * Promise.all over a whole tracklist would open one connection per track and
- * trip Last.fm's rate limiting; a fixed pool of runners pulling from a shared
- * cursor keeps that bounded without needing a dependency.
- */
 async function mapLimit<T, R>(
   items: readonly T[],
   limit: number,
@@ -143,8 +96,7 @@ async function mapLimit<T, R>(
       const index = cursor++;
       if (index >= items.length) return;
       const item = items[index];
-      // A hole skips its own slot — `return` here would retire the runner and
-      // silently leave every later track unqueried.
+
       if (item === undefined) continue;
       results[index] = await worker(item, index);
     }
@@ -154,19 +106,6 @@ async function mapLimit<T, R>(
   return results;
 }
 
-/* ------------------------------------------------------------------ */
-/* Argument parsing                                                   */
-/* ------------------------------------------------------------------ */
-
-/**
- * Honours a period only as the *final* word.
- *
- * extractPeriod() scans backwards through every word, which is right for a
- * bare chart but wrong here: an artist name is free text, so "Half Moon Run"
- * and "All Them Witches" would silently lose their first word. Feeding it just
- * the last word keeps the name intact and still accepts `,toptentracks nirvana
- * week`.
- */
 function trailingPeriod(argument: string): { period: Period; rest: string } {
   const trimmed = argument.trim();
   const words = trimmed.split(/\s+/).filter(Boolean);
@@ -174,12 +113,11 @@ function trailingPeriod(argument: string): { period: Period; rest: string } {
 
   const last = words[words.length - 1] ?? "";
   const tail = extractPeriod(last);
-  // A period token consumes itself, leaving nothing behind.
+
   if (tail.rest === "") return { period: tail.period, rest: words.slice(0, -1).join(" ") };
   return { period: "overall", rest: trimmed };
 }
 
-/** The most recent scrobble, used whenever the operand is left out. */
 async function currentTrack(username: string): Promise<RecentTrack> {
   const { tracks } = await getRecentTracks(username, 1);
   const track = tracks[0];
@@ -195,7 +133,6 @@ function artistOf(track: RecentTrack): string {
   return name;
 }
 
-/** Resolves `<artist>`, falling back to the artist currently playing. */
 async function artistOperand(ctx: PrefixContext): Promise<{ target: Target; artist: string }> {
   const { target, rest } = await resolveTarget(ctx, ctx.argument);
   const typed = rest.trim();
@@ -203,12 +140,6 @@ async function artistOperand(ctx: PrefixContext): Promise<{ target: Target; arti
   return { target, artist: artistOf(await currentTrack(target.username)) };
 }
 
-/**
- * Resolves `<artist - album>` / `<artist - track>`.
- *
- * Splitting on the *first* separator means a title may contain its own " - "
- * ("Artist - Album - Deluxe Edition" keeps the suffix on the album).
- */
 async function pairOperand(
   ctx: PrefixContext,
   kind: "album" | "track",
@@ -248,10 +179,6 @@ async function pairOperand(
   return { target, artist, title };
 }
 
-/* ------------------------------------------------------------------ */
-/* Commands                                                           */
-/* ------------------------------------------------------------------ */
-
 async function playsArtist(ctx: PrefixContext): Promise<void> {
   const { target, artist } = await artistOperand(ctx);
 
@@ -270,7 +197,7 @@ async function playsArtist(ctx: PrefixContext): Promise<void> {
       withGlobals(line, info.stats?.listeners, info.stats?.playcount),
       icon,
     ),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
@@ -296,7 +223,7 @@ async function playsAlbum(ctx: PrefixContext): Promise<void> {
       withGlobals(line, album.listeners, album.playcount),
       icon,
     ),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
@@ -321,7 +248,7 @@ async function playsTrack(ctx: PrefixContext): Promise<void> {
       album ? `${line}\n-# From ${label(album)}` : line,
       icon,
     ),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
@@ -342,8 +269,6 @@ async function playsAll(ctx: PrefixContext): Promise<void> {
   }
   const tracks = every.slice(0, MAX_ALBUM_TRACKS);
 
-  // One lookup per track, a few at a time. getTrackInfo already swallows its
-  // own failures, so a single dead track scores zero instead of killing the card.
   const counts = await mapLimit(tracks, LOOKUP_CONCURRENCY, async (track) => {
     const info = await getTrackInfo(by, track.name, target.username);
     return playCount(info?.userplaycount);
@@ -365,18 +290,15 @@ async function playsAll(ctx: PrefixContext): Promise<void> {
       noun: "plays",
       total,
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
-/** The artist-scoped top tens: one user chart, filtered down to one artist. */
 async function topTen(ctx: PrefixContext, kind: "albums" | "tracks"): Promise<void> {
   const { target, rest } = await resolveTarget(ctx, ctx.argument);
   const { period, rest: typed } = trailingPeriod(rest);
   const artist = typed || artistOf(await currentTrack(target.username));
 
-  // Best-effort: the lookup only supplies autocorrect and canonical casing, so
-  // a miss still charts whatever the user typed.
   const info = await getArtistInfo(artist, target.username);
   const name = info?.name || artist;
   const belongs = matcher(name, artist);
@@ -419,11 +341,11 @@ async function render(
     await paginate(
       ctx,
       simpleCard(heading, `No scrobbled ${noun} by **${label(artist)}**.`, icon),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
-  await paginate(ctx, buildPages(lines, { heading, username, icon, noun, total }), EMBED_COLOR);
+  await paginate(ctx, buildPages(lines, { heading, username, icon, noun, total }), USER_ACCENT);
 }
 
 async function overview(ctx: PrefixContext): Promise<void> {
@@ -473,7 +395,7 @@ async function overview(ctx: PrefixContext): Promise<void> {
   await paginate(
     ctx,
     simpleCard(`${target.username}'s ${label(name)} overview`, body, avatarOf(user)),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 

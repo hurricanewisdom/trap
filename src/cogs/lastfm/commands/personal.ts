@@ -1,16 +1,11 @@
-/**
- * Numbers about your own listening, and the preferences that shape how the
- * other commands behave for you.
- */
-
 import { sql } from "../../../core/db.js";
 import { redis } from "../../../core/redis.js";
 import { paginate } from "../../../core/pager.js";
 import { register, type PrefixContext } from "../../../core/prefix.js";
 import { guard } from "../guard.js";
-import { getArtistInfo, getTopAlbums, getTopArtists, getTopTracks, getUserInfo } from "../api/index.js";
+import { getArtistInfo, getTopAlbums, getTopArtists, getTopTracks } from "../api/index.js";
 import {
-  EMBED_COLOR,
+  USER_ACCENT,
   TargetError,
   artistUrl,
   avatarOf,
@@ -25,11 +20,9 @@ import {
   simpleCard,
   tally,
   timed,
-  url,
 } from "../shared.js";
 import { getUsername } from "../store.js";
 
-/** Preferences live next to the other per-user settings. */
 const PREF_TTL = 60;
 const prefKey = (discordId: string) => `trap:lf:pref:${discordId}`;
 
@@ -42,9 +35,7 @@ export async function getPrefs(discordId: string): Promise<Prefs> {
   try {
     const hit = await redis.get(prefKey(discordId));
     if (hit) return JSON.parse(hit) as Prefs;
-  } catch {
-    /* fall through */
-  }
+  } catch {}
   const rows = await sql<{ default_period: string | null; chart_size: number | null }[]>`
     SELECT default_period, chart_size FROM lastfm_prefs WHERE discord_id = ${discordId}
   `;
@@ -68,11 +59,6 @@ async function savePrefs(discordId: string, patch: Partial<Prefs>): Promise<void
   await redis.del(prefKey(discordId)).catch(() => {});
 }
 
-/* ------------------------------------------------------------------ */
-/* Numbers                                                             */
-/* ------------------------------------------------------------------ */
-
-/** One card with the headline figures. */
 async function stats(ctx: PrefixContext): Promise<void> {
   const { target } = await resolveTarget(ctx, ctx.argument);
   const info = await profile(target.username);
@@ -105,10 +91,9 @@ async function stats(ctx: PrefixContext): Promise<void> {
       : []),
   ].join("\n");
 
-  await paginate(ctx, simpleCard(`${target.username}'s numbers`, body, icon), EMBED_COLOR);
+  await paginate(ctx, simpleCard(`${target.username}'s numbers`, body, icon), USER_ACCENT);
 }
 
-/** How far your top artists sit from the mainstream. */
 async function obscurity(ctx: PrefixContext): Promise<void> {
   const { target } = await resolveTarget(ctx, ctx.argument);
   const icon = avatarOf(await profile(target.username));
@@ -116,7 +101,7 @@ async function obscurity(ctx: PrefixContext): Promise<void> {
   const heading = `${target.username}'s obscurity`;
 
   if (items.length === 0) {
-    await paginate(ctx, simpleCard(heading, "Play something first.", icon), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, "Play something first.", icon), USER_ACCENT);
     return;
   }
 
@@ -129,12 +114,12 @@ async function obscurity(ctx: PrefixContext): Promise<void> {
   }
 
   if (listeners.length === 0) {
-    await paginate(ctx, simpleCard(heading, "Last.fm had no listener counts for your top artists.", icon), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, "Last.fm had no listener counts for your top artists.", icon), USER_ACCENT);
     return;
   }
 
   const median = listeners.slice().sort((a, b) => a - b)[Math.floor(listeners.length / 2)] ?? 0;
-  // A million listeners is thoroughly mainstream; a thousand is deep cuts.
+
   const score = Math.max(0, Math.min(100, Math.round(100 - (Math.log10(Math.max(median, 1)) / 6) * 100)));
   const verdict =
     score > 70 ? "Deep cuts." : score > 45 ? "Off the beaten track." : score > 25 ? "Fairly popular." : "Chart music.";
@@ -147,10 +132,9 @@ async function obscurity(ctx: PrefixContext): Promise<void> {
     `-# Higher means fewer people listen to what you do.`,
   ].join("\n");
 
-  await paginate(ctx, simpleCard(heading, body, icon), EMBED_COLOR);
+  await paginate(ctx, simpleCard(heading, body, icon), USER_ACCENT);
 }
 
-/** How wide your listening spreads, rather than how deep. */
 async function variety(ctx: PrefixContext): Promise<void> {
   const { target } = await resolveTarget(ctx, ctx.argument);
   const icon = avatarOf(await profile(target.username));
@@ -163,7 +147,7 @@ async function variety(ctx: PrefixContext): Promise<void> {
   ]);
   const scrobbles = Number(info?.playcount ?? 0);
   if (scrobbles === 0 || artists.total === 0) {
-    await paginate(ctx, simpleCard(heading, "Not enough history yet.", icon), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, "Not enough history yet.", icon), USER_ACCENT);
     return;
   }
 
@@ -180,10 +164,9 @@ async function variety(ctx: PrefixContext): Promise<void> {
     `-# Higher means more artists for the same number of scrobbles.`,
   ].join("\n");
 
-  await paginate(ctx, simpleCard(heading, body, icon), EMBED_COLOR);
+  await paginate(ctx, simpleCard(heading, body, icon), USER_ACCENT);
 }
 
-/** The artists dominating your recent listening, as a share. */
 async function share(ctx: PrefixContext): Promise<void> {
   const { target } = await resolveTarget(ctx, ctx.argument);
   const icon = avatarOf(await profile(target.username));
@@ -192,7 +175,7 @@ async function share(ctx: PrefixContext): Promise<void> {
 
   const stamped = timed(scrobbles);
   if (stamped.length === 0) {
-    await paginate(ctx, simpleCard(heading, "No recent scrobbles to measure.", icon), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, "No recent scrobbles to measure.", icon), USER_ACCENT);
     return;
   }
 
@@ -213,13 +196,9 @@ async function share(ctx: PrefixContext): Promise<void> {
       total: counts.length,
       footer: `Share of your last ${plural(stamped.length, "scrobble")}`,
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
-
-/* ------------------------------------------------------------------ */
-/* Preferences                                                         */
-/* ------------------------------------------------------------------ */
 
 const PERIODS = ["overall", "7day", "1month", "3month", "6month", "12month"];
 
@@ -240,7 +219,7 @@ async function defaultPeriod(ctx: PrefixContext): Promise<void> {
           "`,defaultperiod overall` · `weekly` · `monthly` · `3month` · `6month` · `yearly`",
         ].join("\n"),
       ),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -262,7 +241,7 @@ async function defaultPeriod(ctx: PrefixContext): Promise<void> {
   await paginate(
     ctx,
     simpleCard(heading, `Your charts now default to **${periodLabel(period as never)}**.`),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
@@ -278,7 +257,7 @@ async function chartSize(ctx: PrefixContext): Promise<void> {
         heading,
         `Your charts show **${prefs.chartSize ?? 10}** rows a page.\n\n\`,chartsize 5\` to 25.`,
       ),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -289,10 +268,9 @@ async function chartSize(ctx: PrefixContext): Promise<void> {
   }
 
   await savePrefs(ctx.authorId, { chartSize: size });
-  await paginate(ctx, simpleCard(heading, `Charts will show **${size}** rows a page.`), EMBED_COLOR);
+  await paginate(ctx, simpleCard(heading, `Charts will show **${size}** rows a page.`), USER_ACCENT);
 }
 
-/** Which Last.fm account is attached to you, and how to change it. */
 async function whoami(ctx: PrefixContext): Promise<void> {
   const username = await getUsername(ctx.authorId);
   const heading = "Your account";
@@ -301,7 +279,7 @@ async function whoami(ctx: PrefixContext): Promise<void> {
     await paginate(
       ctx,
       simpleCard(heading, "You have not linked a Last.fm account. Run `,lf link`."),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -318,7 +296,7 @@ async function whoami(ctx: PrefixContext): Promise<void> {
     "-# `,lf unlink` to disconnect.",
   ].join("\n");
 
-  await paginate(ctx, simpleCard(heading, body, avatarOf(info)), EMBED_COLOR);
+  await paginate(ctx, simpleCard(heading, body, avatarOf(info)), USER_ACCENT);
 }
 
 export function registerPersonal(): void {

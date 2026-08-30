@@ -1,11 +1,3 @@
-/**
- * Browsing Last.fm's tag system: what a tag means, what carries it, and what
- * the crowd has tagged a given record.
- *
- * Read-only. The commands that change your own tags are in tagging.ts, and
- * they need a session key; nothing here does.
- */
-
 import { paginate } from "../../../core/pager.js";
 import { register, type PrefixContext } from "../../../core/prefix.js";
 import { guard } from "../guard.js";
@@ -20,10 +12,9 @@ import {
   getTrackTopTags,
 } from "../api/index.js";
 import {
-  EMBED_COLOR,
+  USER_ACCENT,
   TargetError,
   albumUrl,
-  artistUrl,
   bar,
   buildPages,
   currentPair,
@@ -31,7 +22,6 @@ import {
   plain,
   simpleCard,
   splitPair,
-  trackUrl,
   url,
 } from "../shared.js";
 
@@ -39,7 +29,6 @@ const TAG_LIMIT = 60;
 
 const tagUrl = (tag: string) => `https://www.last.fm/tag/${encodeURIComponent(tag)}`;
 
-/** Strips the wiki markup Last.fm leaves in a summary. */
 function cleanSummary(raw: string | undefined): string | null {
   if (!raw) return null;
   const text = raw
@@ -51,7 +40,6 @@ function cleanSummary(raw: string | undefined): string | null {
   return text.length > 600 ? `${text.slice(0, 597)}...` : text;
 }
 
-/** A middot-separated run of tag links. */
 function similarLinks(tags: { name: string; url?: string }[]): string {
   return tags
     .slice(0, 10)
@@ -59,14 +47,13 @@ function similarLinks(tags: { name: string; url?: string }[]): string {
     .join(" · ");
 }
 
-/** `,taginfo <tag>` — what a tag means and how widely it is used. */
 async function tagInfo(ctx: PrefixContext): Promise<void> {
   const tag = ctx.argument.trim();
   if (!tag) throw new TargetError("Name a tag, e.g. `,taginfo shoegaze`.");
 
   const info = await getTagInfo(tag);
   if (!info) {
-    await paginate(ctx, simpleCard("Tag", `Last.fm has no tag called **${plain(tag)}**.`), EMBED_COLOR);
+    await paginate(ctx, simpleCard("Tag", `Last.fm has no tag called **${plain(tag)}**.`), USER_ACCENT);
     return;
   }
 
@@ -74,10 +61,6 @@ async function tagInfo(ctx: PrefixContext): Promise<void> {
   const reach = Number(info.reach ?? 0);
   const summary = cleanSummary(info.wiki?.summary);
 
-  // Both of these are best-effort. Last.fm has effectively retired
-  // tag.getSimilar (it answers empty for every tag, "rock" included), and a
-  // tag with no chart history has no week list, so neither failure is worth
-  // taking the whole card down for.
   const [similar, weeks] = await Promise.all([
     getSimilarTags(info.name).catch(() => []),
     getTagWeeklyChartList(info.name).catch(() => []),
@@ -98,14 +81,13 @@ async function tagInfo(ctx: PrefixContext): Promise<void> {
     summary ? `\n${plain(summary)}` : null,
   ].filter((line) => line !== null);
 
-  await paginate(ctx, simpleCard(`Tag: ${info.name}`, lines.join("\n")), EMBED_COLOR);
+  await paginate(ctx, simpleCard(`Tag: ${info.name}`, lines.join("\n")), USER_ACCENT);
 }
 
-/** `,toptags` — the most used tags on Last.fm, all time. */
 async function topTags(ctx: PrefixContext): Promise<void> {
   const tags = await getGlobalTopTags();
   if (tags.length === 0) {
-    await paginate(ctx, simpleCard("Top tags", "Last.fm returned no tags."), EMBED_COLOR);
+    await paginate(ctx, simpleCard("Top tags", "Last.fm returned no tags."), USER_ACCENT);
     return;
   }
 
@@ -125,15 +107,14 @@ async function topTags(ctx: PrefixContext): Promise<void> {
       noun: "tags",
       total: tags.length,
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
-/** `,trendingtags` — the tags with the widest reach right now. */
 async function trendingTags(ctx: PrefixContext): Promise<void> {
   const tags = await getChartTopTags(TAG_LIMIT);
   if (tags.length === 0) {
-    await paginate(ctx, simpleCard("Trending tags", "Last.fm returned no chart."), EMBED_COLOR);
+    await paginate(ctx, simpleCard("Trending tags", "Last.fm returned no chart."), USER_ACCENT);
     return;
   }
 
@@ -158,11 +139,10 @@ async function trendingTags(ctx: PrefixContext): Promise<void> {
       noun: "tags",
       total: tags.length,
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
-/** `,genrealbums <tag>` — the albums most associated with a tag. */
 async function genreAlbums(ctx: PrefixContext): Promise<void> {
   const tag = ctx.argument.trim();
   if (!tag) throw new TargetError("Name a tag, e.g. `,genrealbums shoegaze`.");
@@ -171,7 +151,7 @@ async function genreAlbums(ctx: PrefixContext): Promise<void> {
   const heading = `Top ${tag} albums`;
 
   if (found.length === 0) {
-    await paginate(ctx, simpleCard(heading, `Nothing tagged **${plain(tag)}**.`), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, `Nothing tagged **${plain(tag)}**.`), USER_ACCENT);
     return;
   }
 
@@ -184,14 +164,10 @@ async function genreAlbums(ctx: PrefixContext): Promise<void> {
   await paginate(
     ctx,
     buildPages(rows, { heading, username: tag, noun: "albums", total: found.length }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
-/**
- * Renders a weighted tag list, which Last.fm scores out of 100. The bar makes
- * the difference between a defining tag and a stray one legible at a glance.
- */
 function weightedRows(tags: { name: string; count?: string | number; url?: string }[]): string[] {
   const top = Number(tags[0]?.count ?? 100) || 100;
   return tags.map((tag, index) => {
@@ -203,7 +179,6 @@ function weightedRows(tags: { name: string; count?: string | number; url?: strin
   });
 }
 
-/** `,albumtags [artist - album]` — how the crowd tags an album. */
 async function albumTags(ctx: PrefixContext): Promise<void> {
   const pair = splitPair(ctx.argument) ?? (await currentPair(ctx, "album"));
   const [artist, album] = pair;
@@ -215,7 +190,7 @@ async function albumTags(ctx: PrefixContext): Promise<void> {
     await paginate(
       ctx,
       simpleCard(heading, `Nobody has tagged **${plain(album)}** by **${plain(artist)}**.`),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -229,11 +204,10 @@ async function albumTags(ctx: PrefixContext): Promise<void> {
       total: tags.length,
       footer: `${plain(artist)} · ${tags.length} tags`,
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
-/** `,tracktags [artist - track]` — how the crowd tags a track. */
 async function trackTags(ctx: PrefixContext): Promise<void> {
   const pair = splitPair(ctx.argument) ?? (await currentPair(ctx, "track"));
   const [artist, track] = pair;
@@ -245,7 +219,7 @@ async function trackTags(ctx: PrefixContext): Promise<void> {
     await paginate(
       ctx,
       simpleCard(heading, `Nobody has tagged **${plain(track)}** by **${plain(artist)}**.`),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -259,7 +233,7 @@ async function trackTags(ctx: PrefixContext): Promise<void> {
       total: tags.length,
       footer: `${plain(artist)} · ${tags.length} tags`,
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 

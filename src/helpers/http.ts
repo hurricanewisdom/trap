@@ -1,13 +1,3 @@
-/**
- * The bits of `fetch` every outbound call in this bot repeats.
- *
- * Each integration talks to somebody else's server, so each one needs a
- * timeout, a user agent and a JSON parse that fails with something readable.
- * Doing that per call site is how one forgotten `signal` turns a slow third
- * party into a hung command, so it is done once here.
- */
-
-/** Raised for any non-2xx response, carrying the status for callers that care. */
 export class HttpError extends Error {
   constructor(
     message: string,
@@ -19,7 +9,6 @@ export class HttpError extends Error {
   }
 }
 
-/** Raised when a request runs past its deadline. */
 export class TimeoutError extends Error {
   constructor(readonly url: string) {
     super("the request timed out");
@@ -32,17 +21,10 @@ export const USER_AGENT = "trap-bot/1.x (+https://trap.rocks)";
 export interface RequestOptions {
   method?: "GET" | "POST";
   headers?: Record<string, string>;
-  /** Sent form-encoded; sets the content type. */
   form?: Record<string, string>;
   timeoutMs?: number;
 }
 
-/**
- * Performs one request and returns the raw response plus its body text.
- *
- * The body is read here rather than handed back as a stream: it has to be
- * consumed to report a useful error, and reading it twice is not allowed.
- */
 export async function request(
   url: string,
   { method = "GET", headers = {}, form, timeoutMs = 10_000 }: RequestOptions = {},
@@ -69,7 +51,6 @@ export async function request(
   }
 }
 
-/** Requests a URL and parses the body as JSON, raising on any non-2xx. */
 export async function getJson<T>(url: string, options: RequestOptions = {}): Promise<T> {
   const { status, text } = await request(url, options);
   if (status < 200 || status >= 300) {

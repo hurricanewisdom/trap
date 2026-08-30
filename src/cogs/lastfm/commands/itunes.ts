@@ -1,20 +1,10 @@
-/**
- * iTunes search, and the audio Last.fm does not have.
- *
- * `,preview` attaches the 30 second clip to the message so it plays inside
- * Discord; nothing else the bot talks to still serves one.
- *
- * The HTTP client lives in `integrations/itunes`; this file only decides what
- * to ask for and how to show it.
- */
-
 import { paginate } from "../../../core/pager.js";
 import { register, type PrefixContext } from "../../../core/prefix.js";
 import { artwork, search } from "../../../integrations/itunes/index.js";
 import { guard } from "../guard.js";
 import { getRecentTracks } from "../api/index.js";
 import {
-  EMBED_COLOR,
+  USER_ACCENT,
   TargetError,
   buildPages,
   duration,
@@ -26,11 +16,10 @@ import {
   simpleCard,
   url as safeUrl,
 } from "../shared.js";
+import { accented } from "../../../helpers/components.js";
 
-/** Results per search; the pager splits them ten to a page. */
 const RESULT_LIMIT = 25;
 
-/** Discord rejects large uploads, and a 30 second clip is far below this. */
 const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
 const AUDIO_TIMEOUT_MS = 8000;
 
@@ -42,7 +31,7 @@ async function itunes(ctx: PrefixContext): Promise<void> {
   const heading = `iTunes: ${term.slice(0, 40)}`;
 
   if (results.length === 0) {
-    await paginate(ctx, simpleCard(heading, `Nothing found for **${plain(term)}**.`), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, `Nothing found for **${plain(term)}**.`), USER_ACCENT);
     return;
   }
 
@@ -61,7 +50,7 @@ async function itunes(ctx: PrefixContext): Promise<void> {
   await paginate(
     ctx,
     buildPages(rows, { heading, username: term, noun: "results", total: results.length }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
@@ -73,7 +62,7 @@ async function itunesAlbum(ctx: PrefixContext): Promise<void> {
   const heading = `iTunes albums: ${term.slice(0, 40)}`;
 
   if (results.length === 0) {
-    await paginate(ctx, simpleCard(heading, `Nothing found for **${plain(term)}**.`), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, `Nothing found for **${plain(term)}**.`), USER_ACCENT);
     return;
   }
 
@@ -88,11 +77,10 @@ async function itunesAlbum(ctx: PrefixContext): Promise<void> {
   await paginate(
     ctx,
     buildPages(rows, { heading, username: term, noun: "albums", total: results.length }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
-/** Downloads the clip, or returns nothing if it cannot be had. */
 async function clipFor(
   previewUrl: string,
   name: string,
@@ -108,14 +96,12 @@ async function clipFor(
     if (audio.length === 0 || audio.length > MAX_AUDIO_BYTES) return null;
 
     const safeName = name.replace(/[^a-zA-Z0-9 _.-]/g, "").slice(0, 60) || "preview";
-    return { name: `${safeName}.m4a`, blob: new Blob([audio], { type: "audio/mp4" }) };
+    return { name: `${safeName}.m4a`, blob: new Blob([new Uint8Array(audio)], { type: "audio/mp4" }) };
   } catch {
-    // The card is still worth sending without the audio.
     return null;
   }
 }
 
-/** The 30 second preview for whatever you are playing, or a named track. */
 async function preview(ctx: PrefixContext): Promise<void> {
   let term = ctx.argument.trim();
   let source = "";
@@ -135,7 +121,7 @@ async function preview(ctx: PrefixContext): Promise<void> {
     await paginate(
       ctx,
       simpleCard("No preview", `iTunes has nothing for **${plain(source || term)}**.`),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -163,7 +149,7 @@ async function preview(ctx: PrefixContext): Promise<void> {
 
   await ctx.reply({
     flags: 1 << 15,
-    components: [{ type: 17, accent_color: EMBED_COLOR, components }],
+    components: [accented({ type: 17, components })],
     ...(clip ? { files: [clip] } : {}),
   });
 }

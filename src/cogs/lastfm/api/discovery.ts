@@ -1,8 +1,3 @@
-/**
- * Everything that looks outward from one listener: weekly chart ranges,
- * similarity, tags, and what Last.fm as a whole is playing.
- */
-
 import { call } from "./client.js";
 import type { Image } from "./users.js";
 
@@ -11,7 +6,6 @@ export interface WeekRange {
   to: string;
 }
 
-/** Every week Last.fm has data for, oldest first. */
 export async function getWeeklyChartList(user: string): Promise<WeekRange[]> {
   const data = await call<{ weeklychartlist?: { chart?: WeekRange | WeekRange[] } }>(
     "user.getWeeklyChartList",
@@ -28,7 +22,6 @@ export interface WeeklyEntry {
   artist?: { "#text"?: string; name?: string };
 }
 
-/** One week's chart. Omit the range for the most recent week. */
 export async function getWeeklyChart(
   kind: "artist" | "album" | "track",
   user: string,
@@ -98,7 +91,6 @@ export async function getArtistTags(artist: string, username?: string): Promise<
   return Array.isArray(raw) ? raw : raw ? [raw] : [];
 }
 
-/** An artist's globally most played tracks or albums. */
 export async function getArtistTop(
   kind: "tracks" | "albums",
   artist: string,
@@ -119,24 +111,13 @@ export async function getArtistTop(
   return Array.isArray(raw) ? raw : raw ? [raw] : [];
 }
 
-/**
- * Digs the list out of a Last.fm chart response.
- *
- * The wrapper key is not predictable from the method name — `tag.getTopAlbums`
- * answers under `albums` while `artist.getTopAlbums` answers under `topalbums`,
- * and `chart.getTopArtists` uses `artists` where `geo.getTopArtists` uses
- * `topartists`. Deriving it as `top${kind}` looked right and silently returned
- * an empty list for half of these methods, so the container is located instead
- * of guessed: take the one object that is not `@attr`, then the one array
- * inside it.
- */
 function chartItems<T>(data: Record<string, unknown>): T[] {
   for (const [key, value] of Object.entries(data)) {
     if (key === "@attr" || typeof value !== "object" || value === null) continue;
     for (const [inner, list] of Object.entries(value as Record<string, unknown>)) {
       if (inner === "@attr") continue;
       if (Array.isArray(list)) return list as T[];
-      // A single result comes back as an object rather than a one-item array.
+
       if (list && typeof list === "object") return [list as T];
     }
   }

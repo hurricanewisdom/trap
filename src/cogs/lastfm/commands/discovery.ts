@@ -1,8 +1,3 @@
-/**
- * Finding new music: what sounds like what, what a tag holds, what the rest of
- * Last.fm is playing, and a few ways to be handed something at random.
- */
-
 import { paginate } from "../../../core/pager.js";
 import { register, type PrefixContext } from "../../../core/prefix.js";
 import { guard } from "../guard.js";
@@ -17,12 +12,11 @@ import {
   getRecentTracks,
 } from "../api/index.js";
 import {
-  EMBED_COLOR,
+  USER_ACCENT,
   TargetError,
   artistUrl,
   avatarOf,
   buildPages,
-  chartLine,
   label,
   plain,
   plural,
@@ -37,7 +31,6 @@ const SEPARATOR = /\s+[-–—]\s+/;
 const trackUrl = (artist: string, track: string) =>
   `${artistUrl(artist)}/_/${encodeURIComponent(track)}`;
 
-/** Falls back to whatever the caller is playing when they name nothing. */
 async function subjectArtist(ctx: PrefixContext, argument: string): Promise<string> {
   const named = argument.trim();
   if (named) return named;
@@ -50,7 +43,6 @@ async function subjectArtist(ctx: PrefixContext, argument: string): Promise<stri
   return artist;
 }
 
-/** Splits "artist - track", falling back to the current scrobble. */
 async function subjectPair(ctx: PrefixContext, argument: string): Promise<[string, string]> {
   const named = argument.trim();
   if (named) {
@@ -69,17 +61,13 @@ async function subjectPair(ctx: PrefixContext, argument: string): Promise<[strin
   return [artist, current.name];
 }
 
-/* ------------------------------------------------------------------ */
-/* Similarity                                                          */
-/* ------------------------------------------------------------------ */
-
 async function similar(ctx: PrefixContext): Promise<void> {
   const artist = await subjectArtist(ctx, ctx.argument);
   const found = await getSimilarArtists(artist, 60);
   const heading = `Artists like ${artist}`;
 
   if (found.length === 0) {
-    await paginate(ctx, simpleCard(heading, `Last.fm has nothing similar for **${label(artist)}**.`), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, `Last.fm has nothing similar for **${label(artist)}**.`), USER_ACCENT);
     return;
   }
 
@@ -92,7 +80,7 @@ async function similar(ctx: PrefixContext): Promise<void> {
   await paginate(
     ctx,
     buildPages(rows, { heading, username: artist, noun: "artists", total: found.length }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
@@ -102,7 +90,7 @@ async function similarTracks(ctx: PrefixContext): Promise<void> {
   const heading = `Tracks like ${track}`;
 
   if (found.length === 0) {
-    await paginate(ctx, simpleCard(heading, `Nothing similar to **${label(track)}**.`), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, `Nothing similar to **${label(track)}**.`), USER_ACCENT);
     return;
   }
 
@@ -114,7 +102,7 @@ async function similarTracks(ctx: PrefixContext): Promise<void> {
   await paginate(
     ctx,
     buildPages(rows, { heading, username: artist, noun: "tracks", total: found.length }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
@@ -124,7 +112,7 @@ async function tags(ctx: PrefixContext): Promise<void> {
   const heading = `Tags for ${artist}`;
 
   if (found.length === 0) {
-    await paginate(ctx, simpleCard(heading, `No tags on **${label(artist)}**.`), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, `No tags on **${label(artist)}**.`), USER_ACCENT);
     return;
   }
 
@@ -134,13 +122,9 @@ async function tags(ctx: PrefixContext): Promise<void> {
   await paginate(
     ctx,
     buildPages(rows, { heading, username: artist, noun: "tags", total: found.length }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
-
-/* ------------------------------------------------------------------ */
-/* Tags and global charts                                              */
-/* ------------------------------------------------------------------ */
 
 async function genre(ctx: PrefixContext): Promise<void> {
   const tag = ctx.argument.trim();
@@ -149,7 +133,7 @@ async function genre(ctx: PrefixContext): Promise<void> {
   const found = await getTagTop("artists", tag, 60);
   const heading = `Top artists tagged ${tag}`;
   if (found.length === 0) {
-    await paginate(ctx, simpleCard(heading, `Last.fm has no artists under **${label(tag)}**.`), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, `Last.fm has no artists under **${label(tag)}**.`), USER_ACCENT);
     return;
   }
 
@@ -159,7 +143,7 @@ async function genre(ctx: PrefixContext): Promise<void> {
   await paginate(
     ctx,
     buildPages(rows, { heading, username: tag, noun: "artists", total: found.length }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
@@ -170,7 +154,7 @@ async function genreTracks(ctx: PrefixContext): Promise<void> {
   const found = await getTagTop("tracks", tag, 60);
   const heading = `Top tracks tagged ${tag}`;
   if (found.length === 0) {
-    await paginate(ctx, simpleCard(heading, `Nothing under **${label(tag)}**.`), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, `Nothing under **${label(tag)}**.`), USER_ACCENT);
     return;
   }
 
@@ -181,11 +165,10 @@ async function genreTracks(ctx: PrefixContext): Promise<void> {
   await paginate(
     ctx,
     buildPages(rows, { heading, username: tag, noun: "tracks", total: found.length }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
-/** Global or per-country charts. */
 function chartCommand(kind: "artists" | "tracks") {
   return async (ctx: PrefixContext): Promise<void> => {
     const country = ctx.argument.trim();
@@ -201,7 +184,7 @@ function chartCommand(kind: "artists" | "tracks") {
             ? `No chart for **${label(country)}**. Use a country name such as \`Japan\` or \`United Kingdom\`.`
             : "Last.fm returned no chart.",
         ),
-        EMBED_COLOR,
+        USER_ACCENT,
       );
       return;
     }
@@ -216,14 +199,10 @@ function chartCommand(kind: "artists" | "tracks") {
     await paginate(
       ctx,
       buildPages(rows, { heading, username: country || "last.fm", noun: kind, total: found.length }),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
   };
 }
-
-/* ------------------------------------------------------------------ */
-/* Random picks                                                        */
-/* ------------------------------------------------------------------ */
 
 function pick<T>(items: T[]): T | undefined {
   return items.length ? items[Math.floor(Math.random() * items.length)] : undefined;
@@ -237,7 +216,7 @@ async function roulette(ctx: PrefixContext): Promise<void> {
 
   const heading = `${target.username}, play this`;
   if (!chosen) {
-    await paginate(ctx, simpleCard(heading, "Not enough history to pick from yet.", icon), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, "Not enough history to pick from yet.", icon), USER_ACCENT);
     return;
   }
 
@@ -249,7 +228,7 @@ async function roulette(ctx: PrefixContext): Promise<void> {
     `-# You have played it ${plural(Number(chosen.playcount ?? 0), "time")}. Picked from your top 500.`,
   ].join("\n");
 
-  await paginate(ctx, simpleCard(heading, body, icon), EMBED_COLOR);
+  await paginate(ctx, simpleCard(heading, body, icon), USER_ACCENT);
 }
 
 async function randomArtist(ctx: PrefixContext): Promise<void> {
@@ -260,7 +239,7 @@ async function randomArtist(ctx: PrefixContext): Promise<void> {
 
   const heading = `${target.username}, revisit this`;
   if (!chosen) {
-    await paginate(ctx, simpleCard(heading, "Not enough history to pick from yet.", icon), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, "Not enough history to pick from yet.", icon), USER_ACCENT);
     return;
   }
 
@@ -270,10 +249,9 @@ async function randomArtist(ctx: PrefixContext): Promise<void> {
     `-# ${plural(Number(chosen.playcount ?? 0), "play")}. Picked from your top 500 artists.`,
   ].join("\n");
 
-  await paginate(ctx, simpleCard(heading, body, icon), EMBED_COLOR);
+  await paginate(ctx, simpleCard(heading, body, icon), USER_ACCENT);
 }
 
-/** Something adjacent to your taste that you have not played much. */
 async function discover(ctx: PrefixContext): Promise<void> {
   const { target } = await resolveTarget(ctx, ctx.argument);
   const icon = avatarOf(await profile(target.username));
@@ -281,14 +259,14 @@ async function discover(ctx: PrefixContext): Promise<void> {
   const heading = `Something new for ${target.username}`;
 
   if (items.length === 0) {
-    await paginate(ctx, simpleCard(heading, "Play something first so I know your taste.", icon), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, "Play something first so I know your taste.", icon), USER_ACCENT);
     return;
   }
 
   const known = new Set(items.map((a) => a.name.toLowerCase()));
   const seed = pick(items.slice(0, 30));
   if (!seed) {
-    await paginate(ctx, simpleCard(heading, "Could not pick a starting point.", icon), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, "Could not pick a starting point.", icon), USER_ACCENT);
     return;
   }
 
@@ -300,7 +278,7 @@ async function discover(ctx: PrefixContext): Promise<void> {
     await paginate(
       ctx,
       simpleCard(heading, `Everything near **${label(seed.name)}** is already in your library.`, icon),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -311,7 +289,7 @@ async function discover(ctx: PrefixContext): Promise<void> {
     `-# Because you listen to **${label(seed.name)}**, and this is not in your top 200.`,
   ].join("\n");
 
-  await paginate(ctx, simpleCard(heading, body, icon), EMBED_COLOR);
+  await paginate(ctx, simpleCard(heading, body, icon), USER_ACCENT);
 }
 
 export function registerDiscovery(): void {

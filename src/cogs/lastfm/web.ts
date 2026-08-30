@@ -1,20 +1,7 @@
-/**
- * The web half of the Last.fm link flow.
- *
- * Last.fm sends the user back to this route with a one-time token, which is
- * exchanged for a lasting session and stored against the Discord id that
- * started the flow.
- */
-
 import { page, send, type RouteContext, type WebRouter } from "../../web/server.js";
 import { getSession } from "./api/index.js";
 import { consumeLinkState, saveLink } from "./store.js";
 
-/**
- * The state normally rides in the path, because Last.fm appends its own
- * `?token=` to whatever callback it was given. Some API accounts pin the
- * callback to an exact URL, so `?state=` is accepted as well.
- */
 const WITH_STATE = /^\/lastfm\/callback\/([A-Za-z0-9_-]{16,128})\/?$/;
 const PLAIN = /^\/lastfm\/callback\/?$/;
 const STATE = /^[A-Za-z0-9_-]{16,128}$/;
@@ -29,7 +16,6 @@ async function complete(state: string, token: string | null, ctx: RouteContext):
     return;
   }
 
-  // Claiming the state is atomic, so a refreshed or replayed callback fails here.
   const discordId = await consumeLinkState(state);
   if (!discordId) {
     send(

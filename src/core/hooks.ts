@@ -1,21 +1,5 @@
-/**
- * Extension points cogs plug into.
- *
- * The dispatcher in `src/index.ts` only knows about these registries, so core
- * never imports a cog. A feature that needs to see raw reactions, claim a
- * component id, or catch commands nobody else matched registers here instead.
- */
-
 import type { PrefixContext, PrefixHandler } from "./prefix.js";
 
-/* ------------------------------------------------------------------ */
-/* Unmatched prefix commands                                           */
-/* ------------------------------------------------------------------ */
-
-/**
- * Called when no registered command matches. Return a handler to claim the
- * invocation, or null to ignore it. Used for user-defined command words.
- */
 export type FallbackResolver = (
   name: string,
   ctx: Omit<PrefixContext, "argument">,
@@ -38,15 +22,96 @@ export async function resolveFallback(
   return null;
 }
 
-/* ------------------------------------------------------------------ */
-/* Component and modal interactions                                    */
-/* ------------------------------------------------------------------ */
+export interface MessageEvent {
+  guildId: string;
+  channelId: string;
+  messageId: string;
+  authorId: string;
+  content: string;
+  attachments: { contentType?: string; filename?: string }[];
+}
 
-/**
- * Interactions are routed by custom-id prefix, so each cog owns its own
- * namespace and they cannot collide silently.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type MessageHandler = (event: MessageEvent) => Promise<void>;
+
+const messages: MessageHandler[] = [];
+
+export function onMessage(handler: MessageHandler): void {
+  messages.push(handler);
+}
+
+export async function emitMessage(event: MessageEvent): Promise<void> {
+  for (const handler of messages) {
+    try {
+      await handler(event);
+    } catch (err) {
+      console.error("message handler failed:", err);
+    }
+  }
+}
+
+export interface MemberEvent {
+  guildId: string;
+  userId: string;
+}
+
+export type MemberHandler = (event: MemberEvent) => Promise<void>;
+
+const joins: MemberHandler[] = [];
+
+const leaves: MemberHandler[] = [];
+
+export function onMemberJoin(handler: MemberHandler): void {
+  joins.push(handler);
+}
+
+export function onMemberLeave(handler: MemberHandler): void {
+  leaves.push(handler);
+}
+
+async function fire(handlers: MemberHandler[], event: MemberEvent): Promise<void> {
+  if (!event.guildId || !event.userId) return;
+  for (const handler of handlers) {
+    try {
+      await handler(event);
+    } catch (err) {
+      console.error("member handler failed:", err);
+    }
+  }
+}
+
+export function emitMemberJoin(event: MemberEvent): Promise<void> {
+  return fire(joins, event);
+}
+
+export function emitMemberLeave(event: MemberEvent): Promise<void> {
+  return fire(leaves, event);
+}
+
+export interface BoostEvent {
+  guildId: string;
+  channelId: string;
+  userId: string;
+}
+
+export type BoostHandler = (event: BoostEvent) => Promise<void>;
+
+const boosts: BoostHandler[] = [];
+
+export function onBoost(handler: BoostHandler): void {
+  boosts.push(handler);
+}
+
+export async function emitBoost(event: BoostEvent): Promise<void> {
+  if (!event.guildId || !event.userId) return;
+  for (const handler of boosts) {
+    try {
+      await handler(event);
+    } catch (err) {
+      console.error("boost handler failed:", err);
+    }
+  }
+}
+
 export type InteractionHandler = (interaction: any) => Promise<void>;
 
 interface Claim {
@@ -65,12 +130,10 @@ export function onModal(prefix: string, handler: InteractionHandler): void {
   modals.push({ prefix, handler });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function dispatchComponent(customId: string, interaction: any): Promise<boolean> {
   return await dispatch(components, customId, interaction);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function dispatchModal(customId: string, interaction: any): Promise<boolean> {
   return await dispatch(modals, customId, interaction);
 }
@@ -78,7 +141,6 @@ export async function dispatchModal(customId: string, interaction: any): Promise
 async function dispatch(
   claims: Claim[],
   customId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   interaction: any,
 ): Promise<boolean> {
   for (const claim of claims) {
@@ -89,10 +151,6 @@ async function dispatch(
   }
   return false;
 }
-
-/* ------------------------------------------------------------------ */
-/* Reactions                                                           */
-/* ------------------------------------------------------------------ */
 
 export interface ReactionEvent {
   messageId: string;

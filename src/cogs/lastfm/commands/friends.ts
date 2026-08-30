@@ -1,20 +1,9 @@
-/**
- * The people a listener follows, and the whole of their own library.
- *
- * `,friendsplaying` is the one command here that fans out: it asks Last.fm
- * what each friend is playing, one request per friend. That is bounded the
- * same way every other fan-out in this cog is — a hard cap on how many
- * friends are checked, a cap on concurrency, and a footer that says so rather
- * than quietly showing a subset.
- */
-
 import { paginate } from "../../../core/pager.js";
 import { register, type PrefixContext } from "../../../core/prefix.js";
 import { guard } from "../guard.js";
 import { getFriends, getLibraryArtists, getRecentTracks } from "../api/index.js";
 import {
-  EMBED_COLOR,
-  TargetError,
+  USER_ACCENT,
   artistUrl,
   buildPages,
   label,
@@ -28,13 +17,11 @@ import {
 const FRIEND_LIMIT = 100;
 const LIBRARY_PAGE = 200;
 
-/** Friends checked for a now-playing. Each one is a separate Last.fm call. */
 const NOW_PLAYING_CAP = 25;
 const NOW_PLAYING_CONCURRENCY = 5;
 
 const userUrl = (name: string) => `https://www.last.fm/user/${encodeURIComponent(name)}`;
 
-/** Maps with a bounded number of requests in flight. */
 async function mapLimited<T, R>(items: T[], limit: number, job: (item: T) => Promise<R>): Promise<R[]> {
   const out = new Array<R>(items.length);
   let cursor = 0;
@@ -52,21 +39,19 @@ async function mapLimited<T, R>(items: T[], limit: number, job: (item: T) => Pro
   return out;
 }
 
-/** `,friends [user]` — who a listener follows. */
 async function friends(ctx: PrefixContext): Promise<void> {
   const { target } = await resolveTarget(ctx, ctx.argument);
   const { friends: list, total } = await getFriends(target.username, FRIEND_LIMIT);
   const heading = `${target.username}'s friends`;
 
   if (list.length === 0) {
-    await paginate(ctx, simpleCard(heading, "No friends listed on Last.fm."), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, "No friends listed on Last.fm."), USER_ACCENT);
     return;
   }
 
   const rows = list.map((friend, index) => {
     const details = [
       friend.realname?.trim() ? plain(friend.realname.trim()) : null,
-      // Last.fm writes the string "None" rather than omitting an unset country.
       friend.country && friend.country !== "None" ? plain(friend.country) : null,
     ].filter(Boolean);
 
@@ -84,11 +69,10 @@ async function friends(ctx: PrefixContext): Promise<void> {
       noun: "friends",
       total: total || list.length,
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
-/** `,friendsplaying [user]` — what everyone they follow is listening to. */
 async function friendsPlaying(ctx: PrefixContext): Promise<void> {
   const { target } = await resolveTarget(ctx, ctx.argument);
   const { friends: list, total } = await getFriends(target.username, FRIEND_LIMIT);
@@ -97,7 +81,7 @@ async function friendsPlaying(ctx: PrefixContext): Promise<void> {
     await paginate(
       ctx,
       simpleCard(`${target.username}'s friends`, "No friends listed on Last.fm."),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -112,7 +96,6 @@ async function friendsPlaying(ctx: PrefixContext): Promise<void> {
       const artist = current.artist?.name ?? current.artist?.["#text"] ?? "";
       return { friend: friend.name, artist, track: current.name };
     } catch {
-      // One private or missing profile must not take out the whole list.
       return null;
     }
   });
@@ -127,7 +110,7 @@ async function friendsPlaying(ctx: PrefixContext): Promise<void> {
         heading,
         `None of the ${checked.length} friends checked are playing anything.`,
       ),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -149,17 +132,10 @@ async function friendsPlaying(ctx: PrefixContext): Promise<void> {
         `${playing.length} of ${checked.length} checked` +
         (total > checked.length ? ` · ${total} friends in total` : ""),
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
-/**
- * `,library [page] [user]` — every artist in a library, most played first.
- *
- * Different from `,topartists`: that is a chart over a period, this is the
- * whole library, and for a heavy listener it runs to thousands of artists. It
- * is paged server-side rather than fetched whole.
- */
 async function library(ctx: PrefixContext): Promise<void> {
   const words = ctx.argument.trim().split(/\s+/).filter(Boolean);
   const pageAt = words.findIndex((word) => /^\d{1,4}$/.test(word));
@@ -180,7 +156,7 @@ async function library(ctx: PrefixContext): Promise<void> {
           ? `Page ${page} is past the end. There are ${pages.toLocaleString("en-US")} pages.`
           : "No artists in that library.",
       ),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -205,7 +181,7 @@ async function library(ctx: PrefixContext): Promise<void> {
         `${total.toLocaleString("en-US")} artists` +
         (pages > 1 ? ` · set ${page} of ${pages.toLocaleString("en-US")}, \`,library ${page + 1}\` for more` : ""),
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 

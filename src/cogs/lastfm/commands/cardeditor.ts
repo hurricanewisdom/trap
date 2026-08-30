@@ -1,14 +1,9 @@
-/**
- * The card editor: writing, checking and previewing your own now-playing
- * layout. The markup itself lives in ../template.ts.
- */
-
 import { sql } from "../../../core/db.js";
 import { redis } from "../../../core/redis.js";
 import { paginate } from "../../../core/pager.js";
 import { register, type PrefixContext } from "../../../core/prefix.js";
 import { guard } from "../guard.js";
-import { EMBED_COLOR, TargetError, simpleCard } from "../shared.js";
+import { USER_ACCENT, TargetError, simpleCard } from "../shared.js";
 import { BLOCKS, EXAMPLE, VARIABLE_NAMES, validateTemplate } from "../template.js";
 
 const CACHE_TTL = 60;
@@ -16,14 +11,11 @@ const MAX_SOURCE = 2000;
 
 const key = (discordId: string) => `trap:lf:tmpl:${discordId}`;
 
-/** The caller's saved template, or null. */
 export async function getTemplate(discordId: string): Promise<string | null> {
   try {
     const hit = await redis.get(key(discordId));
     if (hit !== null) return hit === "" ? null : hit;
-  } catch {
-    /* fall through to the database */
-  }
+  } catch {}
   const rows = await sql<{ np_template: string | null }[]>`
     SELECT np_template FROM lastfm_user_settings WHERE discord_id = ${discordId}
   `;
@@ -42,7 +34,6 @@ async function saveTemplate(discordId: string, source: string | null): Promise<v
   await redis.del(key(discordId)).catch(() => {});
 }
 
-/** Strips a code fence, since people paste one out of habit. */
 function unfence(raw: string): string {
   const fenced = raw.trim().match(/^```(?:[a-zA-Z0-9]*)\n([\s\S]*?)\n?```$/);
   return (fenced ? fenced[1] ?? "" : raw).trim();
@@ -80,7 +71,7 @@ async function cardCommand(ctx: PrefixContext): Promise<void> {
 
   if (!sub || sub === "help") {
     const current = await getTemplate(ctx.authorId);
-    await paginate(ctx, simpleCard("Card editor", helpCard(current)), EMBED_COLOR);
+    await paginate(ctx, simpleCard("Card editor", helpCard(current)), USER_ACCENT);
     return;
   }
 
@@ -90,14 +81,14 @@ async function cardCommand(ctx: PrefixContext): Promise<void> {
       await paginate(
         ctx,
         simpleCard("Card editor", "You have no template saved. `,card help` explains the blocks."),
-        EMBED_COLOR,
+        USER_ACCENT,
       );
       return;
     }
     await paginate(
       ctx,
       simpleCard("Your card template", "```\n" + current.slice(0, 1800) + "\n```"),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -107,7 +98,7 @@ async function cardCommand(ctx: PrefixContext): Promise<void> {
     await paginate(
       ctx,
       simpleCard("Card editor", "Template cleared. `,lfmode default` puts the standard card back."),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -122,7 +113,7 @@ async function cardCommand(ctx: PrefixContext): Promise<void> {
           EXAMPLE +
           "\n```",
       ),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -140,7 +131,7 @@ async function cardCommand(ctx: PrefixContext): Promise<void> {
           "That template will not render",
           errors.slice(0, 8).map((e) => `- ${e}`).join("\n") + "\n\n-# Nothing was saved.",
         ),
-        EMBED_COLOR,
+        USER_ACCENT,
       );
       return;
     }
@@ -152,7 +143,7 @@ async function cardCommand(ctx: PrefixContext): Promise<void> {
         "Card saved",
         "Run `,lfmode custom` to use it, then `,np`.\n\n```\n" + source.slice(0, 1500) + "\n```",
       ),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -167,7 +158,7 @@ async function cardCommand(ctx: PrefixContext): Promise<void> {
         errors.length ? "Problems found" : "Template is fine",
         errors.length ? errors.map((e) => `- ${e}`).join("\n") : "Every line parses and fits Discord's limits.",
       ),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }

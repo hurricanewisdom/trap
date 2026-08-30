@@ -1,11 +1,3 @@
-/**
- * Comparisons between two people, and roll-ups across a whole server.
- *
- * Everything here fans out over guild members, so the member scan and the
- * number of requests in flight are both capped and the footer says when a
- * list was cut short.
- */
-
 import { guildMemberIds, displayName } from "../../../core/discord.js";
 import { sql } from "../../../core/db.js";
 import { paginate } from "../../../core/pager.js";
@@ -13,27 +5,22 @@ import { register, type PrefixContext } from "../../../core/prefix.js";
 import { guard } from "../guard.js";
 import { getTopArtists, getUserInfo } from "../api/index.js";
 import {
-  EMBED_COLOR,
+  USER_ACCENT,
   TargetError,
   artistUrl,
-  avatarOf,
   buildPages,
   label,
   plural,
-  profile,
-  resolveTarget,
   simpleCard,
   url,
 } from "../shared.js";
 import { getUsername } from "../store.js";
 
-/** At most this many members are looked up, five at a time. */
 const SCAN_CAP = 100;
 const CONCURRENCY = 5;
 
 const MENTION = /^<@!?(\d{15,25})>$/;
 
-/** Runs a job over items with a bounded number in flight. */
 async function mapLimited<T, R>(
   items: T[],
   limit: number,
@@ -54,7 +41,6 @@ async function mapLimited<T, R>(
   return out;
 }
 
-/** The linked members of this guild, minus anyone hidden. */
 async function linkedMembers(
   guildId: string,
 ): Promise<{ rows: { discord_id: string; username: string }[]; capped: boolean }> {
@@ -78,11 +64,6 @@ function requireGuild(ctx: PrefixContext): string {
   return ctx.guildId;
 }
 
-/* ------------------------------------------------------------------ */
-/* Two people                                                          */
-/* ------------------------------------------------------------------ */
-
-/** Resolves "me" and the member named in the argument. */
 async function bothSides(ctx: PrefixContext): Promise<{ mine: string; theirs: string; label: string }> {
   const first = ctx.argument.trim().split(/\s+/)[0] ?? "";
   const mention = MENTION.exec(first);
@@ -115,7 +96,7 @@ async function common(ctx: PrefixContext): Promise<void> {
 
   const heading = `${mine} and ${theirs}`;
   if (shared.length === 0) {
-    await paginate(ctx, simpleCard(heading, "Nothing in common across your top 300 artists each."), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, "Nothing in common across your top 300 artists each."), USER_ACCENT);
     return;
   }
 
@@ -133,7 +114,7 @@ async function common(ctx: PrefixContext): Promise<void> {
       total: shared.length,
       footer: `${plural(shared.length, "artist")} in common, out of the top 300 each`,
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
@@ -149,7 +130,7 @@ async function unique(ctx: PrefixContext): Promise<void> {
 
   const heading = `Only ${mine} listens to these`;
   if (only.length === 0) {
-    await paginate(ctx, simpleCard(heading, "You have nothing they do not."), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, "You have nothing they do not."), USER_ACCENT);
     return;
   }
 
@@ -167,22 +148,17 @@ async function unique(ctx: PrefixContext): Promise<void> {
       total: only.length,
       footer: `${plural(only.length, "artist")} of yours missing from ${theirs}'s top 300`,
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Whole server                                                        */
-/* ------------------------------------------------------------------ */
-
-/** Server-wide top artists, summed across everyone who has linked. */
 async function serverArtists(ctx: PrefixContext): Promise<void> {
   const guildId = requireGuild(ctx);
   const { rows, capped } = await linkedMembers(guildId);
   const heading = "Server top artists";
 
   if (rows.length === 0) {
-    await paginate(ctx, simpleCard(heading, "Nobody here has linked a Last.fm account yet."), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, "Nobody here has linked a Last.fm account yet."), USER_ACCENT);
     return;
   }
 
@@ -223,18 +199,17 @@ async function serverArtists(ctx: PrefixContext): Promise<void> {
       total: ranked.length,
       footer: `Across ${plural(rows.length, "member")}${capped ? `, capped at ${SCAN_CAP}` : ""}`,
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
-/** Who has scrobbled the most, among linked members here. */
 async function leaderboard(ctx: PrefixContext): Promise<void> {
   const guildId = requireGuild(ctx);
   const { rows, capped } = await linkedMembers(guildId);
   const heading = "Server scrobble leaderboard";
 
   if (rows.length === 0) {
-    await paginate(ctx, simpleCard(heading, "Nobody here has linked a Last.fm account yet."), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, "Nobody here has linked a Last.fm account yet."), USER_ACCENT);
     return;
   }
 
@@ -249,7 +224,7 @@ async function leaderboard(ctx: PrefixContext): Promise<void> {
 
   const ranked = counts.filter((c) => c.plays > 0).sort((a, b) => b.plays - a.plays);
   if (ranked.length === 0) {
-    await paginate(ctx, simpleCard(heading, "No scrobbles among the linked members here."), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, "No scrobbles among the linked members here."), USER_ACCENT);
     return;
   }
 
@@ -271,18 +246,17 @@ async function leaderboard(ctx: PrefixContext): Promise<void> {
       total: ranked.length,
       footer: `${plural(total, "scrobble")} between them${capped ? `, capped at ${SCAN_CAP} members` : ""}`,
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
-/** How far each member's taste sits from the mainstream. */
 async function serverTaste(ctx: PrefixContext): Promise<void> {
   const guildId = requireGuild(ctx);
   const { rows, capped } = await linkedMembers(guildId);
   const heading = "Server obscurity";
 
   if (rows.length === 0) {
-    await paginate(ctx, simpleCard(heading, "Nobody here has linked a Last.fm account yet."), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, "Nobody here has linked a Last.fm account yet."), USER_ACCENT);
     return;
   }
 
@@ -290,8 +264,7 @@ async function serverTaste(ctx: PrefixContext): Promise<void> {
     try {
       const { items } = await getTopArtists(row.username, "overall", 30);
       if (items.length === 0) return { row, score: -1 };
-      // Rank within a member's own chart is a cheap stand-in for popularity:
-      // a long tail of rarely played artists scores as more obscure.
+
       const plays = items.map((a) => Number(a.playcount ?? 0));
       const top = plays[0] ?? 1;
       const spread = plays.reduce((sum, p) => sum + p / top, 0) / plays.length;
@@ -303,7 +276,7 @@ async function serverTaste(ctx: PrefixContext): Promise<void> {
 
   const ranked = scored.filter((s) => s.score >= 0).sort((a, b) => b.score - a.score);
   if (ranked.length === 0) {
-    await paginate(ctx, simpleCard(heading, "Not enough listening history here yet."), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, "Not enough listening history here yet."), USER_ACCENT);
     return;
   }
 
@@ -324,7 +297,7 @@ async function serverTaste(ctx: PrefixContext): Promise<void> {
       total: ranked.length,
       footer: `Higher means a flatter, more varied chart${capped ? `, capped at ${SCAN_CAP} members` : ""}`,
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 

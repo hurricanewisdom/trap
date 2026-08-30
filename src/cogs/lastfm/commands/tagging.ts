@@ -1,14 +1,3 @@
-/**
- * Your own tags: adding them, removing them, and reading them back.
- *
- * These write to the caller's Last.fm account, so every one needs a session
- * key and acts only on the caller — see session.ts for why there is no way to
- * name somebody else here.
- *
- * Reading the *crowd's* tags needs no authorisation and lives in
- * tagbrowser.ts.
- */
-
 import { paginate } from "../../../core/pager.js";
 import { register, type PrefixContext } from "../../../core/prefix.js";
 import { guard } from "../guard.js";
@@ -23,7 +12,7 @@ import {
 } from "../api/index.js";
 import { explain, ownAccount } from "../session.js";
 import {
-  EMBED_COLOR,
+  USER_ACCENT,
   TargetError,
   albumUrl,
   artistUrl,
@@ -41,15 +30,8 @@ import {
 
 const tagUrl = (tag: string) => `https://www.last.fm/tag/${encodeURIComponent(tag)}`;
 
-/** Last.fm silently ignores an over-long tag, so it is refused up front. */
 const MAX_TAG_LENGTH = 100;
 
-/**
- * Splits the part after `|` into individual tags.
- *
- * Commas and semicolons both separate, because people type both, and a tag
- * containing a comma is not representable in Last.fm's own API anyway.
- */
 function parseTags(raw: string): string[] {
   return [
     ...new Set(
@@ -61,12 +43,6 @@ function parseTags(raw: string): string[] {
   ];
 }
 
-/**
- * Reads "`<subject>` | `<tags>`" and works out what kind of thing the subject
- * is: `artist - track` is a track, a bare name is an artist. Albums need the
- * explicit `,tagalbum`, because "Radiohead - Kid A" cannot be told apart from
- * a track by looking at it.
- */
 function parseSubject(argument: string): { subject: string; tags: string } {
   const [subject = "", tags = ""] = argument.split("|", 2);
   return { subject: subject.trim(), tags: tags.trim() };
@@ -75,12 +51,10 @@ function parseSubject(argument: string): { subject: string; tags: string } {
 interface Target {
   kind: TaggableKind;
   params: { artist: string; album?: string; track?: string };
-  /** How to describe it in a reply. */
   name: string;
   link: string;
 }
 
-/** Resolves the thing being tagged, defaulting to what the caller is playing. */
 async function resolveSubject(
   ctx: PrefixContext,
   subject: string,
@@ -110,7 +84,6 @@ async function resolveSubject(
   };
 }
 
-/** Builds the `,tag` / `,tagalbum` / `,tagtrack` handlers. */
 function tagCommand(kind: TaggableKind) {
   return async (ctx: PrefixContext): Promise<void> => {
     const { subject, tags: rawTags } = parseSubject(ctx.argument);
@@ -148,12 +121,11 @@ function tagCommand(kind: TaggableKind) {
           applied.map((tag) => `\`${plain(tag)}\``).join(" ") +
           (dropped > 0 ? `\n-# Last.fm takes ${MAX_TAGS_PER_CALL} tags at a time; ${dropped} were not sent.` : ""),
       ),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
   };
 }
 
-/** Builds the `,untag` / `,untagalbum` / `,untagtrack` handlers. */
 function untagCommand(kind: TaggableKind) {
   return async (ctx: PrefixContext): Promise<void> => {
     const { subject, tags: rawTag } = parseSubject(ctx.argument);
@@ -166,7 +138,6 @@ function untagCommand(kind: TaggableKind) {
     const target = await resolveSubject(ctx, subject, kind);
 
     try {
-      // Last.fm takes exactly one tag per call here, unlike addTags.
       await removeTag(kind, target.params, tag, account.sessionKey);
     } catch (err) {
       explain(err);
@@ -178,12 +149,11 @@ function untagCommand(kind: TaggableKind) {
         "Untagged",
         `Removed \`${plain(tag)}\` from **[${label(target.name)}](${target.link})**.`,
       ),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
   };
 }
 
-/** `,mytags [user]` — the tags a listener uses most. */
 async function myTags(ctx: PrefixContext): Promise<void> {
   const { target } = await resolveTarget(ctx, ctx.argument);
   const tags = await getUserTopTags(target.username, 100);
@@ -193,7 +163,7 @@ async function myTags(ctx: PrefixContext): Promise<void> {
     await paginate(
       ctx,
       simpleCard(heading, "No tags yet. `,tagartist <artist> | <tags>` adds one."),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -209,14 +179,10 @@ async function myTags(ctx: PrefixContext): Promise<void> {
   await paginate(
     ctx,
     buildPages(rows, { heading, username: target.username, noun: "tags", total: tags.length }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
-/**
- * `,tagged <tag> [artists|albums|tracks] [user]` — everything one listener has
- * filed under a tag of their own.
- */
 async function tagged(ctx: PrefixContext): Promise<void> {
   const words = ctx.argument.trim().split(/\s+/).filter(Boolean);
 
@@ -245,7 +211,7 @@ async function tagged(ctx: PrefixContext): Promise<void> {
     await paginate(
       ctx,
       simpleCard(heading, `Nothing of theirs is tagged **${plain(tag)}** as ${kind}s.`),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -272,11 +238,10 @@ async function tagged(ctx: PrefixContext): Promise<void> {
       noun: `${kind}s`,
       total: total || items.length,
     }),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 
-/** `,mytagsfor [artist]` — your own tags on one artist, which only you see. */
 async function myTagsFor(ctx: PrefixContext): Promise<void> {
   const { target, rest } = await resolveTarget(ctx, ctx.argument);
   const artist = rest.trim() || (await currentArtist(ctx));
@@ -288,7 +253,7 @@ async function myTagsFor(ctx: PrefixContext): Promise<void> {
     await paginate(
       ctx,
       simpleCard(heading, `No personal tags on **${plain(artist)}**. \`,tag ${plain(artist)} | <tags>\` adds some.`),
-      EMBED_COLOR,
+      USER_ACCENT,
     );
     return;
   }
@@ -299,7 +264,7 @@ async function myTagsFor(ctx: PrefixContext): Promise<void> {
       heading,
       tags.map((tag) => `**[${label(tag.name)}](${url(tag.url, tagUrl(tag.name))})**`).join(" · "),
     ),
-    EMBED_COLOR,
+    USER_ACCENT,
   );
 }
 

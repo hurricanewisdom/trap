@@ -1,10 +1,3 @@
-/**
- * The bot's small HTTP surface.
- *
- * Cogs register their own routes, so this file knows nothing about any
- * feature. nginx terminates TLS for the public hostname and proxies here.
- */
-
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { optional, optionalInt } from "../core/env.js";
 
@@ -12,7 +5,6 @@ export interface RouteContext {
   req: IncomingMessage;
   res: ServerResponse;
   url: URL;
-  /** Capture groups from the route pattern. */
   params: string[];
 }
 
@@ -36,11 +28,6 @@ export const router: WebRouter = {
   },
 };
 
-/* ------------------------------------------------------------------ */
-/* Responses                                                           */
-/* ------------------------------------------------------------------ */
-
-/** A self-contained status page — no external requests, renders in any theme. */
 export function page(title: string, message: string, ok: boolean): string {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
@@ -75,10 +62,6 @@ export function send(res: ServerResponse, status: number, html: string): void {
   res.end(html);
 }
 
-/* ------------------------------------------------------------------ */
-/* Server                                                              */
-/* ------------------------------------------------------------------ */
-
 async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const url = new URL(req.url ?? "/", "http://localhost");
 
@@ -108,11 +91,7 @@ export function startWebServer(): void {
   };
 
   const port = optionalInt("HTTP_PORT", 8730);
-  /**
-   * Loopback for local checks, plus the docker bridge so the nginx container
-   * can reach us. Deliberately never 0.0.0.0 — this host accepts all inbound
-   * TCP, so a wildcard bind would publish these routes to the internet.
-   */
+
   const binds = optional("HTTP_BIND", "127.0.0.1,172.17.0.1")
     .split(",")
     .map((address) => address.trim())
@@ -121,11 +100,6 @@ export function startWebServer(): void {
   for (const address of binds) listenWithRetry(handler, address, port);
 }
 
-/**
- * The docker bridge only exists once docker is up, so a boot-time race can
- * make that address briefly unavailable. Retry rather than dying: the bot
- * itself does not depend on this listener.
- */
 function listenWithRetry(
   handler: (req: IncomingMessage, res: ServerResponse) => void,
   address: string,

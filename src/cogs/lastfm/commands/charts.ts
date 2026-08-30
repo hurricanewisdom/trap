@@ -1,28 +1,16 @@
-/**
- * The "top" charts: artists, albums and tracks over a period.
- * These are the reference implementation for every other paginated command.
- */
-
 import { paginate } from "../../../core/pager.js";
 import { register, type PrefixContext } from "../../../core/prefix.js";
 import { guard } from "../guard.js";
 import { getTopAlbums, getTopArtists, getTopTracks } from "../api/index.js";
 
-/**
- * Pages are cached whole in Redis, which runs `maxmemory-policy noeviction`
- * and is shared with another app, so a 1000-row chart is not worth the memory.
- * The footer still reports the true total.
- */
 const CHART_LIMIT = 250;
 import {
-  EMBED_COLOR,
-  TargetError,
+  USER_ACCENT,
   artistUrl,
   avatarOf,
   buildPages,
   chartLine,
   extractPeriod,
-  label,
   periodLabel,
   plain,
   profile,
@@ -31,7 +19,6 @@ import {
   url,
 } from "../shared.js";
 
-/** Shared shape: resolve who and what period, fetch, render, paginate. */
 async function chart(
   ctx: PrefixContext,
   kind: "artists" | "albums" | "tracks",
@@ -82,10 +69,10 @@ async function render(
   total: number,
 ): Promise<void> {
   if (lines.length === 0) {
-    await paginate(ctx, simpleCard(heading, `No ${noun} for that period.`, icon), EMBED_COLOR);
+    await paginate(ctx, simpleCard(heading, `No ${noun} for that period.`, icon), USER_ACCENT);
     return;
   }
-  await paginate(ctx, buildPages(lines, { heading, username, icon, noun, total }), EMBED_COLOR);
+  await paginate(ctx, buildPages(lines, { heading, username, icon, noun, total }), USER_ACCENT);
 }
 
 export function registerCharts(): void {

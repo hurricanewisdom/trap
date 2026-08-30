@@ -1,12 +1,3 @@
-/**
- * Searching Last.fm's catalogue, and asking it to fix a misspelling.
- *
- * The search methods nest their results two levels deep and under a different
- * key per type (`artistmatches.artist`, `albummatches.album`, …), and every
- * one of them collapses a single result to an object instead of a
- * one-element array. Both quirks are absorbed here.
- */
-
 import { call } from "./client.js";
 import type { LfImage } from "../types.js";
 
@@ -35,7 +26,6 @@ export interface TrackMatch {
   image?: LfImage[];
 }
 
-/** Last.fm returns one result as an object and several as an array. */
 function many<T>(value: T | T[] | undefined): T[] {
   return Array.isArray(value) ? value : value ? [value] : [];
 }
@@ -62,17 +52,11 @@ export async function searchTracks(query: string, limit = 30): Promise<TrackMatc
 }
 
 export interface Correction {
-  /** What Last.fm believes you meant. */
   name: string;
   url?: string;
-  /** The track's artist, corrected too, on a track lookup. */
   artist?: string;
 }
 
-/**
- * The canonical spelling of an artist name, or null if Last.fm has no
- * correction — which is also what it returns when the name was already right.
- */
 export async function getArtistCorrection(artist: string): Promise<Correction | null> {
   const data = await call<{
     corrections?: { correction?: { artist?: { name?: string; url?: string } } };
@@ -83,7 +67,6 @@ export async function getArtistCorrection(artist: string): Promise<Correction | 
   return { name: found.name, url: found.url ?? undefined };
 }
 
-/** The canonical spelling of a track, and of the artist that recorded it. */
 export async function getTrackCorrection(
   artist: string,
   track: string,

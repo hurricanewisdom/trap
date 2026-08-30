@@ -1,15 +1,3 @@
-/**
- * Documentation catalog for the help menu.
- *
- * Data only: no imports, no logic, no side effects. Every `name` here is the
- * primary name a command is registered under in ../core/prefix.ts, so the help
- * menu can look each one up in the live registry and notice a drift.
- *
- * Written against what the handlers actually do. Argument shapes, caps and
- * permission checks all come from the source rather than from the one-line
- * `description` each register() call carries.
- */
-
 export interface SubcommandDoc {
   name: string;
   usage: string;
@@ -91,19 +79,327 @@ export const CATEGORIES: CategoryDoc[] = [
     emoji: "",
     blurb: "Card styles, colours, reactions, command words and artwork",
   },
+  {
+    slug: "booster",
+    label: "Booster roles",
+    emoji: "",
+    blurb: "Personal colour roles for members who boost",
+  },
+  {
+    slug: "filter",
+    label: "Filters",
+    emoji: "",
+    blurb: "Keeping the chat clean",
+  },
+  {
+    slug: "gallery",
+    label: "Gallery channels",
+    emoji: "",
+    blurb: "Channels that only take images",
+  },
+  {
+    slug: "sticky",
+    label: "Sticky messages",
+    emoji: "",
+    blurb: "A message kept at the bottom of a channel",
+  },
+  {
+    slug: "alias",
+    label: "Aliases",
+    emoji: "",
+    blurb: "Server shortcuts for existing commands",
+  },
+  {
+    slug: "welcome",
+    label: "Welcome",
+    emoji: "",
+    blurb: "What the bot posts when somebody joins",
+  },
+  {
+    slug: "goodbye",
+    label: "Goodbye",
+    emoji: "",
+    blurb: "What the bot posts when somebody leaves",
+  },
+  {
+    slug: "boost",
+    label: "Boost messages",
+    emoji: "",
+    blurb: "What the bot posts when somebody boosts",
+  },
+  {
+    slug: "prefix",
+    label: "Prefix",
+    emoji: "",
+    blurb: "What the bot answers to in this server",
+  },
+  {
+    slug: "library",
+    label: "Library",
+    emoji: "",
+    blurb: "Loved tracks, your own tags and everything you have saved",
+  },
+  {
+    slug: "scrobbling",
+    label: "Scrobbling",
+    emoji: "",
+    blurb: "Writing to your Last.fm account: scrobbles, loves and corrections",
+  },
+  {
+    slug: "insights",
+    label: "Insights",
+    emoji: "",
+    blurb: "Patterns in how you listen, from streaks to obscurity",
+  },
+  {
+    slug: "weekly",
+    label: "Weekly",
+    emoji: "",
+    blurb: "What the last seven days looked like",
+  },
+  {
+    slug: "discovery",
+    label: "Discovery",
+    emoji: "",
+    blurb: "Finding artists, albums and tracks you have not heard",
+  },
+  {
+    slug: "info",
+    label: "Info",
+    emoji: "",
+    blurb: "Facts about one artist, album or track",
+  },
+  {
+    slug: "tags",
+    label: "Tags",
+    emoji: "",
+    blurb: "Browsing and applying Last.fm tags",
+  },
+  {
+    slug: "search",
+    label: "Search",
+    emoji: "",
+    blurb: "Looking things up on Last.fm and iTunes",
+  },
+  {
+    slug: "artwork",
+    label: "Artwork",
+    emoji: "",
+    blurb: "Cover art, collages and the images on your cards",
+  },
+  {
+    slug: "social",
+    label: "Social",
+    emoji: "",
+    blurb: "Friends, sharing and what other people are playing",
+  },
 ];
 
 export const DOCS: CommandDoc[] = [
-  /* ---------------------------------------------------------------- */
-  /* general                                                          */
-  /* ---------------------------------------------------------------- */
+  {
+    name: "filter",
+    category: "filter",
+    usage: ",filter",
+    summary: "Keep the chat clean",
+    details:
+      "Filtered words are held as a Discord AutoMod rule rather than scanned by the bot, so a blocked message never posts at all and the rule keeps working even when the bot is offline. Wildcards like spam* are supported, whitelisting lets a longer word through, and roles can be exempted. Discord allows six keyword rules per server in total and the overview says how many are left. Alias: ,chatfilter.",
+    examples: [",filter", ",filter add badword", ",filter list"],
+    permission: "Manage Channels (reset needs Manage Server)",
+    guildOnly: true,
+    subcommands: [
+      { name: "add", usage: ",filter add <word>", summary: "Filter a word", permission: "Manage Channels" },
+      { name: "remove", usage: ",filter remove <word>", summary: "Stop filtering a word", permission: "Manage Channels" },
+      { name: "whitelist", usage: ",filter whitelist <word>", summary: "Let a word through", permission: "Manage Channels" },
+      { name: "exempt", usage: ",filter exempt <role>", summary: "Exempt a role, or list the exempt ones", permission: "Manage Channels" },
+      { name: "list", usage: ",filter list", summary: "Every filtered word", permission: "Manage Channels" },
+      { name: "reset", usage: ",filter reset", summary: "Clear every filtered word", permission: "Manage Server" },
+    ],
+  },
+  {
+    name: "imgonly",
+    category: "gallery",
+    usage: ",imgonly",
+    summary: "Make a channel take images only",
+    details:
+      "A post in a gallery channel has to carry an image; a caption alongside it is fine, which is the point. An image counts as an attachment Discord marked as an image, a file with an image extension, or a direct link to one. Anything else is deleted, so the bot needs Manage Messages there. Members with Manage Server are exempt, or setting the channel up from inside it would delete the command. Aliases: ,gallery and ,imageonly.",
+    examples: [",imgonly", ",imgonly add #art", ",imgonly list"],
+    permission: "Manage Server",
+    guildOnly: true,
+    subcommands: [
+      { name: "add", usage: ",imgonly add <channel>", summary: "Make a channel take images only", permission: "Manage Server" },
+      { name: "remove", usage: ",imgonly remove <channel>", summary: "Let a channel take anything again", permission: "Manage Server" },
+      { name: "list", usage: ",imgonly list", summary: "Every gallery channel", permission: "Manage Server" },
+    ],
+  },
+  {
+    name: "welcome",
+    category: "welcome",
+    usage: ",welcome",
+    summary: "Post a message when someone joins",
+    details:
+      "One message per channel, posted when a member joins, with the same variables the other greetings use. Discord only tells a bot about a join in two ways: the join system message, which needs a system channel with join messages switched on in Server Settings, or the privileged GuildMembers intent. Without one of those nothing fires, however the message is configured. Aliases: ,welcomemsg and ,greet.",
+    examples: [",welcome", ",welcome add #general welcome {user}", ",welcome variables"],
+    permission: "Manage Server",
+    guildOnly: true,
+    subcommands: [
+      { name: "add", usage: ",welcome add <channel> <message>", summary: "Set what a channel posts", permission: "Manage Server" },
+      { name: "view", usage: ",welcome view <channel>", summary: "Show a channel's message and its raw text", permission: "Manage Server" },
+      { name: "remove", usage: ",welcome remove <channel>", summary: "Stop a channel posting", permission: "Manage Server" },
+      { name: "list", usage: ",welcome list", summary: "Every channel with a welcome message", permission: "Manage Server" },
+      { name: "variables", usage: ",welcome variables", summary: "Every variable a message can use", permission: "Manage Server" },
+    ],
+  },
+  {
+    name: "goodbye",
+    category: "goodbye",
+    usage: ",goodbye",
+    summary: "Post a message when someone leaves",
+    details:
+      "One message per channel, posted when a member leaves. Discord sends no system message when somebody leaves, so unlike welcome there is no fallback: this needs the privileged GuildMembers intent enabled in the Developer Portal and GUILD_MEMBERS_INTENT=1 in the environment. The commands and storage work either way, so a server can be configured before the intent is switched on. Aliases: ,goodbyemsg and ,leave.",
+    examples: [",goodbye", ",goodbye add #general {user.name} left", ",goodbye list"],
+    permission: "Manage Server",
+    guildOnly: true,
+    subcommands: [
+      { name: "add", usage: ",goodbye add <channel> <message>", summary: "Set what a channel posts", permission: "Manage Server" },
+      { name: "view", usage: ",goodbye view <channel>", summary: "Show a channel's message and its raw text", permission: "Manage Server" },
+      { name: "remove", usage: ",goodbye remove <channel>", summary: "Stop a channel posting", permission: "Manage Server" },
+      { name: "list", usage: ",goodbye list", summary: "Every channel with a goodbye message", permission: "Manage Server" },
+      { name: "variables", usage: ",goodbye variables", summary: "Every variable a message can use", permission: "Manage Server" },
+    ],
+  },
+  {
+    name: "stickymessage",
+    category: "sticky",
+    usage: ",stickymessage",
+    summary: "Keep a message at the bottom of a channel",
+    details:
+      "One message per channel, reposted so it stays the last thing in the channel. It waits for the chat to settle rather than reposting on every message, so a busy channel gets one repost instead of dozens, and the old copy is deleted before the new one goes up. The bot needs Manage Messages in the channel to delete its previous copy. Aliases: ,sticky and ,stickymsg.",
+    examples: [",stickymessage", ",sticky add #rules read the rules", ",sticky list"],
+    permission: "Manage Server",
+    guildOnly: true,
+    subcommands: [
+      { name: "add", usage: ",stickymessage add <channel> <message>", summary: "Keep a message at the bottom of a channel", permission: "Manage Server" },
+      { name: "view", usage: ",stickymessage view <channel>", summary: "Show what a channel keeps stuck", permission: "Manage Server" },
+      { name: "remove", usage: ",stickymessage remove <channel>", summary: "Stop a channel keeping a message", permission: "Manage Server" },
+      { name: "list", usage: ",stickymessage list", summary: "Every channel with a sticky message", permission: "Manage Server" },
+    ],
+  },
+  {
+    name: "alias",
+    category: "alias",
+    usage: ",alias",
+    summary: "Make one word run another command",
+    details:
+      "A shortcut is one word this server treats as another command, and anything typed after it is passed straight through, so a shortcut for ,lastfm toptracks still takes a member and a period. A shortcut can never override a real command: if the word is already taken the alias is refused, and shortcuts are only consulted once nothing else matches. Up to 100 per server. Aliases: ,aliases and ,shortcut.",
+    examples: [",alias add tt lastfm toptracks", ",alias list", ",alias view tt"],
+    permission: "Manage Server",
+    guildOnly: true,
+    subcommands: [
+      { name: "add", usage: ",alias add <shortcut> <command>", summary: "Point a word at a command", permission: "Manage Server" },
+      { name: "remove", usage: ",alias remove <shortcut>", summary: "Delete one shortcut", permission: "Manage Server" },
+      { name: "removeall", usage: ",alias removeall <command>", summary: "Delete every shortcut for a command", permission: "Manage Server" },
+      { name: "view", usage: ",alias view <shortcut>", summary: "Show what a shortcut runs", permission: "Manage Server" },
+      { name: "list", usage: ",alias list", summary: "Every shortcut in this server", permission: "Manage Server" },
+      { name: "reset", usage: ",alias reset", summary: "Clear every shortcut", permission: "Manage Server" },
+    ],
+  },
+  {
+    name: "boosts",
+    category: "boost",
+    usage: ",boosts",
+    summary: "Post a message when someone boosts",
+    details:
+      "Set a message per channel and every one of them posts when somebody boosts the server. The trigger is Discord's own boost system message, so it needs no privileged intent, but the server has to have boost messages switched on in Server Settings for that system message to appear. Variables in braces are filled in; anything in braces that is not a variable is left exactly as written. Aliases: ,boostmsg and ,boostmessage.",
+    examples: [",boosts", ",boosts add #general thanks {user}!", ",boosts variables"],
+    permission: "Manage Server",
+    guildOnly: true,
+    subcommands: [
+      { name: "add", usage: ",boosts add <channel> <message>", summary: "Set what a channel posts", permission: "Manage Server" },
+      { name: "view", usage: ",boosts view <channel>", summary: "Show a channel's message and its raw text", permission: "Manage Server" },
+      { name: "remove", usage: ",boosts remove <channel>", summary: "Stop a channel posting", permission: "Manage Server" },
+      { name: "list", usage: ",boosts list", summary: "Every channel with a boost message", permission: "Manage Server" },
+      { name: "variables", usage: ",boosts variables", summary: "Every variable a message can use", permission: "Manage Server" },
+    ],
+  },
+  {
+    name: "boosterrole",
+    category: "booster",
+    usage: ",boosterrole <colour> [second colour] [name]",
+    summary: "Give boosters a personal colour role",
+    details:
+      "Each booster gets one role of their own. Run it with a colour to create or recolour it, add a second colour for a gradient, and anything after that becomes the name. A gradient and an icon both need the server at boost level 2; without that Discord refuses and the card says so. New roles are placed under whatever boosterrole base names, and I need Manage Roles with my own role above them. Aliases: ,br and ,boostrole.",
+    examples: [",boosterrole #1db954", ",br blue purple night owl", ",br random"],
+    permission: "Server boosters (admin subcommands need Manage Server)",
+    guildOnly: true,
+    subcommands: [
+      { name: "color", usage: ",boosterrole color <colour> [second] [name]", summary: "Set your colour, gradient and name" },
+      { name: "random", usage: ",boosterrole random", summary: "Take a random colour" },
+      { name: "dominant", usage: ",boosterrole dominant", summary: "Take the main colour out of your avatar" },
+      { name: "rename", usage: ",boosterrole rename <name>", summary: "Rename your role" },
+      { name: "icon", usage: ",boosterrole icon [url]", summary: "Set the role icon, or clear it with no url" },
+      { name: "remove", usage: ",boosterrole remove", summary: "Delete your booster role" },
+      { name: "share", usage: ",boosterrole share <member>", summary: "Let someone else wear your role" },
+      { name: "share list", usage: ",boosterrole share list", summary: "Who is wearing your role" },
+      { name: "share remove", usage: ",boosterrole share remove <role>", summary: "Leave a role someone shared with you" },
+      { name: "share max", usage: ",boosterrole share max <number>", summary: "How many members one role may hold", permission: "Manage Server" },
+      { name: "share limit", usage: ",boosterrole share limit <number>", summary: "How many shared roles a member may wear", permission: "Manage Server" },
+      { name: "base", usage: ",boosterrole base <role>", summary: "The role new booster roles sit under", permission: "Manage Server" },
+      { name: "limit", usage: ",boosterrole limit <number>", summary: "Cap how many booster roles exist", permission: "Manage Server" },
+      { name: "award", usage: ",boosterrole award <role>", summary: "A role handed to anyone who boosts", permission: "Manage Server" },
+      { name: "award view", usage: ",boosterrole award view", summary: "Show the current award role", permission: "Manage Server" },
+      { name: "award unset", usage: ",boosterrole award unset", summary: "Clear the award role", permission: "Manage Server" },
+      { name: "filter", usage: ",boosterrole filter <word>", summary: "Block or unblock a word in role names", permission: "Manage Server" },
+      { name: "filter list", usage: ",boosterrole filter list", summary: "Every blocked word", permission: "Manage Server" },
+      { name: "list", usage: ",boosterrole list", summary: "Every booster role and its owner", permission: "Manage Server" },
+      { name: "link", usage: ",boosterrole link <member> <role>", summary: "Mark an existing role as someone's booster role", permission: "Manage Server" },
+      { name: "cleanup", usage: ",boosterrole cleanup", summary: "Delete roles whose owner stopped boosting", permission: "Manage Server" },
+    ],
+  },
+  {
+    name: "prefix",
+    category: "prefix",
+    usage: ",prefix [subcommand]",
+    summary: "Show and change what this server answers to",
+    details:
+      "On its own it lists every prefix the server currently answers to and how to change them. A server can hold as many as 25 prefixes at once, each at most 8 characters and with no spaces. Reading the list is open to everyone; add, set, remove and reset all need Manage Server. Mentioning the bot always works as a prefix, so a server can never lock itself out. Alias: ,prefixes.",
+    examples: [",prefix", ",prefix add !", ",prefix set ?"],
+    permission: "Manage Server (to change it)",
+    guildOnly: true,
+    subcommands: [
+      { name: "list", usage: ",prefix list", summary: "Every prefix this server answers to" },
+      {
+        name: "add",
+        usage: ",prefix add <prefix...>",
+        summary: "Add one or more prefixes, keeping the ones already set",
+        permission: "Manage Server",
+      },
+      {
+        name: "remove",
+        usage: ",prefix remove <prefix...>",
+        summary: "Take prefixes away; removing the last one restores the default",
+        permission: "Manage Server",
+      },
+      {
+        name: "set",
+        usage: ",prefix set <prefix...>",
+        summary: "Replace every prefix with the ones you give",
+        permission: "Manage Server",
+      },
+      {
+        name: "reset",
+        usage: ",prefix reset",
+        summary: "Clear every custom prefix and go back to the default",
+        permission: "Manage Server",
+      },
+    ],
+  },
   {
     name: "ping",
     category: "general",
     usage: ",ping",
     summary: "Show the gateway latency",
     details:
-      "Replies with a small card carrying the current gateway latency. It takes no arguments and reads nothing but the shard manager.",
+      "Replies with the current gateway latency and nothing else. It takes no arguments and reads nothing but the shard manager.",
     examples: [",ping"],
   },
   {
@@ -127,16 +423,12 @@ export const DOCS: CommandDoc[] = [
   {
     name: "help",
     category: "general",
-    usage: ",help [command|category]",
-    summary: "Browse every command",
+    usage: ",help [anything]",
+    summary: "Search and browse every command",
     details:
-      "With no argument it opens the category browser; a command name or alias shows that command's card, a category name shows that category's list, and anything else gets a short nothing-found card. The menus only answer to whoever ran it, and the view is stored in the component ids, so it still works after a restart. Aliases: ,h, ,commands and ,cmds.",
-    examples: [",help", ",help np", ",help charts"],
+      "With no argument it opens the browser. A command, alias, cog or category name goes straight there; anything else is searched across every name, alias and description and comes back ranked. /help autocompletes as you type. Inside the browser you can jump to a cog, open a group, page with first/back/next/last or type a page number, run an A-Z index, and press Run on any command. The menus only answer to whoever ran it, and the whole view is stored in the component ids, so it still works after a restart. Aliases: ,h, ,commands and ,cmds.",
+    examples: [",help", ",help np", ",help charts", ",help top tracks"],
   },
-
-  /* ---------------------------------------------------------------- */
-  /* account                                                          */
-  /* ---------------------------------------------------------------- */
   {
     name: "lastfm",
     category: "account",
@@ -164,23 +456,15 @@ export const DOCS: CommandDoc[] = [
       },
     ],
   },
-
-  /* ---------------------------------------------------------------- */
-  /* nowplaying                                                       */
-  /* ---------------------------------------------------------------- */
   {
     name: "nowplaying",
     category: "nowplaying",
     usage: ",nowplaying [member|username]",
     summary: "Show the current or most recent scrobble",
     details:
-      "Takes nothing (you), a mention, or a bare Last.fm username of 2-20 letters, digits, dots, dashes or underscores. Layout and colour come from your ,lfmode and ,lfcolor settings, a cover submitted with ,lfurl beats Last.fm's own artwork, and each card is seeded with the up/down reactions that feed ,scoreboard. Aliases: ,np and ,fmnp.",
+      "Takes nothing (you), a mention, a bare Last.fm username of 2-20 letters, digits, dots, dashes or underscores, or a user:name token. Layout and colour come from your ,lfmode and ,lfcolor settings, a cover submitted with ,lfurl beats Last.fm's own artwork, and each card is seeded with the up/down reactions that feed ,scoreboard. Aliases: ,np and ,fmnp.",
     examples: [",np", ",np @jackal", ",np rj"],
   },
-
-  /* ---------------------------------------------------------------- */
-  /* charts                                                           */
-  /* ---------------------------------------------------------------- */
   {
     name: "topartists",
     category: "charts",
@@ -208,10 +492,6 @@ export const DOCS: CommandDoc[] = [
       "Same period words and same 250-row cap as ,topartists, with each track's artist on the line. Aliases: ,tt and ,tracks.",
     examples: [",tt", ",toptracks 3month", ",tt @jackal week"],
   },
-
-  /* ---------------------------------------------------------------- */
-  /* plays                                                            */
-  /* ---------------------------------------------------------------- */
   {
     name: "plays",
     category: "plays",
@@ -275,10 +555,6 @@ export const DOCS: CommandDoc[] = [
       "One card with your play count, the artist's listeners and worldwide plays, and your top three albums and top three tracks by them. The two mini-charts are always overall, whatever period is typed. Aliases: ,artistoverview and ,ov.",
     examples: [",ov", ",overview Aphex Twin", ",ov @jackal Björk"],
   },
-
-  /* ---------------------------------------------------------------- */
-  /* profile                                                          */
-  /* ---------------------------------------------------------------- */
   {
     name: "count",
     category: "profile",
@@ -350,10 +626,6 @@ export const DOCS: CommandDoc[] = [
       "A 0-100 bar built from three capped parts: volume from your scrobble total (up to 40), habit from scrobbles per day since you registered (up to 35) and variety from your distinct artist count (up to 25). The band names run from Newcomer up to Terminal. Alias: ,rating.",
     examples: [",score", ",rating @jackal"],
   },
-
-  /* ---------------------------------------------------------------- */
-  /* compare                                                          */
-  /* ---------------------------------------------------------------- */
   {
     name: "taste",
     category: "compare",
@@ -372,10 +644,6 @@ export const DOCS: CommandDoc[] = [
       "Takes a seed from your top 30 artists, asks Last.fm for its neighbours, and checks the pick really is unplayed (more than five scrobbles and it is skipped). Your top 300 artists count as already heard, and the pick is shuffled, so running it again gives a different answer. Aliases: ,rec and ,recommend.",
     examples: [",rec", ",recommendation @jackal"],
   },
-
-  /* ---------------------------------------------------------------- */
-  /* server                                                           */
-  /* ---------------------------------------------------------------- */
   {
     name: "whoknows",
     category: "server",
@@ -498,10 +766,6 @@ export const DOCS: CommandDoc[] = [
       "The same tally over every server, grouped by Last.fm username so one person's score follows them between servers. Top 100. Alias: ,gb.",
     examples: [",globalboard", ",gb"],
   },
-
-  /* ---------------------------------------------------------------- */
-  /* customize                                                        */
-  /* ---------------------------------------------------------------- */
   {
     name: "lfmode",
     category: "customize",
@@ -517,7 +781,7 @@ export const DOCS: CommandDoc[] = [
     usage: ",lfcolor [hex|random|default]",
     summary: "Set the colour of your Last.fm cards",
     details:
-      "Takes a six-digit hex colour with or without the leading hash, random for a random one, or default/reset/clear/none/off to go back to the house grey. The confirmation card is drawn in the colour just saved, so it doubles as the preview. Aliases: ,npcolor and ,color.",
+      "Last.fm cards have no colour out of the box. Set one and every Last.fm card you pull up carries it. Takes a six-digit hex colour with or without the leading hash, random for a random one, or default/reset/clear/none/off to go back to no colour. The confirmation card is drawn in the colour just saved, so it doubles as the preview. Aliases: ,npcolor and ,color.",
     examples: [",lfcolor", ",lfcolor #1db954", ",color random"],
   },
   {
