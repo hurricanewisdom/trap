@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 236 commands across five cogs,
+(TypeScript strict, Node 22), run bare with pm2. 245 commands across five cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -29,6 +29,7 @@ rather than turning it into a three-word path with named fields.
 - `,stickymessage` — keep a message at the bottom of a channel
 - `,imgonly` — make a channel take images only
 - `,autoresponder` — automatic replies when a message matches a trigger
+- `,pagination` — several pages behind one message, turned with arrows
 - `,filter` — ten chat filters, five of them enforced by Discord's AutoMod
 - `,snipe` — what was deleted, edited or unreacted in this channel
 - `,lf link` DMs an authorisation link; after that `,fm` works
@@ -224,6 +225,50 @@ everywhere, and the moment a role or channel is listed it answers only there.
 Like every other message-path feature, the matcher reads an in-process cache
 invalidated on write, never the database. A server with no autoresponders costs
 one map lookup per message.
+
+## Pagination
+
+```
+,pagination set <link>                        make one of my embeds page 1
+,pagination add <link> {title: Two}           add a page
+,pagination update <link> 2 {title: Rewrite}  rewrite one
+,pagination remove <link> 2                   delete one
+,pagination list                              every pagination here
+,pagination restorereactions <link>           put the arrows back
+,pagination delete <link>                     stop paginating that message
+,pagination reset                             clear them all
+```
+
+**Manage Messages**, except `reset`, which asks for **Administrator** because it
+takes out every pagination in the server at once. Up to 25 pages a message and
+50 paginations a server.
+
+⚠️ **Discord only lets a bot edit its own messages**, so a pagination can only
+be built on an embed Trap posted. `set` checks the author against the bot's own
+id and says so plainly rather than failing later with a 403 nobody can read.
+
+Pages after the first are written in page code, the same brace style the rest of
+the bot uses: `{title:}`, `{description:}`, `{color:}`, `{footer:}`, `{author:}`,
+`{image:}`, `{thumbnail:}`, `{url:}`. Anything unrecognised is named back rather
+than dropped.
+
+Readers turn pages with the arrow reactions, and **their reaction is removed
+again** so the same arrow can be pressed twice in a row. The page number is
+appended to the footer at render time rather than stored, so it stays right when
+a page is added or deleted.
+
+**Page ids are stable and never renumber.** Deleting page 2 of three leaves ids
+1 and 3, so an id copied out of `pagination list` is still valid afterwards. The
+alternative — compacting the numbers — silently retargets every id somebody
+already wrote down.
+
+⚠️ **A message link is one token, and stripping only the part a regex matched
+leaves the rest of it behind.** `channels/…/…/…` matched inside
+`https://discord.com/channels/…`, so removing just the match left
+`https://discord.com/` sitting where the page id should be, and `update` and
+`remove` read that as the id. The whole whitespace-delimited token is removed
+now. `add` never showed it, because it scans for `{…}` blocks and ignores the
+leftovers.
 
 ## Filters
 

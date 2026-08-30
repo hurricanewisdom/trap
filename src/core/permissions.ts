@@ -8,6 +8,8 @@ export const MANAGE_CHANNELS = "Manage Channels";
 
 export const MANAGE_MESSAGES = "Manage Messages";
 
+export const ADMINISTRATOR = "Administrator";
+
 export function notice(body: string): ReplyPayload {
   return {
     flags: IS_COMPONENTS_V2,
@@ -77,6 +79,26 @@ export async function requireManageMessages(
 You need the **${MANAGE_MESSAGES}** permission to ${action}.` +
         `
 -# Ask a server administrator, or someone who has it.`,
+    ),
+  );
+  return null;
+}
+
+export async function requireAdministrator(
+  ctx: PrefixContext,
+  action: string,
+): Promise<string | null> {
+  const guildId = await requireGuild(ctx, action);
+  if (!guildId) return null;
+
+  if (await hasPermission(guildId, ctx.authorId, PERMISSION.administrator)) return guildId;
+
+  await ctx.reply(
+    notice(
+      `### Missing permission
+You need the **${ADMINISTRATOR}** permission to ${action}.` +
+        `
+-# This one clears everything at once, so it asks for more than the rest.`,
     ),
   );
   return null;

@@ -345,6 +345,27 @@ export async function migrate(): Promise<void> {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS paginations (
+      guild_id   TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      current    INTEGER NOT NULL DEFAULT 1,
+      created_by TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (message_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS pagination_pages (
+      message_id TEXT NOT NULL,
+      page_id    INTEGER NOT NULL,
+      body       TEXT NOT NULL,
+      PRIMARY KEY (message_id, page_id)
+    )
+  `;
+
   console.log("db: schema ready");
 }
 
