@@ -9,6 +9,7 @@ import { registerGallery } from "./gallery/index.js";
 import { registerFilter } from "./filter/index.js";
 import { registerAutoresponder } from "./autoresponder/index.js";
 import { registerPagination } from "./pagination/index.js";
+import { registerAvailability } from "./availability/index.js";
 
 export const configCog: Cog = {
   name: "configuration",
@@ -26,5 +27,6 @@ export const configCog: Cog = {
     inCategory("filter", registerFilter);
     inCategory("autoresponder", registerAutoresponder);
     inCategory("pagination", registerPagination);
+    inCategory("availability", registerAvailability);
   },
 };

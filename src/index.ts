@@ -21,6 +21,7 @@ import {
 } from "./core/hooks.js";
 import { registerPagerInteractions } from "./core/pager.js";
 import { lookup, split, type PrefixContext, type ReplyPayload, type SentMessage } from "./core/prefix.js";
+import { commandBlocked } from "./core/availability.js";
 import {
   argumentFrom,
   buildAllSlashCommands,
@@ -268,6 +269,17 @@ const bot = createBot({
 
         const command = lookup(name);
         if (command) {
+          if (
+            await commandBlocked(
+              guildId,
+              String(message.channelId ?? ""),
+              authorId,
+              command.name,
+              command.cog ?? "",
+            )
+          ) {
+            return;
+          }
           if (command.groupedUnder) {
             await context.reply({
               content: `That is \`${used}${command.groupedUnder} ${command.name}\`.`,

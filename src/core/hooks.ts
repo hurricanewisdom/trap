@@ -1,3 +1,4 @@
+import { eventBlocked } from "./availability.js";
 import type { PrefixContext, PrefixHandler } from "./prefix.js";
 
 export type FallbackResolver = (
@@ -33,16 +34,22 @@ export interface MessageEvent {
 
 export type MessageHandler = (event: MessageEvent) => Promise<void>;
 
-const messages: MessageHandler[] = [];
+interface Named<T> {
+  handler: T;
+  event?: string;
+}
 
-export function onMessage(handler: MessageHandler): void {
-  messages.push(handler);
+const messages: Named<MessageHandler>[] = [];
+
+export function onMessage(handler: MessageHandler, event?: string): void {
+  messages.push({ handler, event });
 }
 
 export async function emitMessage(event: MessageEvent): Promise<void> {
-  for (const handler of messages) {
+  for (const held of messages) {
     try {
-      await handler(event);
+      if (held.event && (await eventBlocked(event.guildId, event.channelId, held.event))) continue;
+      await held.handler(event);
     } catch (err) {
       console.error("message handler failed:", err);
     }
@@ -214,21 +221,28 @@ export interface ReactionEvent {
 
 export type ReactionHandler = (event: ReactionEvent) => Promise<void>;
 
-const reactionAdds: ReactionHandler[] = [];
-const reactionRemoves: ReactionHandler[] = [];
+const reactionAdds: Named<ReactionHandler>[] = [];
+const reactionRemoves: Named<ReactionHandler>[] = [];
 
-export function onReactionAdd(handler: ReactionHandler): void {
-  reactionAdds.push(handler);
+export function onReactionAdd(handler: ReactionHandler, event?: string): void {
+  reactionAdds.push({ handler, event });
 }
 
-export function onReactionRemove(handler: ReactionHandler): void {
-  reactionRemoves.push(handler);
+export function onReactionRemove(handler: ReactionHandler, event?: string): void {
+  reactionRemoves.push({ handler, event });
+}
+
+async function fireReaction(held: Named<ReactionHandler>[], event: ReactionEvent): Promise<void> {
+  for (const one of held) {
+    if (one.event && (await eventBlocked(event.guildId, event.channelId, one.event))) continue;
+    await one.handler(event);
+  }
 }
 
 export async function emitReactionAdd(event: ReactionEvent): Promise<void> {
-  for (const handler of reactionAdds) await handler(event);
+  await fireReaction(reactionAdds, event);
 }
 
 export async function emitReactionRemove(event: ReactionEvent): Promise<void> {
-  for (const handler of reactionRemoves) await handler(event);
+  await fireReaction(reactionRemoves, event);
 }

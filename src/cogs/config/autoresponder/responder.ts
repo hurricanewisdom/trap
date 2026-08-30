@@ -89,5 +89,5 @@ async function respond(event: MessageEvent): Promise<void> {
 }
 
 export function watchMessages(): void {
-  onMessage(respond);
+  onMessage(respond, "autoresponder");
 }

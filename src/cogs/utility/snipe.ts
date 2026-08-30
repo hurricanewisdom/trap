@@ -278,7 +278,7 @@ export function registerSnipe(): void {
 
   onMessage(async (event) => {
     remember(event.guildId, event.channelId, seenFrom(event));
-  });
+  }, "snipe");
 
   onMessageDelete(async (event) => {
     const seen = recall(event.channelId, event.messageId);
@@ -310,7 +310,7 @@ export function registerSnipe(): void {
       added: true,
       at: Date.now(),
     });
-  });
+  }, "snipe");
 
   onReactionRemove(async (event) => {
     if (!event.guildId || !event.emoji) return;
@@ -327,7 +327,7 @@ export function registerSnipe(): void {
       emoji: event.emoji,
       at: Date.now(),
     });
-  });
+  }, "snipe");
 
   const handler: PrefixHandler = async (ctx) => {
     const sub = ctx.argument.trim().split(/\s+/)[0]?.toLowerCase() ?? "";

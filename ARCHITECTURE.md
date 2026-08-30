@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 121 source files, no comments — the names and the
+the read path and the cache. 124 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -30,6 +30,7 @@ src/
     discord.ts          raw Discord REST for member lists and permissions
     automod.ts          Discord AutoMod rules, their caps, and error translation
     sniping.ts          the two-way link between the snipe store and its filter
+    availability.ts     what is switched off where, and what can never be
     env.ts              typed configuration access
 
   helpers/              feature-agnostic utilities. No I/O of their own except
@@ -80,6 +81,7 @@ src/
       autoresponder/    automatic replies: store.ts, responder.ts (the matcher
                         on the message path), roles.ts, exclusive.ts, gate.ts
                         (the role hierarchy check), shared.ts
+      availability/     turning commands, modules and events off per channel
       pagination/       several embeds behind one message, turned with buttons:
                         embedcode.ts parses the page code, store.ts holds pages
                         by stable id
@@ -409,6 +411,13 @@ around it tints.
 - **Strip the whole token, not the part the regex matched.** A message link
   matched as `channels/…` inside a full URL left `https://discord.com/` in the
   remaining argument, which the next positional read took for a page id.
+- **Gate a cross-cutting rule once, where the dispatch happens.** Disabled
+  events are enforced in `core/hooks.ts`: a handler registers with a name and
+  the emitter skips it when that event is off. Asking nine features to each
+  check would mean the tenth forgets.
+- **A safety list has to hold on both sides.** The commands that re-enable
+  things are refused at write time *and* ignored by the gate at read time, so
+  neither a mistake nor a stale row can lock a server out of its own settings.
 - **Anything on the message path must not do I/O.** `messageCreate` runs for
   every message in every channel: prefix resolution, the sticky check and the
   alias fallback all read an in-process cache invalidated on write, never the

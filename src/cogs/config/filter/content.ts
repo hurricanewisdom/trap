@@ -235,6 +235,6 @@ function build(spec: Simple): void {
 }
 
 export function registerContent(): void {
-  onMessage(police);
+  onMessage(police, "filter");
   for (const spec of SPECS) build(spec);
 }

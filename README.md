@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 245 commands across five cogs,
+(TypeScript strict, Node 22), run bare with pm2. 261 commands across five cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -30,6 +30,7 @@ rather than turning it into a three-word path with named fields.
 - `,imgonly` — make a channel take images only
 - `,autoresponder` — automatic replies when a message matches a trigger
 - `,pagination` — several pages behind one message, turned with arrows
+- `,disablecommand` — turn commands, modules and events off per channel
 - `,filter` — ten chat filters, five of them enforced by Discord's AutoMod
 - `,snipe` — what was deleted, edited or unreacted in this channel
 - `,lf link` DMs an authorisation link; after that `,fm` works
@@ -225,6 +226,50 @@ everywhere, and the moment a role or channel is listed it answers only there.
 Like every other message-path feature, the matcher reads an in-process cache
 invalidated on write, never the database. A server with no autoresponders costs
 one map lookup per message.
+
+## Availability
+
+Three things can be switched off, each with its own pair of commands.
+
+```
+,disablecommand #general fm        one command, in one channel
+,disablecommand @someone fm        one command, for one member
+,disablecommand all fm             one command, everywhere
+,disablecommand list               what is off
+,disablemodule #general lastfm     a whole cog, so every command in it
+,disableevent #general filter      something the bot does that is not a command
+,copydisabled #old #new            carry a channel's whole set to another
+```
+
+Every `disable` has a matching `enable`, and `disablemodule` and `disableevent`
+carry their own `list`. Sixteen commands, all **Manage Channels**.
+
+**A module is a cog** — `information`, `configuration`, `utility`, `lastfm`,
+`help` — so switching one off takes every command in it with it.
+
+**An event is something the bot does that nobody typed**: `autoresponder`,
+`filter`, `gallery`, `snipe`, `sticky`, `reactions`, and the three greetings.
+These are enforced in `core/hooks.ts` rather than in each feature: a handler now
+registers with a name (`onMessage(police, "filter")`), and the emitter skips a
+named handler whose event is off in that channel. One check covers every
+feature, including ones added later, instead of nine features each remembering
+to ask.
+
+⚠️ **The commands that switch things back on can never be switched off.** A
+server that disabled `,enablemodule` in every channel would have no way back
+short of a database edit. `PROTECTED` in `core/availability.ts` holds them, and
+the gate ignores a rule naming one even if a row somehow exists — so a stale row
+cannot lock anyone out either.
+
+Only whole commands can be disabled, not their subcommands: `,filter caps` says
+so and points at `,filter`. The gate runs at dispatch, where only top-level
+commands arrive, so a promise to disable a subcommand would be one the
+enforcement could not keep.
+
+`,disablecommand` is the only one that takes a member as well as a channel,
+because a module or an event has no per-member meaning. Everything reads an
+in-process cache invalidated on write, and a guild with nothing disabled costs
+one empty-array check per message.
 
 ## Pagination
 

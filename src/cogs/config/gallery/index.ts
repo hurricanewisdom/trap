@@ -198,7 +198,7 @@ export function registerGallery(): void {
     if (await canManageGuild(event.guildId, event.authorId)) return;
 
     await deleteMessage(event.channelId, event.messageId);
-  });
+  }, "gallery");
 
   register({
     name: "imgonly",

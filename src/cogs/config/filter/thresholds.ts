@@ -241,6 +241,6 @@ async function police(event: MessageEvent): Promise<void> {
 }
 
 export function registerThresholds(): void {
-  onMessage(police);
+  onMessage(police, "filter");
   for (const spec of THRESHOLDS) build(spec);
 }

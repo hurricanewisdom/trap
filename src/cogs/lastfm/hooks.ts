@@ -26,13 +26,13 @@ export function registerLastfmHooks(): void {
     const vote = await voteFor(messageId, emoji, guildId);
     if (vote === 0) return;
     await recordVote(messageId, userId, vote);
-  });
+  }, "reactions");
 
   onReactionRemove(async ({ messageId, userId, emoji, guildId }) => {
     if (!guildId) return;
     if ((await voteFor(messageId, emoji, guildId)) === 0) return;
     await removeVote(messageId, userId);
-  });
+  }, "reactions");
 
   onUnmatchedCommand(async (name, ctx) => {
     if (!ctx.guildId) return null;

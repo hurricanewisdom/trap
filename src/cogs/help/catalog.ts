@@ -134,6 +134,12 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Automatic replies when a message matches a trigger",
   },
   {
+    slug: "availability",
+    label: "Availability",
+    emoji: "",
+    blurb: "Turning commands, modules and events off per channel",
+  },
+  {
     slug: "pagination",
     label: "Pagination",
     emoji: "",
@@ -309,6 +315,26 @@ export const DOCS: CommandDoc[] = [
       { name: "role", usage: ",autoresponder role", summary: "Give or take roles when a trigger fires", permission: "Manage Channels" },
       { name: "exclusive", usage: ",autoresponder exclusive <role or #channel> <trigger>", summary: "Limit a trigger to some roles or channels", permission: "Manage Channels" },
       { name: "reset", usage: ",autoresponder reset", summary: "Remove every auto response", permission: "Manage Channels" },
+    ],
+  },
+  {
+    name: "disablecommand",
+    category: "availability",
+    usage: ",disablecommand <#channel or @member> <command>",
+    summary: "Turn a command off in a channel",
+    details:
+      "Three things can be switched off, each with its own pair of commands: a command, a module (a whole cog, so every command in it), and an event (something the bot does that is not a command, like the filters or the autoresponder). Everything takes a channel, and disablecommand also takes a member, so one person can lose a command without the channel losing it. Add all in place of the channel to cover the whole server. The commands that switch things back on can never be switched off themselves, or a server could lock itself out. Only whole commands can be disabled, not their subcommands.",
+    examples: [
+      ",disablecommand #general fm",
+      ",disablecommand all crowns",
+      ",disablecommand list",
+      ",copydisabled #old #new",
+    ],
+    permission: "Manage Channels",
+    guildOnly: true,
+    subcommands: [
+      { name: "all", usage: ",disablecommand all <command>", summary: "Turn a command off everywhere", permission: "Manage Channels" },
+      { name: "list", usage: ",disablecommand list", summary: "Every command switched off here", permission: "Manage Channels" },
     ],
   },
   {

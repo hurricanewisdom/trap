@@ -289,7 +289,7 @@ export function registerSticky(): void {
   onMessage(async (event) => {
     if (!(await stickyChannels(event.guildId)).has(event.channelId)) return;
     settle(event.guildId, event.channelId);
-  });
+  }, "sticky");
 
   register({
     name: "stickymessage",
