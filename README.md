@@ -234,7 +234,7 @@ one map lookup per message.
 ,pagination update <link> 2 {title: Rewrite}  rewrite one
 ,pagination remove <link> 2                   delete one
 ,pagination list                              every pagination here
-,pagination restorereactions <link>           put the arrows back
+,pagination restorereactions <link>           put the buttons back
 ,pagination delete <link>                     stop paginating that message
 ,pagination reset                             clear them all
 ```
@@ -252,10 +252,20 @@ the bot uses: `{title:}`, `{description:}`, `{color:}`, `{footer:}`, `{author:}`
 `{image:}`, `{thumbnail:}`, `{url:}`. Anything unrecognised is named back rather
 than dropped.
 
-Readers turn pages with the arrow reactions, and **their reaction is removed
-again** so the same arrow can be pressed twice in a row. The page number is
-appended to the footer at render time rather than stored, so it stays right when
-a page is added or deleted.
+Readers turn pages with **Back** and **Next** buttons underneath, and the middle
+button shows the position. Anyone can press them; only setting the pages up
+needs a permission.
+
+Buttons rather than reactions for three reasons. The bot needs no Add Reactions
+permission. Nothing has to be cleaned up after a press, where a reaction has to
+be taken back off before the same arrow can be used twice. And the page number
+lives on a disabled button instead of being appended to the footer, so a page's
+own `{footer:}` is left exactly as it was written — a stored page is never
+rewritten just to be displayed.
+
+The buttons carry a fixed custom id, and which message was clicked comes from the
+interaction itself, so a pagination keeps working across restarts with no state
+in the id.
 
 **Page ids are stable and never renumber.** Deleting page 2 of three leaves ids
 1 and 3, so an id copied out of `pagination list` is still valid afterwards. The

@@ -1,11 +1,5 @@
-import {
-  addReaction,
-  botId,
-  clearReaction,
-  editMessage,
-  getMessage,
-} from "../../../core/discord.js";
-import { onReactionAdd } from "../../../core/hooks.js";
+import { botId, editMessage, getMessage } from "../../../core/discord.js";
+import { onComponent } from "../../../core/hooks.js";
 import {
   notice,
   requireAdministrator,
@@ -37,9 +31,9 @@ import {
 
 const HEADING = "Pagination";
 
-const BACK = "◀️";
+const ID = "pgn";
 
-const NEXT = "▶️";
+const TURN = `${ID}:`;
 
 const LINK = /channels\/(\d{15,25})\/(\d{15,25})\/(\d{15,25})/;
 
@@ -83,37 +77,52 @@ function needLink(usage: string): string {
   ].join("\n");
 }
 
-async function render(messageId: string): Promise<boolean> {
+function controls(index: number, total: number): unknown[] {
+  if (total < 2) return [];
+
+  const button = (action: string, label: string, off = false) => ({
+    type: 2,
+    style: 2,
+    custom_id: `${TURN}${action}`,
+    label,
+    ...(off ? { disabled: true } : {}),
+  });
+
+  return [
+    {
+      type: 1,
+      components: [
+        button("prev", "Back"),
+        button("at", `${index} / ${total}`, true),
+        button("next", "Next"),
+      ],
+    },
+  ];
+}
+
+interface Shown {
+  embeds: unknown[];
+  components: unknown[];
+}
+
+async function page(messageId: string): Promise<Shown | null> {
   const held = await load(messageId);
-  if (!held || held.pages.length === 0) return false;
+  if (!held || held.pages.length === 0) return null;
 
   const index = Math.min(Math.max(held.current, 1), held.pages.length);
-  const page = held.pages[index - 1];
-  if (!page) return false;
+  const shown = held.pages[index - 1];
+  if (!shown) return null;
 
-  const embed: Embed & { footer?: { text: string } } = { ...page.embed };
-  const mark = `Page ${index} of ${held.pages.length}`;
-  embed.footer = { text: embed.footer ? `${embed.footer.text} · ${mark}` : mark };
-
-  const saved = await editMessage(held.channelId, messageId, { embeds: [embed] });
-  return saved.ok;
+  return { embeds: [shown.embed as Embed], components: controls(index, held.pages.length) };
 }
 
-async function seed(channelId: string, messageId: string): Promise<void> {
-  await addReaction(channelId, messageId, BACK);
-  await addReaction(channelId, messageId, NEXT);
-}
-
-async function flip(messageId: string, forward: boolean): Promise<void> {
+async function render(messageId: string): Promise<boolean> {
   const held = await load(messageId);
-  if (!held || held.pages.length < 2) return;
+  const body = await page(messageId);
+  if (!held || !body) return false;
 
-  const total = held.pages.length;
-  const at = Math.min(Math.max(held.current, 1), total);
-  const next = forward ? (at % total) + 1 : ((at - 2 + total) % total) + 1;
-
-  await setCurrent(messageId, next);
-  await render(messageId);
+  const saved = await editMessage(held.channelId, messageId, body);
+  return saved.ok;
 }
 
 async function ours(ctx: PrefixContext, spot: Target): Promise<boolean> {
@@ -145,14 +154,14 @@ async function overview(ctx: PrefixContext): Promise<void> {
     ctx,
     [
       `### ${HEADING}`,
-      "Put several pages behind one message, turned with the arrows underneath.",
+      "Put several pages behind one message, turned with the buttons underneath.",
       "",
       "`pagination set <link>` takes an embed I posted and makes it page 1",
       "`pagination add <link> <code>` adds a page",
       "`pagination update <link> <id> <code>` rewrites one",
       "`pagination remove <link> <id>` deletes one",
       "`pagination list` shows them all",
-      "`pagination restorereactions <link>` puts the arrows back",
+      "`pagination restorereactions <link>` puts the buttons back",
       "`pagination delete <link>` stops paginating that message",
       "`pagination reset` clears every one, Administrator only",
       "",
@@ -196,7 +205,6 @@ async function set(ctx: PrefixContext): Promise<void> {
 
   await create(guildId, spot.channelId, spot.messageId, first, ctx.authorId);
   await render(spot.messageId);
-  await seed(spot.channelId, spot.messageId);
 
   await card(
     ctx,
@@ -360,7 +368,7 @@ async function list(ctx: PrefixContext): Promise<void> {
 }
 
 async function restore(ctx: PrefixContext): Promise<void> {
-  const guildId = await requireManageMessages(ctx, "restore the reactions");
+  const guildId = await requireManageMessages(ctx, "restore the buttons");
   if (!guildId) return;
 
   const spot = target(ctx.argument, guildId);
@@ -370,10 +378,10 @@ async function restore(ctx: PrefixContext): Promise<void> {
   }
   if (!(await held(ctx, guildId, spot))) return;
 
-  await seed(spot.channelId, spot.messageId);
+  const back = await render(spot.messageId);
   await card(
     ctx,
-    [`### ${HEADING}`, "The arrows are back.", "", "-# I need Add Reactions in that channel."].join("\n"),
+    [`### ${HEADING}`, "The buttons are back on that message.", "", ""].join("\n"),
   );
 }
 
@@ -413,13 +421,25 @@ async function resetAll(ctx: PrefixContext): Promise<void> {
 }
 
 export function registerPagination(): void {
-  onReactionAdd(async (event) => {
-    if (!event.guildId || event.userId === botId()) return;
-    if (event.emoji !== BACK && event.emoji !== NEXT) return;
-    if (!(await tracked(event.messageId))) return;
+  onComponent(TURN, async (interaction: any) => {
+    const messageId = String(interaction.message?.id ?? "");
+    const action = String(interaction.data?.customId ?? "").slice(TURN.length);
+    if (!messageId || (action !== "prev" && action !== "next")) return;
 
-    await flip(event.messageId, event.emoji === NEXT);
-    await clearReaction(event.channelId, event.messageId, event.emoji, event.userId);
+    const held = await load(messageId);
+    if (!held || held.pages.length < 2) {
+      await interaction.deferEdit();
+      return;
+    }
+
+    const total = held.pages.length;
+    const at = Math.min(Math.max(held.current, 1), total);
+    const next = action === "next" ? (at % total) + 1 : ((at - 2 + total) % total) + 1;
+
+    await setCurrent(messageId, next);
+    const body = await page(messageId);
+    if (body) await interaction.edit(body);
+    else await interaction.deferEdit();
   });
 
   const handler: PrefixHandler = async (ctx) => {
@@ -448,8 +468,8 @@ export function registerPagination(): void {
     register({ name: "list", aliases: ["all"], description: "Every pagination in this server", handler: list });
     register({
       name: "restorereactions",
-      aliases: ["restore", "reactions"],
-      description: "Put the arrows back on a pagination",
+      aliases: ["restore", "buttons"],
+      description: "Put the buttons back on a pagination",
       handler: restore,
     });
     register({ name: "delete", description: "Stop paginating a message", handler: remove_all });

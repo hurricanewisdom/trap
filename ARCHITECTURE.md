@@ -80,8 +80,9 @@ src/
       autoresponder/    automatic replies: store.ts, responder.ts (the matcher
                         on the message path), roles.ts, exclusive.ts, gate.ts
                         (the role hierarchy check), shared.ts
-      pagination/       several embeds behind one message: embedcode.ts parses
-                        the page code, store.ts holds pages by stable id
+      pagination/       several embeds behind one message, turned with buttons:
+                        embedcode.ts parses the page code, store.ts holds pages
+                        by stable id
     utility/            server tools
       store.ts          bounded in-memory rings: recent messages, snipes,
                         removed reactions, per-message reaction logs
@@ -234,7 +235,7 @@ Cogs extend the runtime through `core/hooks.ts` instead of core importing them:
 | Hook | Purpose |
 | --- | --- |
 | `onUnmatchedCommand` | claim a word no registered command owns (user-defined aliases) |
-| `onComponent(prefix, …)` | own a custom-id namespace, e.g. `help\|`, `pg:` |
+| `onComponent(prefix, …)` | own a custom-id namespace, e.g. `help\|`, `pg:`, `pgn:` |
 | `onModal(prefix, …)` | the same for modal submissions |
 | `onReactionAdd` / `onReactionRemove` | raw reaction events |
 | `onBoost` | somebody boosted the server |

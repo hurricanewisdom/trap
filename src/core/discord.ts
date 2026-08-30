@@ -358,28 +358,6 @@ export function editMessage(
   return write<PostedMessage>("PATCH", `/channels/${channelId}/messages/${messageId}`, body);
 }
 
-export function addReaction(
-  channelId: string,
-  messageId: string,
-  emoji: string,
-): Promise<Wrote<void>> {
-  const mark = encodeURIComponent(emoji);
-  return write<void>("PUT", `/channels/${channelId}/messages/${messageId}/reactions/${mark}/@me`);
-}
-
-export function clearReaction(
-  channelId: string,
-  messageId: string,
-  emoji: string,
-  userId: string,
-): Promise<Wrote<void>> {
-  const mark = encodeURIComponent(emoji);
-  return write<void>(
-    "DELETE",
-    `/channels/${channelId}/messages/${messageId}/reactions/${mark}/${userId}`,
-  );
-}
-
 export function deleteMessage(channelId: string, messageId: string): Promise<Wrote<void>> {
   forgetSnipe(channelId, messageId);
   return write<void>("DELETE", `/channels/${channelId}/messages/${messageId}`);

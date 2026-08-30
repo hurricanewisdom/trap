@@ -317,7 +317,7 @@ export const DOCS: CommandDoc[] = [
     usage: ",pagination",
     summary: "Put several pages behind one message",
     details:
-      "Discord only lets a bot edit its own messages, so a pagination can only be built on an embed I posted: ,pagination set takes one of mine and makes it page 1. Pages after that are written in page code, the same brace style the rest of the bot uses. Readers turn pages with the arrow reactions, and their reaction is removed again so they can press the same arrow twice. Page ids are stable and do not renumber when one is deleted, so an id in ,pagination list stays valid. Up to 25 pages per message and 50 paginations per server. Aliases: ,pages and ,paginate.",
+      "Discord only lets a bot edit its own messages, so a pagination can only be built on an embed I posted: ,pagination set takes one of mine and makes it page 1. Pages after that are written in page code, the same brace style the rest of the bot uses. Readers turn pages with the Back and Next buttons underneath, which anyone can press. Page ids are stable and do not renumber when one is deleted, so an id in ,pagination list stays valid. Up to 25 pages per message and 50 paginations per server. Aliases: ,pages and ,paginate.",
     examples: [
       ",pagination set <link>",
       ",pagination add <link> {title: Rules}{description: Be nice}",
@@ -331,7 +331,7 @@ export const DOCS: CommandDoc[] = [
       { name: "update", usage: ",pagination update <link> <id> <code>", summary: "Rewrite one page", permission: "Manage Messages" },
       { name: "remove", usage: ",pagination remove <link> <id>", summary: "Delete one page", permission: "Manage Messages" },
       { name: "list", usage: ",pagination list", summary: "Every pagination in this server", permission: "Manage Messages" },
-      { name: "restorereactions", usage: ",pagination restorereactions <link>", summary: "Put the arrows back", permission: "Manage Messages" },
+      { name: "restorereactions", usage: ",pagination restorereactions <link>", summary: "Put the buttons back", permission: "Manage Messages" },
       { name: "delete", usage: ",pagination delete <link>", summary: "Stop paginating a message", permission: "Manage Messages" },
       { name: "reset", usage: ",pagination reset", summary: "Clear every pagination in this server", permission: "Administrator" },
     ],
