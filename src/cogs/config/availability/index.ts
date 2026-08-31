@@ -353,14 +353,19 @@ async function copyDisabled(ctx: PrefixContext): Promise<void> {
     return;
   }
 
-  const made = await copy(guildId, from.id, to.id);
+  const { found, made } = await copy(guildId, from.id, to.id);
+  const outcome =
+    found === 0
+      ? `Nothing is switched off in <#${from.id}>, so there was nothing to copy.`
+      : made === 0
+        ? `All ${found} of them are already switched off in <#${to.id}>.`
+        : `Copied ${made} of ${found} from <#${from.id}> to <#${to.id}>.`;
+
   await card(
     ctx,
     [
       `### ${HEADING}`,
-      made === 0
-        ? `Nothing is switched off in <#${from.id}>, so there was nothing to copy.`
-        : `Copied ${made} ${made === 1 ? "entry" : "entries"} from <#${from.id}> to <#${to.id}>.`,
+      outcome,
       "",
       "-# Commands, modules and events. Anything already off there is left alone.",
     ].join("\n"),

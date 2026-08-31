@@ -88,7 +88,11 @@ export async function listing(guildId: string, kind: Kind): Promise<Rule[]> {
   return (await rules(guildId)).filter((rule) => rule.kind === kind);
 }
 
-export async function copy(guildId: string, from: string, to: string): Promise<number> {
+export async function copy(
+  guildId: string,
+  from: string,
+  to: string,
+): Promise<{ found: number; made: number }> {
   const held = (await rules(guildId)).filter((rule) => rule.target === from);
   let made = 0;
 
@@ -103,5 +107,5 @@ export async function copy(guildId: string, from: string, to: string): Promise<n
   }
 
   forget(guildId);
-  return made;
+  return { found: held.length, made };
 }
