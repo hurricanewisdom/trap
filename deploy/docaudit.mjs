@@ -120,6 +120,17 @@ for (const event of EVENTS) {
 }
 console.log(`  ${EVENTS.length} events checked`);
 
+console.log("\nevery permission gate named in ARCHITECTURE:");
+{
+  const source = await fs.readFile(path.join(ROOT, "src/core/permissions.ts"), "utf8");
+  const gates = [...source.matchAll(/export async function (require\w+)/g)].map((hit) => hit[1]);
+  for (const gate of gates) {
+    checked += 1;
+    if (!arch.includes(gate)) say(false, gate + " is not mentioned");
+  }
+  console.log("  " + gates.length + " gates checked");
+}
+
 console.log("\nevery folder and core file in the layout:");
 for (const dir of await fs.readdir(path.join(ROOT, "src/cogs"), { withFileTypes: true })) {
   if (!dir.isDirectory()) continue;

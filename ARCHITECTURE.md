@@ -295,12 +295,28 @@ reaches every gate at once without any of them knowing it exists.
 command that hands out grants. A privilege that can widen itself is not a
 privilege.
 
-For anything gated, use `core/permissions.ts` rather than hand-rolling a
-denial: `requireGuild(ctx, action)`, `requireManageChannels(ctx, action)` and
-`requireManageGuild(ctx, action)` each return the guild id, or reply with the
-standard card and return `null`. Gate at the level the change actually reaches:
-one channel is Manage Channels, anything that clears or rewrites what the whole
-server sees is Manage Server.
+For anything gated, use `core/permissions.ts` rather than hand-rolling a denial.
+Each of these returns the guild id, or replies with the standard card and
+returns `null`, and they run in rough order of how far the change reaches:
+
+| | |
+| --- | --- |
+| `requireGuild` | not a permission, just "not in a DM" |
+| `requireManageMessages` | one message: pinning, clearing snipes |
+| `requireManageChannels` | one channel: filters, availability |
+| `requireManageGuild` | what the whole server sees: prefixes, greetings, aliases |
+| `requireManageWebhooks` | posting as somebody else |
+| `requireAdministrator` | clearing everything at once |
+| `requireOwner` | handing out permissions |
+
+Gate at the level the change actually reaches. A command that edits one channel
+should not ask for Manage Server, and one that wipes every setting in the guild
+should not settle for Manage Channels.
+
+⚠️ **A read-only view is often not gated at all** — `,prefix list`,
+`,webhook list` and `,firstmessage` answer anybody. Read the `require*` call
+before assuming a command is protected; guessing wrong is how a test ends up
+measuring nothing.
 
 Named arguments are **flags**, parsed by `helpers/flags.ts` and never by
 position. `parseFlags()` returns the leftover words plus a map, so
