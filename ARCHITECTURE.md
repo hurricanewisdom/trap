@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 131 source files, no comments — the names and the
+the read path and the cache. 132 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -86,6 +86,8 @@ src/
       availability/     turning commands, modules and events off per channel
       ignore/           members and channels skipped before anything runs
       appearance/       the server icon, banner and splash background
+      pins/             the pin archive: where a channel's pins are flushed to,
+                        and the channelPinsUpdate hook that does it at 45
       pagination/       several embeds behind one message, turned with buttons:
                         embedcode.ts parses the page code, store.ts holds pages
                         by stable id
@@ -94,7 +96,8 @@ src/
                         removed reactions, per-message reaction logs
       snipe.ts          ,snipe and its four subcommands, plus the hooks that
                         feed the store
-      pins/             ,pin, ,unpin, ,firstmessage and the pin archive
+      messages/         ,pin, ,unpin and ,firstmessage: things done to one
+                        message, with nothing configured per server
     help/               the command browser
       model.ts          one indexed view of the registry + catalog
       search.ts         ranking, for /help autocomplete and ,help <query>
@@ -196,7 +199,7 @@ is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 240 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 246 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.

@@ -1,7 +1,7 @@
 import type { Cog } from "../../core/cog.js";
 import { inCategory } from "../../core/prefix.js";
 import { registerSnipe } from "./snipe.js";
-import { registerPins } from "./pins/index.js";
+import { registerMessages } from "./messages/index.js";
 
 export const utilityCog: Cog = {
   name: "utility",
@@ -9,6 +9,6 @@ export const utilityCog: Cog = {
   description: "Server tools",
   setup() {
     inCategory("snipe", registerSnipe);
-    inCategory("pins", registerPins);
+    inCategory("messages", registerMessages);
   },
 };

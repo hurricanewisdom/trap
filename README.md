@@ -256,13 +256,25 @@ path would drift from the first.
 
 `,disableevent #channel editrerun` switches it off.
 
-## Pins
+## Messages
 
 ```
 ,pin                       pin the last message here
 ,pin <link>                pin that one
 ,unpin                     unpin the most recent pin
 ,firstmessage [#channel]   a jump link to a channel's first message
+```
+
+`pin` and `unpin` need **Manage Messages**; `firstmessage` is open to everyone.
+These act on a message in front of you, which is why they sit in Utility rather
+than with the pin archive: nothing about them is configured per server.
+
+`pin` checks Discord's 50-pin cap before trying, so a full channel gets a
+sentence about `,pins archive` rather than an API error.
+
+## Pin archive
+
+```
 ,pins channel #archive     where archived pins go
 ,pins set on               archive automatically at 45 pins
 ,pins unpin off            keep them pinned after archiving
@@ -270,8 +282,8 @@ path would drift from the first.
 ,pins config / reset
 ```
 
-`pin` and `unpin` need **Manage Messages**, the `pins` group needs **Manage
-Server**, and `firstmessage` is open to everyone.
+**Manage Server**, and in the Configuration cog, because unlike `,pin` this is a
+per-server system you set up once and leave running.
 
 **Discord caps a channel at 50 pins**, and the archive is what you do when it
 fills. `pins archive` copies the pins into the archive channel oldest first, ten
@@ -280,10 +292,9 @@ to a card with author and jump link, then unpins them unless you turned that off
 own pin-update event — 45 rather than 50 so there is room to pin one more while
 it works.
 
-`pin` checks the cap before trying, so you get a sentence about the archive
-rather than a Discord error. Archiving a channel into itself is refused, and so
-is enabling the automatic side before an archive channel exists — a switch that
-cannot do anything is worse than one that says why.
+Archiving a channel into itself is refused, and so is enabling the automatic
+side before an archive channel exists — a switch that cannot do anything is
+worse than one that says why.
 
 ## Server look
 
@@ -355,8 +366,8 @@ carry their own `list`. Sixteen commands, all **Manage Channels**.
 `help` — so switching one off takes every command in it with it.
 
 **An event is something the bot does that nobody typed**: `autoresponder`,
-`filter`, `gallery`, `snipe`, `sticky`, `reactions`, `editrerun`, and the three
-greetings. Ten of them.
+`filter`, `gallery`, `snipe`, `sticky`, `reactions`, `editrerun`, `welcome`,
+`goodbye` and `boost`. Ten of them.
 
 Nine are enforced in `core/hooks.ts` rather than in each feature: a handler
 registers with a name (`onMessage(police, "filter")`), and the emitter skips a
@@ -697,12 +708,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 240 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 246 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 369 views** and asserts unique
+The check that keeps this honest renders **all 386 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

@@ -12,6 +12,7 @@ import { registerPagination } from "./pagination/index.js";
 import { registerAvailability } from "./availability/index.js";
 import { registerIgnore } from "./ignore/index.js";
 import { registerAppearance } from "./appearance/index.js";
+import { registerPinArchive } from "./pins/index.js";
 
 export const configCog: Cog = {
   name: "configuration",
@@ -32,5 +33,6 @@ export const configCog: Cog = {
     inCategory("availability", registerAvailability);
     inCategory("ignore", registerIgnore);
     inCategory("appearance", registerAppearance);
+    inCategory("pins", registerPinArchive);
   },
 };

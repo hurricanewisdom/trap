@@ -141,9 +141,15 @@ export const CATEGORIES: CategoryDoc[] = [
   },
   {
     slug: "pins",
-    label: "Pins",
+    label: "Pin archive",
     emoji: "",
-    blurb: "Pinning, unpinning, and archiving a channel's pins",
+    blurb: "Flushing a channel's pins into an archive channel",
+  },
+  {
+    slug: "messages",
+    label: "Messages",
+    emoji: "",
+    blurb: "Pinning, unpinning and finding a channel's first message",
   },
   {
     slug: "ignore",
@@ -367,7 +373,7 @@ export const DOCS: CommandDoc[] = [
   },
   {
     name: "pin",
-    category: "pins",
+    category: "messages",
     usage: ",pin [link]",
     summary: "Pin the last message, or one by link",
     details:
@@ -378,7 +384,7 @@ export const DOCS: CommandDoc[] = [
   },
   {
     name: "unpin",
-    category: "pins",
+    category: "messages",
     usage: ",unpin [link]",
     summary: "Unpin a message",
     details:
@@ -389,7 +395,7 @@ export const DOCS: CommandDoc[] = [
   },
   {
     name: "firstmessage",
-    category: "pins",
+    category: "messages",
     usage: ",firstmessage [#channel]",
     summary: "Link the first message in a channel",
     details:
