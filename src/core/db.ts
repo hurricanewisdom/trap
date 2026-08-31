@@ -435,6 +435,34 @@ export async function migrate(): Promise<void> {
   await sql`ALTER TABLE reposter ADD COLUMN IF NOT EXISTS container BOOLEAN NOT NULL DEFAULT true`;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS badge_config (
+      guild_id   TEXT NOT NULL,
+      enabled    BOOLEAN NOT NULL DEFAULT false,
+      channel_id TEXT,
+      message    TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS badge_roles (
+      guild_id TEXT NOT NULL,
+      role_id  TEXT NOT NULL,
+      PRIMARY KEY (guild_id, role_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS badge_awarded (
+      guild_id TEXT NOT NULL,
+      user_id  TEXT NOT NULL,
+      at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, user_id)
+    )
+  `;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS rate_limits (
       guild_id   TEXT NOT NULL,
       per_user   INTEGER NOT NULL DEFAULT 5,

@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 154 source files, no comments — the names and the
+the read path and the cache. 157 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -94,6 +94,8 @@ src/
       webhook/          posting as a named identity; ids in the database, the
                         token fetched when needed and never kept
       fakeperms/        letting a role use the bot without the real permission
+      badge/            rewarding members who wear the server tag; sync.ts sweeps
+                        the member list, store.ts remembers who has been thanked
       ratelimit/        how many commands a person or a server may run, and the
                         provider that hands those numbers to core/throttle.ts
       customize/        the bot's own avatar, banner and bio in one server;
@@ -222,7 +224,7 @@ is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 280 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 288 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.
@@ -602,6 +604,16 @@ around it tints.
   `twitch.tv/streamer` is not, and one rule covering both would have the bot
   download strangers' profiles. Tumblr is the inverse — a blog per subdomain, matched on a suffix,
   because no list of exact hosts can ever be complete.
+- **A field being present is not the answer you wanted.** Every member wearing any
+  server's tag carries `primary_guild`; only some of them wear *this* server's.
+  The check is on the id and the enabled flag together, because the loose version
+  would have rewarded six people here for repping somebody else.
+- **A reward that cannot be lost is not a reward.** The sweep takes roles back from
+  anybody who stopped wearing the tag, and forgets them, so putting it back on is
+  thanked again rather than silently.
+- **Refuse an impossible setting when it is set, not when it is used.** A role
+  above the bot cannot be granted; catching that as it is added gives one person
+  one clear sentence, while catching it at sync time gives nobody anything.
 - **Failing open is not always failing safe.** Most providers here return "not
   blocked" when they cannot answer. The limit provider returns the *defaults*
   instead: a database that cannot be reached is a reason to keep the guard rather

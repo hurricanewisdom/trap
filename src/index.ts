@@ -11,6 +11,7 @@ import {
   emitBoost,
   emitMemberJoin,
   emitMemberLeave,
+  emitMemberUpdate,
   emitMessage,
   emitChannelPins,
   emitMessageDelete,
@@ -238,6 +239,8 @@ const bot = createBot({
       if (await notedBoost(guildId, userId, since)) {
         await announceBoost(guildId, "", userId);
       }
+
+      await emitMemberUpdate({ guildId, userId });
     },
     async guildMemberRemove(user: any, guildId: any) {
       await emitMemberLeave({

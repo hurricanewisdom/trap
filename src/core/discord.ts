@@ -34,7 +34,21 @@ async function api<T>(path: string): Promise<T | null> {
 }
 
 export interface GuildMember {
-  user?: { id: string; username?: string; global_name?: string | null; bot?: boolean; avatar?: string | null };
+  user?: {
+    id: string;
+    username?: string;
+    global_name?: string | null;
+    bot?: boolean;
+    avatar?: string | null;
+    // Which server's tag this person is wearing, if any. Discord puts it on the
+    // user rather than the member, and sends it with the member list.
+    primary_guild?: {
+      identity_guild_id?: string | null;
+      identity_enabled?: boolean | null;
+      tag?: string | null;
+      badge?: string | null;
+    } | null;
+  };
   nick?: string | null;
   roles?: string[];
   premium_since?: string | null;
@@ -162,6 +176,32 @@ export async function guildMemberIds(guildId: string, cap = 5000): Promise<Set<s
 
   redis.set(cacheKey, JSON.stringify(ids), "EX", MEMBER_TTL).catch(() => {});
   return new Set(ids);
+}
+
+// The whole member objects rather than only their ids, and deliberately not
+// cached: this is read to find out what people are wearing right now, and a
+// ten-minute-old answer would hand out roles for a tag somebody has taken off.
+export async function walkMembers(guildId: string, cap = 5000): Promise<GuildMember[] | null> {
+  const held: GuildMember[] = [];
+  let after = "0";
+
+  while (held.length < cap) {
+    const page = await api<GuildMember[]>(`/guilds/${guildId}/members?limit=1000&after=${after}`);
+    if (page === null) return null;
+    if (page.length === 0) break;
+
+    held.push(...page);
+    const last = page[page.length - 1]?.user?.id;
+    if (!last || page.length < 1000) break;
+    after = last;
+  }
+  return held;
+}
+
+// True when this person is displaying this server's tag.
+export function wearsTag(member: GuildMember, guildId: string): boolean {
+  const worn = member.user?.primary_guild;
+  return Boolean(worn?.identity_enabled && worn.identity_guild_id === guildId);
 }
 
 export async function displayName(guildId: string, userId: string): Promise<string> {

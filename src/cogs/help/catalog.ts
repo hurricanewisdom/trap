@@ -152,6 +152,12 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Reposting social links so the video plays inline",
   },
   {
+    slug: "badge",
+    label: "Server tag",
+    emoji: "",
+    blurb: "Rewarding members who wear the server tag on their profile",
+  },
+  {
     slug: "ratelimit",
     label: "Command limits",
     emoji: "",
@@ -411,6 +417,27 @@ export const DOCS: CommandDoc[] = [
       { name: "delete", usage: ",reposter delete <on or off>", summary: "Delete the original message", permission: "Manage Server" },
       { name: "prefix", usage: ",reposter prefix <on or off>", summary: "Require a prefix before the link", permission: "Manage Server" },
       { name: "container", usage: ",reposter container <on or off>", summary: "Draw the repost inside a container", permission: "Manage Server" },
+    ],
+  },
+  {
+    name: "badge",
+    category: "badge",
+    usage: ",badge <on or off>",
+    summary: "Reward members for setting the guild tag",
+    details:
+      "Discord lets a member wear one server's tag on their profile, and reports which one on the user object. This hands out roles to everybody wearing this server's, announces them once in the award channel, and takes the roles back from anybody who removes it — a reward nobody can lose is only a role handout. badge sync settles everybody at once and announces nobody, which is what to run after changing the role list. A role sitting above the bot is refused when it is added rather than failing quietly for every member at sync time. The award message takes the same {user} and {guild} tokens the greetings use. Aliases: ,servertag and ,guildtag.",
+    examples: [",badge on", ",badge role add @Repping", ",badge sync"],
+    permission: "Manage Server",
+    guildOnly: true,
+    subcommands: [
+      { name: "channel", usage: ",badge channel #channel", summary: "Set an award channel for new guild tag members", permission: "Manage Server" },
+      { name: "role", usage: ",badge role", summary: "Award members for applying the guild tag", permission: "Manage Server" },
+      { name: "role add", usage: ",badge role add @role", summary: "Add a role awarded for the guild tag", permission: "Manage Server" },
+      { name: "role remove", usage: ",badge role remove @role", summary: "Remove a role awarded for the guild tag", permission: "Manage Server" },
+      { name: "role list", usage: ",badge role list", summary: "List all roles awarded for the guild tag", permission: "Manage Server" },
+      { name: "sync", usage: ",badge sync", summary: "Sync guild tag member roles", permission: "Manage Server" },
+      { name: "message", usage: ",badge message <text>", summary: "Set an award message", permission: "Manage Server" },
+      { name: "message view", usage: ",badge message view", summary: "View current award message", permission: "Manage Server" },
     ],
   },
   {

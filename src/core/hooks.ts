@@ -146,6 +146,16 @@ export function emitMemberLeave(event: MemberEvent): Promise<void> {
   return fire(leaves, event);
 }
 
+const memberChanges: MemberHandler[] = [];
+
+export function onMemberUpdate(handler: MemberHandler): void {
+  memberChanges.push(handler);
+}
+
+export function emitMemberUpdate(event: MemberEvent): Promise<void> {
+  return fire(memberChanges, event);
+}
+
 export interface BoostEvent {
   guildId: string;
   channelId: string;

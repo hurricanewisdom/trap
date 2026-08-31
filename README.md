@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 319 commands across five cogs,
+(TypeScript strict, Node 22), run bare with pm2. 328 commands across five cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -38,6 +38,7 @@ rather than turning it into a three-word path with named fields.
 - `,fakepermissions` — let a role use the bot without the real permission
 - `,extractemotes`, `,extractstickers` — the server's emojis or stickers as a zip
 - ~~`,reposter`~~ — **switched off for now**, see below
+- `,badge` — reward members who wear the server tag on their profile
 - `,suggest` — members suggest ideas, staff move them through statuses
 - `,customize` — the bot's own avatar, banner and bio in one server
 - `,filter` — ten chat filters, five of them enforced by Discord's AutoMod
@@ -1016,6 +1017,47 @@ the bot needs Manage Messages there.
 **Members with Manage Server are exempt**, because otherwise setting the channel
 up from inside it would delete the command that did it.
 
+## Server tag
+
+```
+,badge on / off             reward people who wear the server tag
+,badge channel #channel     where new wearers are announced
+,badge role                 the roles awarded
+,badge role add @role       add one
+,badge role remove @role    remove one
+,badge role list            all of them
+,badge sync                 settle everybody's roles now
+,badge message <text>       what the announcement says
+,badge message view         read it back
+```
+
+**Manage Server.** Discord lets somebody wear one server's tag on their profile
+and reports which one on the **user** object, as `primary_guild`, alongside the
+member list. Anybody wearing this server's gets the configured roles and one
+announcement; anybody who takes it off loses them again.
+
+⚠️ **Wearing a tag is not wearing yours.** `identity_guild_id` has to match this
+server *and* `identity_enabled` has to be true. Six members here wear a tag — all
+for a different server — and none of them are awarded anything. Checking only that
+the field exists would have handed roles to all six.
+
+⚠️ **Roles are taken back, not only handed out.** A reward nobody can lose is a
+role handout with extra steps, so a sweep removes the roles from anybody who has
+stopped wearing it, and forgets them so putting it back on is thanked again.
+
+⚠️ **A role above the bot is refused when it is added**, not when it is used.
+Discord will not let the bot grant a role sitting higher than its own, and finding
+that out during a sync means one silent failure per member with nothing to read.
+
+`sync` settles everybody at once and **announces nobody** — it is what to run
+after changing the role list, without pinging half the server. The announcement
+takes the same `{user}` and `{guild}` tokens the greetings use.
+
+⚠️ **Automatic awarding is best-effort.** A member update is treated as a reason to
+re-check that one person, but whether Discord reports a tag going on as a member
+update could not be verified from here. `badge sync` is the path that is known to
+work.
+
 ## Command limits
 
 Every command runs through one limit, so nobody can hold the bot down by holding
@@ -1247,12 +1289,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 280 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 288 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 442 views** and asserts unique
+The check that keeps this honest renders **all 454 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

@@ -22,6 +22,7 @@ import { registerFakePermissions } from "./fakeperms/index.js";
 import { registerSuggest } from "./suggest/index.js";
 import { registerCustomize } from "./customize/index.js";
 import { registerRateLimit } from "./ratelimit/index.js";
+import { registerBadge } from "./badge/index.js";
 
 export const configCog: Cog = {
   name: "configuration",
@@ -49,5 +50,6 @@ export const configCog: Cog = {
     inCategory("suggest", registerSuggest);
     inCategory("botlook", registerCustomize);
     inCategory("ratelimit", registerRateLimit);
+    inCategory("badge", registerBadge);
   },
 };
