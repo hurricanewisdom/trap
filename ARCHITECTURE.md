@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 137 source files, no comments — the names and the
+the read path and the cache. 139 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -103,6 +103,8 @@ src/
                         feed the store
       messages/         ,pin, ,unpin and ,firstmessage: things done to one
                         message, with nothing configured per server
+      extract/          the emojis or stickers as a zip; zip.ts is a stored-only
+                        archive writer, so no dependency for one command
     help/               the command browser
       model.ts          one indexed view of the registry + catalog
       search.ts         ranking, for /help autocomplete and ,help <query>
@@ -499,6 +501,12 @@ around it tints.
   on Discord leaves a row here: `send` says so, `list` marks it, and `delete`
   still works. Refusing to act on a dangling record is how a server ends up
   unable to tidy its own settings.
+- **Weigh a dependency against the code it saves.** The zip for `,extractemotes`
+  is sixty lines of container format plus `zlib.crc32`, against a package on the
+  install path forever. Entries are stored, not deflated, because emoji are
+  already compressed. A test validates the output with Python's `zipfile` rather
+  than with the writer that produced it — a hand-rolled format has to be checked
+  by something that did not write it.
 - **Anything on the message path must not do I/O.** `messageCreate` runs for
   every message in every channel: prefix resolution, the sticky check and the
   alias fallback all read an in-process cache invalidated on write, never the

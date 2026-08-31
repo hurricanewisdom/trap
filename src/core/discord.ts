@@ -450,6 +450,26 @@ export function editWebhookMessage(
   );
 }
 
+export interface GuildEmoji {
+  id: string;
+  name?: string | null;
+  animated?: boolean;
+}
+
+export interface GuildSticker {
+  id: string;
+  name?: string | null;
+  format_type?: number;
+}
+
+export function guildEmojis(guildId: string): Promise<GuildEmoji[] | null> {
+  return api<GuildEmoji[]>(`/guilds/${guildId}/emojis`);
+}
+
+export function guildStickers(guildId: string): Promise<GuildSticker[] | null> {
+  return api<GuildSticker[]>(`/guilds/${guildId}/stickers`);
+}
+
 export function deleteMessage(channelId: string, messageId: string): Promise<Wrote<void>> {
   forgetSnipe(channelId, messageId);
   return write<void>("DELETE", `/channels/${channelId}/messages/${messageId}`);

@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 291 commands across five cogs,
+(TypeScript strict, Node 22), run bare with pm2. 293 commands across five cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -36,6 +36,7 @@ rather than turning it into a three-word path with named fields.
 - `,seticon`, `,setbanner`, `,setsplashbackground` — the server's look
 - `,webhook` — post as a named identity in a channel
 - `,fakepermissions` — let a role use the bot without the real permission
+- `,extractemotes`, `,extractstickers` — the server's emojis or stickers as a zip
 - `,filter` — ten chat filters, five of them enforced by Discord's AutoMod
 - `,snipe` — what was deleted, edited or unreacted in this channel
 - `,lf link` DMs an authorisation link; after that `,fm` works
@@ -257,6 +258,31 @@ gate, group routing and card colour all behave identically. A second dispatch
 path would drift from the first.
 
 `,disableevent #channel editrerun` switches it off.
+
+## Extract
+
+```
+,extractemotes      every emoji in this server, zipped
+,extractstickers    every sticker
+```
+
+**Administrator**, since it hands somebody the whole set in one file.
+
+Animated emojis come out as `.gif` and the rest as `.png`. Stickers follow
+Discord's three formats: PNG and APNG as `.png`, GIF as `.gif`, and a Lottie
+sticker as the `.json` it actually is, rather than an image extension that would
+not open.
+
+Names come from the emoji, cleaned of anything a filesystem would object to, and
+a repeated name gets a number instead of overwriting the first. Six download at
+a time, nothing over 8MB each, and the archive stops at 24MB with the card
+saying how many were left out — a server can hold far more emoji than Discord
+will let the bot upload.
+
+**The zip is written by hand**, in about sixty lines, rather than adding a
+dependency for one command. Entries are stored rather than deflated: emoji are
+already PNG or GIF, so compressing them again buys a percent and costs the whole
+of zlib per file. `zlib.crc32` does the checksums, which Node has had since 20.
 
 ## Messages
 
@@ -794,7 +820,7 @@ each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 403 views** and asserts unique
+The check that keeps this honest renders **all 407 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

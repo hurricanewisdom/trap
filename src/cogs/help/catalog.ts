@@ -158,6 +158,12 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Posting as a named identity in a channel",
   },
   {
+    slug: "extract",
+    label: "Extract",
+    emoji: "",
+    blurb: "Downloading a server's emojis or stickers in one go",
+  },
+  {
     slug: "messages",
     label: "Messages",
     emoji: "",
@@ -428,6 +434,28 @@ export const DOCS: CommandDoc[] = [
       { name: "archive", usage: ",pins archive", summary: "Archive this channel's pins now", permission: "Manage Server" },
       { name: "reset", usage: ",pins reset", summary: "Clear the pin archive settings", permission: "Manage Server" },
     ],
+  },
+  {
+    name: "extractemotes",
+    category: "extract",
+    usage: ",extractemotes",
+    summary: "Send every emoji in this server as a zip",
+    details:
+      "Downloads every emoji from Discord's CDN and sends them back as one zip, animated ones as .gif and the rest as .png. Names come from the emoji, cleaned of anything a filesystem would object to, and a repeated name gets a number rather than overwriting. Six download at a time, nothing over 8MB each, and the archive stops at 24MB with the card saying how many were left out. Administrator, since it hands somebody the whole set at once. Alias: ,extractemojis.",
+    examples: [",extractemotes"],
+    permission: "Administrator",
+    guildOnly: true,
+  },
+  {
+    name: "extractstickers",
+    category: "extract",
+    usage: ",extractstickers",
+    summary: "Send every sticker in this server as a zip",
+    details:
+      "The same as ,extractemotes for stickers. Discord stores stickers in three formats and the extension follows: PNG and APNG come out as .png, GIF as .gif, and a Lottie sticker as the .json it really is rather than an image that would not open.",
+    examples: [",extractstickers"],
+    permission: "Administrator",
+    guildOnly: true,
   },
   {
     name: "pin",
