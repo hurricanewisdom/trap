@@ -20,3 +20,6 @@ npm-debug.log*
 # Python cache from deploy/
 __pycache__/
 *.pyc
+
+# Throwaway test scripts run against dist/
+_*.mjs
