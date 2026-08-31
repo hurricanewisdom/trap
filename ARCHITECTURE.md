@@ -30,7 +30,8 @@ src/
     listening.ts        "what is this person playing", asked without a service
     db.ts               Postgres pool and the schema
     redis.ts            Redis client and key/TTL conventions
-    discord.ts          raw Discord REST for member lists and permissions
+    discord.ts          raw Discord REST for member lists, permissions, roles,
+                        uploads, reactions, threads and who wears the server tag
     automod.ts          Discord AutoMod rules, their caps, and error translation
     sniping.ts          the two-way link between the snipe store and its filter
     availability.ts     what is switched off where, and what can never be
@@ -278,6 +279,7 @@ Cogs extend the runtime through `core/hooks.ts` instead of core importing them:
 | `onBoost` | somebody boosted the server |
 | `onMessage` | any message in a guild, command or not |
 | `onMemberJoin` / `onMemberLeave` | somebody joined or left |
+| `onMemberUpdate` | a member changed: roles, nickname, boost, or the server tag they wear |
 | `onMessageDelete` / `onMessageEdit` | a message went away or changed |
 | `onChannelPins` | a channel's pins changed |
 
