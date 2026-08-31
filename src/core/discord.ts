@@ -470,6 +470,33 @@ export function guildStickers(guildId: string): Promise<GuildSticker[] | null> {
   return api<GuildSticker[]>(`/guilds/${guildId}/stickers`);
 }
 
+// write() JSON-encodes its body, which cannot carry a file. An upload has to be
+// multipart, with the message itself in a payload_json part.
+export async function sendFile(
+  channelId: string,
+  body: { content?: string; allowed_mentions?: unknown },
+  file: { name: string; body: Uint8Array<ArrayBuffer> },
+): Promise<Wrote<{ id: string }>> {
+  const form = new FormData();
+  form.append("payload_json", JSON.stringify(body));
+  form.append("files[0]", new Blob([file.body]), file.name);
+
+  try {
+    const res = await fetch(`${API}/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${required("DISCORD_TOKEN")}` },
+      body: form,
+    });
+    if (!res.ok) {
+      const payload = (await res.json().catch(() => null)) as { message?: string } | null;
+      return { ok: false, status: res.status, message: payload?.message ?? `HTTP ${res.status}` };
+    }
+    return { ok: true, data: (await res.json()) as { id: string } };
+  } catch (err) {
+    return { ok: false, status: 0, message: err instanceof Error ? err.message : "upload failed" };
+  }
+}
+
 export function deleteMessage(channelId: string, messageId: string): Promise<Wrote<void>> {
   forgetSnipe(channelId, messageId);
   return write<void>("DELETE", `/channels/${channelId}/messages/${messageId}`);

@@ -1,4 +1,4 @@
-import { deleteMessage, editMessage, sendMessage } from "../../../core/discord.js";
+import { deleteMessage, editMessage, getGuild, sendFile, sendMessage } from "../../../core/discord.js";
 import { onMessage, type MessageEvent } from "../../../core/hooks.js";
 import { notice, requireManageGuild } from "../../../core/permissions.js";
 import { matchPrefix } from "../../../core/prefixes.js";
@@ -10,6 +10,8 @@ import {
   type PrefixHandler,
 } from "../../../core/prefix.js";
 import { switchWord } from "../../../helpers/flags.js";
+import { compact, plain } from "../../../helpers/markdown.js";
+import { grab, probe, type Facts } from "./download.js";
 import { SITES, findLink } from "./sites.js";
 import { settings, save, type Settings } from "./store.js";
 
@@ -39,6 +41,74 @@ function offCooldown(channelId: string, userId: string): boolean {
   return true;
 }
 
+const MB = 1024 * 1024;
+
+function uploadCap(tier: number): number {
+  const whole = tier >= 3 ? 100 * MB : tier >= 2 ? 50 * MB : 10 * MB;
+  return Math.floor(whole * 0.9);
+}
+
+function stats(facts: Facts): string {
+  return [
+    facts.views === null ? null : compact(facts.views) + " views",
+    facts.likes === null ? null : compact(facts.likes) + " likes",
+    facts.comments === null ? null : compact(facts.comments) + " comments",
+    facts.shares === null ? null : compact(facts.shares) + " shares",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+// Sends the video itself, falling back to the rewritten link when the site will
+// not give it up, the file is too big, or yt-dlp is not installed. That fallback
+// matters: a reposter that goes quiet whenever an extractor breaks is worse than
+// one that posts a link which plays.
+async function deliver(
+  event: MessageEvent,
+  found: NonNullable<ReturnType<typeof findLink>>,
+  held: Settings,
+): Promise<boolean> {
+  const guild = await getGuild(event.guildId);
+  const cap = uploadCap(Number(guild?.premium_tier ?? 0));
+
+  const facts = await probe(found.original);
+  if (facts && (facts.bytes === null || facts.bytes <= cap)) {
+    const file = await grab(found.original, cap);
+    if (file) {
+      const line = stats(facts);
+      const caption = held.embed
+        ? [
+            facts.title ? "**" + plain(facts.title.slice(0, 120)) + "**" : "",
+            facts.uploader ? "-# " + plain(facts.uploader) + (line ? " · " + line : "") : line ? "-# " + line : "",
+            "-# posted by <@" + event.authorId + ">",
+          ]
+            .filter(Boolean)
+            .join("\n")
+        : "";
+
+      const sent = await sendFile(
+        event.channelId,
+        { content: caption || undefined, allowed_mentions: { parse: [] } },
+        { name: file.name, body: file.body },
+      );
+      if (sent.ok) return true;
+    }
+  }
+
+  // youtube has no rewrite host, and Discord plays it already, so there is
+  // nothing useful left to fall back to
+  if (!found.rewritten || found.rewritten === found.original) return false;
+
+  const body = held.embed
+    ? found.rewritten + "\n-# from <@" + event.authorId + ">"
+    : found.rewritten;
+  const sent = await sendMessage(event.channelId, {
+    content: body,
+    allowed_mentions: { parse: [] },
+  });
+  return sent.ok;
+}
+
 async function repost(event: MessageEvent): Promise<void> {
   if (!event.content) return;
 
@@ -56,15 +126,8 @@ async function repost(event: MessageEvent): Promise<void> {
   if (!found) return;
   if (!offCooldown(event.channelId, event.authorId)) return;
 
-  const body = held.embed
-    ? `${found.rewritten}\n-# from <@${event.authorId}>`
-    : found.rewritten;
-
-  const sent = await sendMessage(event.channelId, {
-    content: body,
-    allowed_mentions: { parse: [] },
-  });
-  if (!sent.ok) return;
+  const sent = await deliver(event, found, held);
+  if (!sent) return;
 
   if (held.wipe) {
     await deleteMessage(event.channelId, event.messageId);
@@ -179,7 +242,11 @@ function toggler(one: Toggle): PrefixHandler {
 }
 
 export function registerReposter(): void {
-  onMessage(repost, "reposter");
+  // Not awaited: emitMessage runs handlers in order, and a download takes
+  // seconds, which would hold up the filter and everything after it.
+  onMessage(async (event) => {
+    void repost(event).catch((err) => console.error("repost failed:", err));
+  }, "reposter");
 
   const handler: PrefixHandler = async (ctx) => {
     const sub = ctx.argument.trim().split(/\s+/)[0]?.toLowerCase() ?? "";

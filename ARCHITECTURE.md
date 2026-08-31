@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 142 source files, no comments — the names and the
+the read path and the cache. 143 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -91,8 +91,9 @@ src/
       webhook/          posting as a named identity; ids in the database, the
                         token fetched when needed and never kept
       fakeperms/        letting a role use the bot without the real permission
-      reposter/         social links reposted so Discord plays them; sites.ts is
-                        the host table, deliberately one place to edit
+      reposter/         social links downloaded and reposted as video, with
+                        stats; download.ts wraps yt-dlp, sites.ts is the host
+                        table used when a download is not possible
       pins/             the pin archive: where a channel's pins are flushed to,
                         and the channelPinsUpdate hook that does it at 45
       pagination/       several embeds behind one message, turned with buttons:
@@ -509,11 +510,14 @@ around it tints.
   already compressed. A test validates the output with Python's `zipfile` rather
   than with the writer that produced it — a hand-rolled format has to be checked
   by something that did not write it.
-- **Let Discord do the fetching where it can.** The reposter rewrites a link
-  and posts it rather than downloading the video: scraping tiktok or instagram
-  from a datacenter address means cookies, rotating headers, extractors that
-  break weekly, and an upload ceiling. The rewrite has none of that. The cost is
-  a third-party host in the path, and those disappear, so they live in one table.
+- **A slow handler must not be awaited on a shared event.** `emitMessage` runs
+  its handlers in order, so the reposter kicks its download off and returns
+  rather than holding the filter up for seconds on every link.
+- **Two paths, so one breaking is not silence.** The reposter downloads the
+  video with yt-dlp and falls back to rewriting the link when a site refuses,
+  the file is too large, or the tool is missing. Extractors against tiktok and
+  youtube break by design of the other side; a feature built on one of them
+  needs somewhere to land.
 - **Anything on the message path must not do I/O.** `messageCreate` runs for
   every message in every channel: prefix resolution, the sticky check and the
   alias fallback all read an in-process cache invalidated on write, never the

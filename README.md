@@ -312,20 +312,35 @@ sentence about `,pins archive` rather than an API error.
 ,reposter prefix on     only repost after a server prefix
 ```
 
-**Manage Server.** When somebody posts an x, instagram, tiktok or reddit link,
-the bot reposts it through a service that lets Discord play the video inline.
+**Manage Server.** When somebody posts a youtube, tiktok, x, instagram or reddit
+link, the bot **downloads the video and posts the file**, captioned with the
+title, the uploader, and the engagement numbers:
 
-⚠️ **It does not scrape anything, and that is the design, not a shortcut.** The
-bot rewrites the host and posts the new link; **Discord** then fetches it. Doing
-it the other way — download the video here and upload the file — means running
-a scraper against tiktok and instagram from an **OVH datacenter address**, which
-those two block routinely, and then keeping cookies, headers and extractors
-working as the sites change them. The rewrite has none of that: no cookies, no
-extractor to maintain, no 25MB upload ceiling, and it keeps working while the
-bot is doing something else.
+```
+**what started on TikTok grew into a special…**
+-# tiktok · 195.7K views · 3.8K likes · 1.2K comments · 418 shares
+-# posted by @someone
+[video.mp4 — 10MB]
+```
 
-The cost is honest and worth stating: the link goes through a **third-party
-host**, and those hosts come and go — `ddinstagram.com` stopped resolving
+That runs on **yt-dlp**, installed at `/usr/local/bin/yt-dlp`. It is a runtime
+dependency of this feature and nothing else; without it the reposter still works,
+it just falls back to links.
+
+**When the download cannot happen, it falls back to rewriting the link** so
+Discord plays it inline instead. That happens when a site refuses the extractor,
+the video is over the upload limit, or yt-dlp is missing. A reposter that goes
+silent whenever an extractor breaks is worse than one that posts a link that
+plays, and extractors do break — these sites change deliberately to stop them.
+
+⚠️ **The upload limit is per server, not per bot.** 10MB on an unboosted server,
+50MB at level 2, 100MB at level 3, and the bot takes 90% of whichever applies.
+A video over that goes out as a link rather than failing.
+
+Two costs worth stating plainly. **yt-dlp needs updating** — when tiktok or
+youtube changes something, extraction breaks until it is updated, and that is a
+standing maintenance task, not a one-off. And the fallback sends the link through
+a **third-party host**, which come and go: `ddinstagram.com` stopped resolving
 entirely while this was being written, which is why `sites.ts` is one table to
 edit rather than a rule spread through the code.
 
@@ -333,6 +348,16 @@ edit rather than a rule spread through the code.
 mentioned in passing does not drag a video into the channel. `prefix` on means
 only `,<link>` is reposted, for servers that want it opt-in per message. There
 is a three second cooldown per person per channel.
+
+Downloading takes seconds, so the handler is **not awaited**: `emitMessage` runs
+handlers in order, and waiting would hold up the filter and everything after it
+for every link somebody posts. At most two downloads run at once, each into a
+temp directory that is removed whether or not it succeeded.
+
+⚠️ **There is no ffmpeg on the box**, so only pre-muxed formats are requested.
+yt-dlp would otherwise pick the best video and best audio separately and have
+nothing to join them with. In practice that caps youtube at 720p and leaves
+tiktok untouched, since it serves a single file anyway.
 
 `,disableevent #channel reposter` switches it off in one channel.
 

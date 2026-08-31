@@ -28,6 +28,12 @@ export const SITES: Site[] = [
     through: "vxtiktok.com",
   },
   {
+    name: "youtube",
+    hosts: ["youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"],
+    through: "",
+    path: /^\/(?:watch|shorts\/|live\/)|^\/[\w-]{6,}$/,
+  },
+  {
     name: "reddit",
     hosts: ["reddit.com", "www.reddit.com", "old.reddit.com"],
     through: "rxddit.com",
@@ -44,6 +50,10 @@ export interface Found {
 }
 
 function rewrite(site: Site, parsed: URL): string {
+  // No rewrite host for youtube: Discord already plays those, so the only
+  // reason it is listed at all is so the downloader is offered the link.
+  if (!site.through) return parsed.toString();
+
   const out = new URL(parsed.toString());
   out.host = site.through;
   out.protocol = "https:";
