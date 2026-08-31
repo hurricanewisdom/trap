@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 475 commands across six cogs,
+(TypeScript strict, Node 22), run bare with pm2. 554 commands across six cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -310,6 +310,71 @@ than with the pin archive: nothing about them is configured per server.
 
 `pin` checks Discord's 50-pin cap before trying, so a full channel gets a
 sentence about `,pins archive` rather than an API error.
+
+## Information
+
+Eighty-one commands answering questions, in four groups: what Discord already
+knows, what another service knows, what to do with a picture, and what somebody
+has asked to be told about.
+
+```
+serverinfo / userinfo / roleinfo / channelinfo / membercount / inviteinfo
+avatar / banner / serveravatar / serverbanner / guildicon / guildbanner / splash
+roles / emotes / bots / members / boosters            emoji (8) / sticker (5)
+rotate / invert / compress / hex                      highlight / birthday / timezone / seen
+define / urbandictionary / minecraft / github / steam / telegram / snapchat / roblox (8)
+```
+
+⚠️ **Six of these names already belonged to a subcommand** — `avatar` and `banner`
+to `customize`, `emoji` to `filter`, `roles` to `autoresponder`, `emotes` and
+`bots` to `purge`. Registering them at the top level is right, and safe: `lookup`
+checks the top-level registry first and only then falls through to the group
+namespaces, so `,avatar` is now the profile command while `,customize avatar`
+still works through its parent. An **alias** clash is different — `mc` was already
+`membercount`, and the registry refused it for `minecraft` with a warning rather
+than silently taking it.
+
+### What answers without a key
+
+Every one of these was tried from the box before it was written, because a
+datacenter address is not a normal visitor:
+
+```
+dictionary ✓   urban ✓   mojang ✓   roblox ✓   github ✓   t.me ✓   steam ✓   snapchat ✓
+```
+
+⚠️ **GitHub allows this address sixty anonymous requests an hour**, shared with
+everything else on it. The command says so when it runs out rather than claiming
+the user does not exist.
+
+⚠️ **Steam needs no key** because a profile has an XML view. The richer data —
+games, level, playtime — does need one.
+
+⚠️ **Nothing here can connect a Roblox account to a Discord one.** That link only
+exists inside Bloxlink or RoVer, and both want an API key, so those two commands
+say so instead of guessing.
+
+### Pictures go through ffmpeg
+
+`rotate`, `invert` and `compress` are ffmpeg filters, and `hex` is a one-pixel
+downscale, which is the average colour and what people mean by the dominant one.
+No image library was added.
+
+⚠️ **These fetch whatever address they are given**, so they carry the same guard
+`customize` does: the host is resolved first and refused if it is loopback,
+private, link-local or carrier NAT, and a redirect is refused rather than
+followed somewhere the check already rejected.
+
+### Things that only start counting now
+
+`seen`, `emoji stats` and `boosters lost` all describe history nobody was
+recording. Discord keeps none of it either. Each says so rather than showing an
+empty list that looks like an answer — `boosters lost` in particular cannot be
+answered at all, because Discord never reports somebody stopping.
+
+⚠️ **`highlight` runs on every message**, so the keyword table is held in memory
+and refreshed on write. The membership and ignore checks happen only after a word
+matches, which is rare.
 
 ## Moderation
 
@@ -1358,12 +1423,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 377 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 416 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 646 views** and asserts unique
+The check that keeps this honest renders **all 747 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

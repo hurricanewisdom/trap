@@ -27,7 +27,7 @@ export const PERMISSION = {
 
 const MEMBER_TTL = 600;
 
-async function api<T>(path: string): Promise<T | null> {
+export async function api<T>(path: string): Promise<T | null> {
   try {
     const res = await fetch(`${API}${path}`, {
       headers: { Authorization: `Bot ${required("DISCORD_TOKEN")}` },

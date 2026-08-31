@@ -435,6 +435,81 @@ export async function migrate(): Promise<void> {
   await sql`ALTER TABLE reposter ADD COLUMN IF NOT EXISTS container BOOLEAN NOT NULL DEFAULT true`;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS highlights (
+      guild_id TEXT NOT NULL,
+      user_id  TEXT NOT NULL,
+      word     TEXT NOT NULL,
+      PRIMARY KEY (guild_id, user_id, word)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS highlight_ignores (
+      guild_id  TEXT NOT NULL,
+      user_id   TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      PRIMARY KEY (guild_id, user_id, target_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS last_seen (
+      guild_id   TEXT NOT NULL,
+      user_id    TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, user_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS birthdays (
+      guild_id TEXT NOT NULL,
+      user_id  TEXT NOT NULL,
+      month    INTEGER NOT NULL,
+      day      INTEGER NOT NULL,
+      PRIMARY KEY (guild_id, user_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS birthday_config (
+      guild_id   TEXT NOT NULL,
+      role_id    TEXT,
+      channel_id TEXT,
+      locked     BOOLEAN NOT NULL DEFAULT false,
+      PRIMARY KEY (guild_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS birthday_roles (
+      guild_id TEXT NOT NULL,
+      role_id  TEXT NOT NULL,
+      PRIMARY KEY (guild_id, role_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS timezones (
+      user_id TEXT NOT NULL,
+      zone    TEXT NOT NULL,
+      PRIMARY KEY (user_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS emote_uses (
+      guild_id TEXT NOT NULL,
+      emote    TEXT NOT NULL,
+      user_id  TEXT NOT NULL,
+      at       TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`CREATE INDEX IF NOT EXISTS emote_uses_guild ON emote_uses (guild_id, emote)`;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS mod_config (
       guild_id     TEXT NOT NULL,
       jail_role    TEXT,

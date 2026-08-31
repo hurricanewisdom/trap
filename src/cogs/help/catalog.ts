@@ -152,6 +152,36 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Reposting social links so the video plays inline",
   },
   {
+    slug: "expressions",
+    label: "Emotes and stickers",
+    emoji: "",
+    blurb: "Adding, removing, renaming and tidying a server's expressions",
+  },
+  {
+    slug: "images",
+    label: "Images",
+    emoji: "",
+    blurb: "Rotating, inverting, compressing and reading a colour out of a picture",
+  },
+  {
+    slug: "lookups",
+    label: "Elsewhere",
+    emoji: "",
+    blurb: "Asking other services: dictionaries, game profiles and social accounts",
+  },
+  {
+    slug: "personal",
+    label: "Yours",
+    emoji: "",
+    blurb: "Keyword alerts, birthdays, timezones and when somebody was last seen",
+  },
+  {
+    slug: "serverinfo",
+    label: "Server and members",
+    emoji: "",
+    blurb: "What Discord already knows: servers, members, roles, channels and invites",
+  },
+  {
     slug: "punish",
     label: "Punishments",
     emoji: "",

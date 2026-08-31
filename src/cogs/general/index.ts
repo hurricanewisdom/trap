@@ -1,5 +1,11 @@
 import type { Cog } from "../../core/cog.js";
+import { inCategory } from "../../core/prefix.js";
 import { registerGeneral } from "./commands.js";
+import { registerExpressions } from "./expressions.js";
+import { registerImages } from "./images.js";
+import { registerInfo } from "./info.js";
+import { registerLookups } from "./lookups.js";
+import { registerPersonal } from "./personal.js";
 
 export const generalCog: Cog = {
   name: "information",
@@ -13,5 +19,11 @@ export const generalCog: Cog = {
       shardCount: ctx.gateway.shards,
       prefix: ctx.prefix,
     });
+
+    inCategory("serverinfo", registerInfo);
+    inCategory("expressions", registerExpressions);
+    inCategory("images", registerImages);
+    inCategory("lookups", registerLookups);
+    inCategory("personal", registerPersonal);
   },
 };

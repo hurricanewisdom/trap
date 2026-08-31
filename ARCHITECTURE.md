@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 173 source files, no comments — the names and the
+the read path and the cache. 179 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -66,7 +66,15 @@ src/
 
   cogs/                 features. One folder each.
     index.ts            the cog list — add a feature by adding a line here
-    general/            ping and botinfo (the cog is named "information")
+    general/            ping and botinfo, and everything informational
+                        (the cog is named "information")
+      shared.ts         parsing a member, role or channel, and CDN asset urls
+      info.ts           what Discord already knows: servers, members, roles,
+                        channels, invites, avatars and banners
+      expressions.ts    emotes and stickers: adding, removing, renaming, tidying
+      images.ts         rotate, invert, compress and dominant colour, via ffmpeg
+      lookups.ts        other people's services, all of them key-free
+      personal.ts       highlights, birthdays, timezones and last seen
     config/             server settings
       prefix.ts         which prefixes the server answers to
       boosterrole/      personal colour roles for boosters: store.ts,
@@ -244,7 +252,7 @@ is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 377 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 416 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.
@@ -579,6 +587,11 @@ around it tints.
   bot's guild member and echoes it back, but returns it from no endpoint a bot may
   read. It is stored locally so the setting can be shown again, and the display
   says that is where the value came from.
+- **A top-level name beats a subcommand of the same name, by design.** `lookup`
+  reads the top-level registry first and only then scans group namespaces, so
+  registering `,avatar` takes the bare word while `,customize avatar` keeps
+  working through its parent. Aliases are the opposite: the registry refuses a
+  duplicate and says so, which is how `mc` stayed with `membercount`.
 - **A destructive command needs a dispatcher before it needs anything else.**
   `nuke` had none, so `nuke list` fell through to the bare command and deleted
   the channel it was run in. A command whose bare form destroys something must
