@@ -832,6 +832,39 @@ up from inside it would delete the command that did it.
 2. `npm install && npm run build`
 3. `pm2 start ecosystem.config.cjs && pm2 save`
 
+### Three things npm will not install
+
+The reposter shells out to programs that are not node packages, so `npm install`
+does not bring them and a fresh box does not have them. The bot starts either
+way — the reposter just does less the more of them are missing, which is the
+failure mode to know about, because none of them announce themselves.
+
+| | what it is for | missing it costs |
+| --- | --- | --- |
+| **yt-dlp** | fetching the video and its counts | every repost degrades to a link |
+| **ffmpeg** | joining separate video and audio | youtube, twitch and reddit fail outright |
+| **curl_cffi** | letting yt-dlp impersonate a browser | tumblr refuses the connection |
+
+```
+curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+chmod +x /usr/local/bin/yt-dlp
+apt-get install -y ffmpeg
+pip3 install --break-system-packages curl_cffi
+```
+
+⚠️ **ffmpeg is not optional for youtube.** Youtube serves no combined
+video-and-audio format any more, so without something to merge the two streams
+every youtube download fails on `Requested format is not available` — while the
+metadata still comes back perfectly, which makes it look like a network problem
+rather than a missing program.
+
+⚠️ **yt-dlp goes stale.** Sites change specifically to break extractors, and when
+one does, that site quietly falls back to links until `yt-dlp -U` is run. It is a
+standing task, not a one-off.
+
+`YTDLP_PATH` overrides where the binary is looked for. `YTDLP_COOKIES` points at a
+Netscape cookie file, which is what private instagram posts need.
+
 ## Deploy
 
 ```
