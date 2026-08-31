@@ -44,6 +44,7 @@ import { provideMessageEditor } from "./core/expiry.js";
 import { completeSlash, rememberCommandIds } from "./core/slash.js";
 import { matchPrefix } from "./core/prefixes.js";
 import { allow, limitsFor } from "./core/throttle.js";
+import { commandRestricted } from "./core/restrict.js";
 import { notice } from "./core/permissions.js";
 
 const BOOST_MESSAGES = new Set([8, 9, 10, 11]);
@@ -354,6 +355,10 @@ async function runPrefixCommand(message: any, muted?: boolean): Promise<void> {
     ) {
       return;
     }
+    // A server can hand one command to one role; the check is cached and costs
+    // nothing where nothing is restricted.
+    if (await commandRestricted(guildId, authorId, command.name)) return;
+
     if (command.groupedUnder) {
       await context.reply({
         content: `That is \`${used}${command.groupedUnder} ${command.name}\`.`,

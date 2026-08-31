@@ -505,6 +505,60 @@ export async function migrate(): Promise<void> {
   await sql`CREATE INDEX IF NOT EXISTS mod_pending_due ON mod_pending (due)`;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS mod_nukes (
+      guild_id    TEXT NOT NULL,
+      channel_id  TEXT NOT NULL,
+      interval_ms BIGINT NOT NULL,
+      message     TEXT,
+      next_at     TIMESTAMPTZ NOT NULL,
+      PRIMARY KEY (guild_id, channel_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS mod_watched_threads (
+      guild_id  TEXT NOT NULL,
+      thread_id TEXT NOT NULL,
+      PRIMARY KEY (guild_id, thread_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS mod_forced_nicks (
+      guild_id TEXT NOT NULL,
+      user_id  TEXT NOT NULL,
+      nickname TEXT NOT NULL,
+      PRIMARY KEY (guild_id, user_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS mod_sticky_roles (
+      guild_id TEXT NOT NULL,
+      user_id  TEXT NOT NULL,
+      role_id  TEXT NOT NULL,
+      PRIMARY KEY (guild_id, user_id, role_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS mod_restricted (
+      guild_id TEXT NOT NULL,
+      command  TEXT NOT NULL,
+      role_id  TEXT NOT NULL,
+      PRIMARY KEY (guild_id, command, role_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS mod_lock_ignores (
+      guild_id   TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      PRIMARY KEY (guild_id, channel_id)
+    )
+  `;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS mod_hardbans (
       guild_id TEXT NOT NULL,
       user_id  TEXT NOT NULL,

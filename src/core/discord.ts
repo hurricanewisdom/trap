@@ -17,6 +17,12 @@ export const PERMISSION = {
   manageNicknames: 1n << 27n,
   moveMembers: 1n << 24n,
   manageThreads: 1n << 34n,
+  viewChannel: 1n << 10n,
+  sendMessages: 1n << 11n,
+  attachFiles: 1n << 15n,
+  embedLinks: 1n << 14n,
+  addReactions: 1n << 6n,
+  externalEmojis: 1n << 18n,
 } as const;
 
 const MEMBER_TTL = 600;
@@ -398,6 +404,46 @@ export interface PostedMessage {
   author?: { id: string; bot?: boolean };
   content?: string;
   embeds?: Record<string, unknown>[];
+  type?: number;
+  pinned?: boolean;
+  webhook_id?: string;
+  attachments?: { url: string; content_type?: string; filename?: string }[];
+  sticker_items?: { id: string }[];
+  mentions?: { id: string }[];
+  reactions?: { count: number }[];
+}
+
+// Discord refuses this for anything older than two weeks, and refuses a batch of
+// one, so the caller has to have filtered already.
+export async function bulkDelete(
+  channelId: string,
+  ids: string[],
+  reason: string,
+): Promise<number> {
+  const fresh = ids.slice(0, 100);
+  if (fresh.length === 0) return 0;
+
+  if (fresh.length === 1) {
+    const one = await write<void>(
+      "DELETE",
+      `/channels/${channelId}/messages/${fresh[0]}`,
+      undefined,
+      reason,
+    );
+    return one.ok ? 1 : 0;
+  }
+
+  const done = await write<void>(
+    "POST",
+    `/channels/${channelId}/messages/bulk-delete`,
+    { messages: fresh },
+    reason,
+  );
+  return done.ok ? fresh.length : 0;
+}
+
+export function clearReactions(channelId: string, messageId: string): Promise<Wrote<void>> {
+  return write<void>("DELETE", `/channels/${channelId}/messages/${messageId}/reactions`);
 }
 
 export function getMessage(channelId: string, messageId: string): Promise<PostedMessage | null> {
@@ -603,6 +649,72 @@ export async function dmUser(
     body,
   );
   return sent.ok;
+}
+
+export interface Channel {
+  id: string;
+  name?: string;
+  type?: number;
+  topic?: string | null;
+  nsfw?: boolean;
+  parent_id?: string | null;
+  position?: number;
+  rate_limit_per_user?: number;
+  permission_overwrites?: { id: string; type: number; allow: string; deny: string }[];
+}
+
+export function guildChannels(guildId: string): Promise<Channel[] | null> {
+  return api<Channel[]>(`/guilds/${guildId}/channels`);
+}
+
+export function getChannel(channelId: string): Promise<Channel | null> {
+  return api<Channel>(`/channels/${channelId}`);
+}
+
+export function editChannel(
+  channelId: string,
+  body: Record<string, unknown>,
+  reason: string,
+): Promise<Wrote<Channel>> {
+  return write<Channel>("PATCH", `/channels/${channelId}`, body, reason);
+}
+
+export function deleteChannel(channelId: string, reason: string): Promise<Wrote<Channel>> {
+  return write<Channel>("DELETE", `/channels/${channelId}`, undefined, reason);
+}
+
+export function cloneChannel(
+  guildId: string,
+  body: Record<string, unknown>,
+  reason: string,
+): Promise<Wrote<Channel>> {
+  return write<Channel>("POST", `/guilds/${guildId}/channels`, body, reason);
+}
+
+// type 0 is a role overwrite, type 1 a member one. Both allow and deny are sent
+// every time, because Discord replaces the whole overwrite rather than merging.
+export function setOverwrite(
+  channelId: string,
+  id: string,
+  kind: 0 | 1,
+  allow: bigint,
+  deny: bigint,
+  reason: string,
+): Promise<Wrote<void>> {
+  return write<void>(
+    "PUT",
+    `/channels/${channelId}/permissions/${id}`,
+    { type: kind, allow: allow.toString(), deny: deny.toString() },
+    reason,
+  );
+}
+
+export function guildInvites(guildId: string): Promise<{ code: string }[] | null> {
+  return api<{ code: string }[]>(`/guilds/${guildId}/invites`);
+}
+
+export function deleteInvite(code: string, reason: string): Promise<Wrote<void>> {
+  return write<void>("DELETE", `/invites/${code}`, undefined, reason);
 }
 
 export function banMember(

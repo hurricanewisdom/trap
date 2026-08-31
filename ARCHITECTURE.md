@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 164 source files, no comments — the names and the
+the read path and the cache. 173 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -20,6 +20,7 @@ src/
     permissions.ts      guild and Manage Server gates, and the denial card
     accent.ts           the ambient per-viewer card colour
     slash.ts            slash payloads, autocomplete, and command mentions
+    restrict.ts         a command handed to one role, asked at dispatch
     throttle.ts         one rate limit across every command, in memory; the
                         numbers come from the ratelimit cog through a provider
     pager.ts            paginated Components V2 cards + their interactions,
@@ -117,6 +118,22 @@ src/
       pagination/       several embeds behind one message, turned with buttons:
                         embedcode.ts parses the page code, store.ts holds pages
                         by stable id
+    moderation/         punishments, the case log, roles, purging and channels
+      cases.ts          the per-server case numbers everything else looks up
+      config.ts         jail, mute and lock roles, and the ban purge default
+      schedule.ts       anything with a duration: temporary bans, mutes, roles
+                        and reminders. Rows with a due time, not timers
+      shared.ts         parsing a member, role or channel, and whether this
+                        moderator may act on that member at all
+      punish.ts         ban, softban, tempban, unban, hardban, warn, timeout
+      history.ts        the case log commands: history, proof, notes, reason
+      jail.ts           jail and the three mutes, and the roles they need
+      roles.ts          the twenty role commands, including the mass ones
+      purge.ts          twenty-one ways to delete messages, one test each
+      channels.ts       lockdown, hide, slowmode, topic, nuke, invites
+      threads.ts        renaming, locking and membership of one thread
+      people.ts         reminders, nicknames, sticky roles, raids, voice moves
+      extras.ts         restricted commands, scheduled nukes, unban-all
     utility/            server tools
       store.ts          bounded in-memory rings: recent messages, snipes,
                         removed reactions, per-message reaction logs
@@ -227,7 +244,7 @@ is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 292 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 377 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.
@@ -562,6 +579,10 @@ around it tints.
   bot's guild member and echoes it back, but returns it from no endpoint a bot may
   read. It is stored locally so the setting can be shown again, and the display
   says that is where the value came from.
+- **A destructive command needs a dispatcher before it needs anything else.**
+  `nuke` had none, so `nuke list` fell through to the bare command and deleted
+  the channel it was run in. A command whose bare form destroys something must
+  refuse an argument it does not recognise rather than treating it as none.
 - **A shared counter belongs to the database.** Suggestion numbers are handed out
   by one INSERT ... ON CONFLICT DO UPDATE ... RETURNING, not by counting rows and
   adding one: two people suggesting in the same moment would otherwise be given

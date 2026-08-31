@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 340 commands across six cogs,
+(TypeScript strict, Node 22), run bare with pm2. 475 commands across six cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -303,6 +303,59 @@ than with the pin archive: nothing about them is configured per server.
 
 `pin` checks Discord's 50-pin cap before trying, so a full channel gets a
 sentence about `,pins archive` rather than an API error.
+
+## Moderation
+
+A cog of its own, and the largest one: **147 commands** across punishments, the
+case log, roles, purging, channel control, threads and reminders.
+
+```
+ban / softban / tempban / unban / hardban    warn / timeout / untimeout
+jail / unjail / jaillist                     mute / imute / rmute + their unmutes
+history / caselog / reason / warnings        proof / notes / modstats
+role (20 of them) / temprole                 purge (21 of them)
+lockdown / unlock / hide / talk / slowmode   thread / nuke / topic / naughty
+remind / stickyrole / restrictcommand        raid / recentban / stripstaff
+```
+
+### The case log is the spine
+
+Every punishment writes a numbered case, and `history`, `caselog`, `reason`,
+`proof` and `notes` all find their subject by that number.
+
+⚠️ **Case numbers come from the database, in the statement that moves the
+counter.** Two moderators acting in the same moment would otherwise be handed the
+same number, and the number is the only handle anything else has.
+
+### Anything with a duration is a row, not a timer
+
+`tempban`, `jail`, `mute`, `temprole` and `remind` all write a row with a due time
+and are picked up by a slow tick. A restart must not quietly forget to unban
+somebody. Rows are claimed with `DELETE ... RETURNING`, so two ticks cannot run
+the same one twice.
+
+### Who may act on whom is asked first
+
+Not yourself, not the owner, not somebody above the bot, not somebody at or above
+you. Discord refuses halfway through otherwise, and the case log would record a
+punishment that never landed.
+
+⚠️ **`nuke` asks twice.** It deletes the channel and everything in it. During
+testing, `nuke list` fell through to the bare command — because it had no
+subcommand dispatcher — and destroyed the channel it was run in. It now dispatches
+its subcommands, takes Administrator rather than Manage Channels, and needs a
+second `nuke` within thirty seconds before it does anything.
+
+⚠️ **`moveall` cannot see who is in a voice channel.** Discord only reports that
+over the gateway, and this bot does not ask for the voice intent, so both it and
+`drag` move the members they are given by name.
+
+⚠️ **Purge leaves anything older than two weeks.** Discord refuses to bulk delete
+it, and removing them one at a time would take minutes and burn the rate limit.
+The reply says how many were skipped rather than quietly returning a short count.
+
+⚠️ **`restrictcommand` fails open.** A database that cannot be reached should not
+lock a server out of its own bot, so an unanswerable restriction is no restriction.
 
 ## Bot appearance
 
@@ -1298,12 +1351,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 292 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 377 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 469 views** and asserts unique
+The check that keeps this honest renders **all 624 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.
