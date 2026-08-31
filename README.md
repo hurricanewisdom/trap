@@ -298,10 +298,17 @@ immediately. A leaked database row gives an attacker nothing but an id.
 embed, sharing the parser with the pin archive. Mentions are pinned to
 `parse: []`, so a webhook cannot be used to ping a role.
 
-`lock` keeps a webhook to the person who locked it: nobody else can send
-through it, unlock it, or delete it until they release it. `edit` only works on
-messages one of these webhooks posted, which is Discord's rule rather than
-mine — a webhook can only edit its own output.
+`lock` keeps a webhook to the person who locked it, and **all five ways in
+refuse**: send, edit, lock, unlock and delete. A lock that only guarded `send`
+would be no lock at all, since anyone could delete the webhook out from under it.
+
+`edit` only works on messages one of these webhooks posted, which is Discord's
+rule rather than mine — a webhook can only edit its own output.
+
+**A webhook deleted on Discord leaves a record you can still remove.** `send`
+says it is gone rather than failing opaquely, `list` marks it *deleted on
+Discord*, and `delete` still clears the row — so the bookkeeping can never get
+stuck holding an entry with nothing behind it.
 
 ## Pin archive
 

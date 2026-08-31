@@ -466,6 +466,10 @@ around it tints.
   needs no account behind it, so `webhooks` has no token column: the token is
   read from Discord at the moment of a send and dropped. The row is worthless on
   its own, and the card never prints the URL either.
+- **A record whose subject is gone must still be deletable.** A webhook removed
+  on Discord leaves a row here: `send` says so, `list` marks it, and `delete`
+  still works. Refusing to act on a dangling record is how a server ends up
+  unable to tidy its own settings.
 - **Anything on the message path must not do I/O.** `messageCreate` runs for
   every message in every channel: prefix resolution, the sticky check and the
   alias fallback all read an in-process cache invalidated on write, never the
