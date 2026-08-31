@@ -253,7 +253,9 @@ collide over the same button.
 `onMessage`, `onReactionAdd` and `onReactionRemove` take an optional **event
 name** as a second argument. A named handler is skipped when that event is
 switched off in the channel the event came from, which is how
-`,disableevent` reaches nine features without any of them knowing it exists.
+`,disableevent` reaches nine of its ten events without any feature knowing it
+exists. The tenth, `editrerun`, rides no hook and is checked where
+`messageUpdate` decides whether to dispatch.
 
 ## Commands
 
@@ -420,8 +422,8 @@ around it tints.
   remaining argument, which the next positional read took for a page id.
 - **Gate a cross-cutting rule once, where the dispatch happens.** Disabled
   events are enforced in `core/hooks.ts`: a handler registers with a name and
-  the emitter skips it when that event is off. Asking nine features to each
-  check would mean the tenth forgets.
+  the emitter skips it when that event is off. Asking every feature to check
+  itself would mean the next one forgets.
 - **A safety list has to hold on both sides.** The commands that re-enable
   things are refused at write time *and* ignored by the gate at read time, so
   neither a mistake nor a stale row can lock a server out of its own settings.

@@ -274,12 +274,15 @@ carry their own `list`. Sixteen commands, all **Manage Channels**.
 `help` — so switching one off takes every command in it with it.
 
 **An event is something the bot does that nobody typed**: `autoresponder`,
-`filter`, `gallery`, `snipe`, `sticky`, `reactions`, and the three greetings.
-These are enforced in `core/hooks.ts` rather than in each feature: a handler now
+`filter`, `gallery`, `snipe`, `sticky`, `reactions`, `editrerun`, and the three
+greetings. Ten of them.
+
+Nine are enforced in `core/hooks.ts` rather than in each feature: a handler
 registers with a name (`onMessage(police, "filter")`), and the emitter skips a
-named handler whose event is off in that channel. One check covers every
-feature, including ones added later, instead of nine features each remembering
-to ask.
+named handler whose event is off in that channel. One check covers every feature
+that rides a hook, including ones added later, instead of each of them
+remembering to ask. `editrerun` is the exception, because it is not a hook at
+all: it is checked where `messageUpdate` decides whether to dispatch.
 
 ⚠️ **The commands that switch things back on can never be switched off.** A
 server that disabled `,enablemodule` in every channel would have no way back
