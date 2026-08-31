@@ -621,6 +621,10 @@ python deploy/deploy.py --status     what pm2 thinks is running
 python deploy/deploy.py --logs 40    tail the bot log
 ```
 
+```
+node --env-file=.env deploy/docaudit.mjs    check the docs against the registry
+```
+
 Credentials come from `TRAP_PASSWORD`, or `TRAP_KEY` for a private key, or a
 prompt. Run it from PowerShell rather than Git Bash, which rewrites a
 `TRAP_REMOTE` beginning with a slash into a Windows path.
@@ -639,6 +643,13 @@ Four things it does on purpose:
 - **It waits for a *new* ready line before calling it done.** Matching on the
   log tail alone finds the previous boot's line and reports a crashed restart as
   a success, so it counts them and requires the count to rise.
+
+`docaudit.mjs` reads the numbers **out of** these two files and compares them to
+the live registry, rather than being told what to expect. A check that
+hard-codes the expected value passes while the prose is still wrong — which is
+how "240 subcommands" survived two audits, since updating the check and updating
+the sentence are separate acts and only one of them happened. It exits non-zero,
+so it can gate a deploy.
 
 ## Operate
 

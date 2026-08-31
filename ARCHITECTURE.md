@@ -454,6 +454,12 @@ around it tints.
   refuses loopback, private and link-local ranges, bare hostnames and embedded
   credentials before anything is sent. Postgres, Redis and the callback listener
   all sit on interfaces that gate would otherwise reach.
+- **A doc check must read the docs.** `deploy/docaudit.mjs` pulls the numbers
+  out of README.md and ARCHITECTURE.md and compares them to the registry. The
+  earlier version hard-coded what it expected, so it reported success twice
+  while the prose was stale: updating a test and updating a sentence are
+  separate acts. It also fails when a total *disappears*, not only when it is
+  wrong.
 - **Anything on the message path must not do I/O.** `messageCreate` runs for
   every message in every channel: prefix resolution, the sticky check and the
   alias fallback all read an in-process cache invalidated on write, never the
