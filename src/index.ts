@@ -12,6 +12,7 @@ import {
   emitMemberJoin,
   emitMemberLeave,
   emitMessage,
+  emitChannelPins,
   emitMessageDelete,
   emitMessageEdit,
   dispatchModal,
@@ -180,6 +181,12 @@ const bot = createBot({
         guildId: guildId ? String(guildId) : undefined,
         userId: String(userId),
         emoji: emoji?.name,
+      });
+    },
+    async channelPinsUpdate({ channelId, guildId }) {
+      await emitChannelPins({
+        guildId: guildId ? String(guildId) : "",
+        channelId: String(channelId),
       });
     },
     async messageDelete({ id, channelId, guildId }) {

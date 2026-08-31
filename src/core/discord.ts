@@ -333,7 +333,13 @@ export function avatarUrl(guildId: string, member: GuildMember): string | null {
 
 export function sendMessage(
   channelId: string,
-  body: { content?: string; allowed_mentions?: unknown; message_reference?: unknown },
+  body: {
+    content?: string;
+    allowed_mentions?: unknown;
+    message_reference?: unknown;
+    components?: unknown[];
+    flags?: number;
+  },
 ): Promise<Wrote<{ id: string }>> {
   return write<{ id: string }>("POST", `/channels/${channelId}/messages`, body);
 }
@@ -356,6 +362,41 @@ export function editMessage(
   body: { content?: string | null; embeds?: unknown[]; components?: unknown[] },
 ): Promise<Wrote<PostedMessage>> {
   return write<PostedMessage>("PATCH", `/channels/${channelId}/messages/${messageId}`, body);
+}
+
+export function channelMessages(
+  channelId: string,
+  query: string,
+): Promise<PostedMessage[] | null> {
+  return api<PostedMessage[]>(`/channels/${channelId}/messages?${query}`);
+}
+
+export function pinnedMessages(channelId: string): Promise<PostedMessage[] | null> {
+  return api<PostedMessage[]>(`/channels/${channelId}/pins`);
+}
+
+export function pinMessage(
+  channelId: string,
+  messageId: string,
+  reason: string,
+): Promise<Wrote<void>> {
+  return write<void>("PUT", `/channels/${channelId}/pins/${messageId}`, undefined, reason);
+}
+
+export function unpinMessage(
+  channelId: string,
+  messageId: string,
+  reason: string,
+): Promise<Wrote<void>> {
+  return write<void>("DELETE", `/channels/${channelId}/pins/${messageId}`, undefined, reason);
+}
+
+export function editGuild(
+  guildId: string,
+  body: Record<string, unknown>,
+  reason: string,
+): Promise<Wrote<Guild>> {
+  return write<Guild>("PATCH", `/guilds/${guildId}`, body, reason);
 }
 
 export function deleteMessage(channelId: string, messageId: string): Promise<Wrote<void>> {

@@ -11,6 +11,7 @@ import { registerAutoresponder } from "./autoresponder/index.js";
 import { registerPagination } from "./pagination/index.js";
 import { registerAvailability } from "./availability/index.js";
 import { registerIgnore } from "./ignore/index.js";
+import { registerAppearance } from "./appearance/index.js";
 
 export const configCog: Cog = {
   name: "configuration",
@@ -30,5 +31,6 @@ export const configCog: Cog = {
     inCategory("pagination", registerPagination);
     inCategory("availability", registerAvailability);
     inCategory("ignore", registerIgnore);
+    inCategory("appearance", registerAppearance);
   },
 };

@@ -134,6 +134,18 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Automatic replies when a message matches a trigger",
   },
   {
+    slug: "appearance",
+    label: "Server look",
+    emoji: "",
+    blurb: "The server icon, banner and splash background",
+  },
+  {
+    slug: "pins",
+    label: "Pins",
+    emoji: "",
+    blurb: "Pinning, unpinning, and archiving a channel's pins",
+  },
+  {
     slug: "ignore",
     label: "Ignore",
     emoji: "",
@@ -322,6 +334,68 @@ export const DOCS: CommandDoc[] = [
       { name: "exclusive", usage: ",autoresponder exclusive <role or #channel> <trigger>", summary: "Limit a trigger to some roles or channels", permission: "Manage Channels" },
       { name: "reset", usage: ",autoresponder reset", summary: "Remove every auto response", permission: "Manage Channels" },
     ],
+  },
+  {
+    name: "seticon",
+    category: "appearance",
+    usage: ",seticon <url>",
+    summary: "Set the server icon",
+    details:
+      "Takes a link to a PNG, JPEG, GIF or WebP, fetches it and hands it to Discord as a data URI. The link is checked before anything is fetched: private and loopback addresses are refused, since the bot is what does the fetching. A banner needs boost level 2 and a splash background needs level 1, and those are checked against the server's features first so the failure is a sentence rather than a raw API error. Only a banner may be animated.",
+    examples: [",seticon https://i.imgur.com/abc.png"],
+    permission: "Manage Server",
+    guildOnly: true,
+  },
+  {
+    name: "pins",
+    category: "pins",
+    usage: ",pins",
+    summary: "Archive a channel's pins into another channel",
+    details:
+      "Discord caps a channel at 50 pins, and the archive is what you do when it fills. Set a destination with pins channel, then pins archive copies this channel's pins there oldest first, ten to a card, and unpins them unless you turned that off. pins set on does the same thing by itself once a channel reaches 45 pins, using Discord's own pin-update event. Run bare, pins shows the settings. Aliases: ,pinarchive.",
+    examples: [",pins channel #pin-archive", ",pins set on", ",pins archive"],
+    permission: "Manage Server",
+    guildOnly: true,
+    subcommands: [
+      { name: "config", usage: ",pins config", summary: "The pin archive settings", permission: "Manage Server" },
+      { name: "channel", usage: ",pins channel <#channel>", summary: "Where archived pins go", permission: "Manage Server" },
+      { name: "set", usage: ",pins set <on or off>", summary: "Switch automatic archiving on or off", permission: "Manage Server" },
+      { name: "unpin", usage: ",pins unpin <on or off>", summary: "Whether archiving also unpins", permission: "Manage Server" },
+      { name: "archive", usage: ",pins archive", summary: "Archive this channel's pins now", permission: "Manage Server" },
+      { name: "reset", usage: ",pins reset", summary: "Clear the pin archive settings", permission: "Manage Server" },
+    ],
+  },
+  {
+    name: "pin",
+    category: "pins",
+    usage: ",pin [link]",
+    summary: "Pin the last message, or one by link",
+    details:
+      "With nothing after it, this pins the most recent message in the channel that is not the command itself. With a message link or id it pins that one. It checks the 50-pin cap first and says so rather than letting Discord refuse.",
+    examples: [",pin", ",pin https://discord.com/channels/1/2/3"],
+    permission: "Manage Messages",
+    guildOnly: true,
+  },
+  {
+    name: "unpin",
+    category: "pins",
+    usage: ",unpin [link]",
+    summary: "Unpin a message",
+    details:
+      "With nothing after it, this unpins the most recently pinned message. With a message link or id it unpins that one.",
+    examples: [",unpin", ",unpin https://discord.com/channels/1/2/3"],
+    permission: "Manage Messages",
+    guildOnly: true,
+  },
+  {
+    name: "firstmessage",
+    category: "pins",
+    usage: ",firstmessage [#channel]",
+    summary: "Link the first message in a channel",
+    details:
+      "Reads the oldest message in a channel and gives you a jump link to it, with the author and the opening of what they said. Defaults to the channel you are in. Alias: ,first.",
+    examples: [",firstmessage", ",firstmessage #general"],
+    guildOnly: true,
   },
   {
     name: "ignore",

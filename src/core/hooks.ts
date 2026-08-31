@@ -211,6 +211,30 @@ async function dispatch(
   return false;
 }
 
+export interface PinsEvent {
+  guildId: string;
+  channelId: string;
+}
+
+export type PinsHandler = (event: PinsEvent) => Promise<void>;
+
+const pins: PinsHandler[] = [];
+
+export function onChannelPins(handler: PinsHandler): void {
+  pins.push(handler);
+}
+
+export async function emitChannelPins(event: PinsEvent): Promise<void> {
+  if (!event.guildId || !event.channelId) return;
+  for (const handler of pins) {
+    try {
+      await handler(event);
+    } catch (err) {
+      console.error("pins handler failed:", err);
+    }
+  }
+}
+
 export interface ReactionEvent {
   messageId: string;
   channelId: string;

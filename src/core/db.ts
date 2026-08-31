@@ -385,6 +385,17 @@ export async function migrate(): Promise<void> {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS pin_archive (
+      guild_id   TEXT NOT NULL,
+      enabled    BOOLEAN NOT NULL DEFAULT false,
+      channel_id TEXT,
+      unpin      BOOLEAN NOT NULL DEFAULT true,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id)
+    )
+  `;
+
   console.log("db: schema ready");
 }
 

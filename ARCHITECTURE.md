@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 128 source files, no comments — the names and the
+the read path and the cache. 131 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -85,6 +85,7 @@ src/
                         (the role hierarchy check), shared.ts
       availability/     turning commands, modules and events off per channel
       ignore/           members and channels skipped before anything runs
+      appearance/       the server icon, banner and splash background
       pagination/       several embeds behind one message, turned with buttons:
                         embedcode.ts parses the page code, store.ts holds pages
                         by stable id
@@ -93,6 +94,7 @@ src/
                         removed reactions, per-message reaction logs
       snipe.ts          ,snipe and its four subcommands, plus the hooks that
                         feed the store
+      pins/             ,pin, ,unpin, ,firstmessage and the pin archive
     help/               the command browser
       model.ts          one indexed view of the registry + catalog
       search.ts         ranking, for /help autocomplete and ,help <query>
@@ -249,6 +251,7 @@ Cogs extend the runtime through `core/hooks.ts` instead of core importing them:
 | `onMessage` | any message in a guild, command or not |
 | `onMemberJoin` / `onMemberLeave` | somebody joined or left |
 | `onMessageDelete` / `onMessageEdit` | a message went away or changed |
+| `onChannelPins` | a channel's pins changed |
 
 Interactions are routed by custom-id prefix, so two cogs cannot silently
 collide over the same button.
@@ -443,6 +446,11 @@ around it tints.
   answers there. Otherwise the only undo is a database edit. Same shape as the
   availability `PROTECTED` list: whatever turns a thing off must not be able to
   turn off its own reverse.
+- **If the bot does the fetching, the URL is an attack surface.** `,seticon`
+  takes a link and requests it from inside the network, so `checkImageUrl`
+  refuses loopback, private and link-local ranges, bare hostnames and embedded
+  credentials before anything is sent. Postgres, Redis and the callback listener
+  all sit on interfaces that gate would otherwise reach.
 - **Anything on the message path must not do I/O.** `messageCreate` runs for
   every message in every channel: prefix resolution, the sticky check and the
   alias fallback all read an in-process cache invalidated on write, never the

@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 265 commands across five cogs,
+(TypeScript strict, Node 22), run bare with pm2. 278 commands across five cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -32,6 +32,8 @@ rather than turning it into a three-word path with named fields.
 - `,pagination` — several pages behind one message, turned with arrows
 - `,disablecommand` — turn commands, modules and events off per channel
 - `,ignore` — members and channels the bot reads nothing from
+- `,pin`, `,unpin`, `,firstmessage`, `,pins` — pins, and archiving them
+- `,seticon`, `,setbanner`, `,setsplashbackground` — the server's look
 - `,filter` — ten chat filters, five of them enforced by Discord's AutoMod
 - `,snipe` — what was deleted, edited or unreacted in this channel
 - `,lf link` DMs an authorisation link; after that `,fm` works
@@ -253,6 +255,58 @@ gate, group routing and card colour all behave identically. A second dispatch
 path would drift from the first.
 
 `,disableevent #channel editrerun` switches it off.
+
+## Pins
+
+```
+,pin                       pin the last message here
+,pin <link>                pin that one
+,unpin                     unpin the most recent pin
+,firstmessage [#channel]   a jump link to a channel's first message
+,pins channel #archive     where archived pins go
+,pins set on               archive automatically at 45 pins
+,pins unpin off            keep them pinned after archiving
+,pins archive              archive this channel now
+,pins config / reset
+```
+
+`pin` and `unpin` need **Manage Messages**, the `pins` group needs **Manage
+Server**, and `firstmessage` is open to everyone.
+
+**Discord caps a channel at 50 pins**, and the archive is what you do when it
+fills. `pins archive` copies the pins into the archive channel oldest first, ten
+to a card with author and jump link, then unpins them unless you turned that off.
+`pins set on` does the same by itself once a channel reaches 45, off Discord's
+own pin-update event — 45 rather than 50 so there is room to pin one more while
+it works.
+
+`pin` checks the cap before trying, so you get a sentence about the archive
+rather than a Discord error. Archiving a channel into itself is refused, and so
+is enabling the automatic side before an archive channel exists — a switch that
+cannot do anything is worse than one that says why.
+
+## Server look
+
+```
+,seticon <url>
+,setbanner <url>
+,setsplashbackground <url>
+```
+
+**Manage Server.** The image is fetched by the bot and handed to Discord as a
+data URI, capped at 8MB, PNG/JPEG/GIF/WebP only, and only a banner may be
+animated.
+
+⚠️ **The bot is what does the fetching, so the link is checked before anything
+is requested.** Loopback, private ranges, link-local, multicast, bare hostnames
+and URLs carrying credentials are all refused — otherwise `,seticon` becomes a
+way to make the bot fetch `127.0.0.1:8730` or the Postgres port and report what
+came back. `checkImageUrl` in `helpers/imageurl.ts` is that gate, shared with
+the Last.fm artwork commands.
+
+A banner needs boost level 2 and a splash background level 1. Both are checked
+against the server's own features first, so the answer is a sentence rather than
+a raw API rejection.
 
 ## Ignore
 
