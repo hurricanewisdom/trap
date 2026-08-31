@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 317 commands across five cogs,
+(TypeScript strict, Node 22), run bare with pm2. 321 commands across five cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -39,6 +39,7 @@ rather than turning it into a three-word path with named fields.
 - `,extractemotes`, `,extractstickers` — the server's emojis or stickers as a zip
 - `,reposter` — download and repost videos from 12 social sites, with their stats
 - `,suggest` — members suggest ideas, staff move them through statuses
+- `,customize` — the bot's own avatar, banner and bio in one server
 - `,filter` — ten chat filters, five of them enforced by Discord's AutoMod
 - `,snipe` — what was deleted, edited or unreacted in this channel
 - `,lf link` DMs an authorisation link; after that `,fm` works
@@ -301,6 +302,37 @@ than with the pin archive: nothing about them is configured per server.
 
 `pin` checks Discord's 50-pin cap before trying, so a full channel gets a
 sentence about `,pins archive` rather than an API error.
+
+## Bot appearance
+
+```
+,customize                  what it looks like here
+,customize avatar <url>     its avatar in this server
+,customize banner <url>     its banner in this server
+,customize bio <text>       its bio in this server
+```
+
+**Server Owner.** These change the bot **in one server only** — every other server
+keeps seeing its usual face. Any of the three takes `clear` to put it back.
+
+⚠️ **Discord rations avatar and banner changes hard.** Change one twice in quick
+succession and the next attempt comes back `AVATAR_RATE_LIMIT` or
+`BANNER_RATE_LIMIT` — not a rate-limit response with a retry time, but a `400` that
+looks like a malformed request. The command reads that code and says so plainly,
+because "that did not work" would send somebody hunting for a broken image.
+
+⚠️ **Discord will accept a bio and never give it back.** The PATCH succeeds and
+even echoes the bio in its response, but the member object a bot may read carries
+only `nick`, `avatar` and `banner`, and the profile endpoint answers `Bots cannot
+use this endpoint`. So the bio is stored here as well, and `,customize` shows the
+last one set through the command rather than pretending to know what Discord holds.
+
+⚠️ **The link is fetched by the bot, from a box that also runs a database and a
+web server.** Without a guard, `customize avatar http://127.0.0.1:8730/...` turns
+the bot into a way to read them. The host is resolved first and refused if it
+lands on loopback, a private range, link-local or carrier NAT, and redirects are
+refused outright rather than followed somewhere that check already rejected. Only
+png, jpg, gif and webp are accepted, up to 8MB.
 
 ## Suggestions
 
@@ -1118,12 +1150,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 279 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 282 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 439 views** and asserts unique
+The check that keeps this honest renders **all 444 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

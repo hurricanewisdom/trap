@@ -17,6 +17,7 @@ import { registerWebhooks } from "./webhook/index.js";
 import { registerFakePermissions } from "./fakeperms/index.js";
 import { registerReposter } from "./reposter/index.js";
 import { registerSuggest } from "./suggest/index.js";
+import { registerCustomize } from "./customize/index.js";
 
 export const configCog: Cog = {
   name: "configuration",
@@ -42,5 +43,6 @@ export const configCog: Cog = {
     inCategory("fakeperms", registerFakePermissions);
     inCategory("reposter", registerReposter);
     inCategory("suggest", registerSuggest);
+    inCategory("botlook", registerCustomize);
   },
 };

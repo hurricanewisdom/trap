@@ -39,6 +39,7 @@ export interface GuildMember {
   roles?: string[];
   premium_since?: string | null;
   avatar?: string | null;
+  banner?: string | null;
 }
 
 export interface Role {
@@ -500,6 +501,16 @@ export async function sendFile(
   } catch (err) {
     return { ok: false, status: 0, message: err instanceof Error ? err.message : "upload failed" };
   }
+}
+
+// The bot's own member in one guild: nickname, avatar, banner and bio. Discord
+// accepts a bio here and echoes it back, but never returns it from any endpoint a
+// bot may read, so it has to be remembered locally to be shown again.
+export function editSelfMember(
+  guildId: string,
+  body: { nick?: string | null; avatar?: string | null; banner?: string | null; bio?: string },
+): Promise<Wrote<GuildMember>> {
+  return write<GuildMember>("PATCH", `/guilds/${guildId}/members/@me`, body);
 }
 
 // A custom emoji reacts as name:id, a unicode one as itself, and either way the

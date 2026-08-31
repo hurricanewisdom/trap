@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 148 source files, no comments — the names and the
+the read path and the cache. 151 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -92,6 +92,8 @@ src/
       webhook/          posting as a named identity; ids in the database, the
                         token fetched when needed and never kept
       fakeperms/        letting a role use the bot without the real permission
+      customize/        the bot's own avatar, banner and bio in one server;
+                        images.ts fetches the link and refuses private addresses
       suggest/          member suggestions and the statuses staff move them
                         through; store.ts holds config, suggestions and the
                         ignore list, post.ts renders a card and edits it in place
@@ -215,7 +217,7 @@ is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 279 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 282 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.
@@ -534,6 +536,15 @@ around it tints.
   images from the fixer and its counts from yt-dlp, which refuses the photo url but
   answers for the same id in its video form. Fetching twice and joining the halves
   beats showing a post with no numbers on it because one source was incomplete.
+- **A URL from a user is fetched by the server, so it is a request the server is
+  making.** `customize` resolves the host before fetching and refuses loopback,
+  private, link-local and carrier-NAT addresses, and refuses redirects rather than
+  following one somewhere the check already rejected. The box runs a database and
+  a web server on exactly those addresses.
+- **Remember what an API will not tell you twice.** Discord accepts a bio for the
+  bot's guild member and echoes it back, but returns it from no endpoint a bot may
+  read. It is stored locally so the setting can be shown again, and the display
+  says that is where the value came from.
 - **A shared counter belongs to the database.** Suggestion numbers are handed out
   by one INSERT ... ON CONFLICT DO UPDATE ... RETURNING, not by counting rows and
   adding one: two people suggesting in the same moment would otherwise be given

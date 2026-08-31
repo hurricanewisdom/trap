@@ -435,6 +435,15 @@ export async function migrate(): Promise<void> {
   await sql`ALTER TABLE reposter ADD COLUMN IF NOT EXISTS container BOOLEAN NOT NULL DEFAULT true`;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS customize (
+      guild_id   TEXT NOT NULL,
+      bio        TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id)
+    )
+  `;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS suggest_config (
       guild_id   TEXT NOT NULL,
       channel_id TEXT,

@@ -152,6 +152,12 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Reposting social links so the video plays inline",
   },
   {
+    slug: "botlook",
+    label: "Bot appearance",
+    emoji: "",
+    blurb: "What the bot looks like in one server: avatar, banner and bio",
+  },
+  {
     slug: "suggest",
     label: "Suggestions",
     emoji: "",
@@ -399,6 +405,22 @@ export const DOCS: CommandDoc[] = [
       { name: "delete", usage: ",reposter delete <on or off>", summary: "Delete the original message", permission: "Manage Server" },
       { name: "prefix", usage: ",reposter prefix <on or off>", summary: "Require a prefix before the link", permission: "Manage Server" },
       { name: "container", usage: ",reposter container <on or off>", summary: "Draw the repost inside a container", permission: "Manage Server" },
+    ],
+  },
+  {
+    name: "customize",
+    category: "botlook",
+    usage: ",customize",
+    summary: "Customize the bot's server appearance",
+    details:
+      "Changes what the bot looks like in this server only; every other server keeps seeing its usual avatar, banner and name. Each of the three takes clear to put it back. Discord rations avatar and banner changes hard and refuses further ones for a while, and the command passes that reason on rather than reporting a generic failure. It will accept a bio and never hand it back to a bot, so the bio shown is the one last set through this command. Server Owner only. Alias: ,customise.",
+    examples: [",customize", ",customize avatar https://example.com/cat.png", ",customize bio here to help"],
+    permission: "Server Owner",
+    guildOnly: true,
+    subcommands: [
+      { name: "avatar", usage: ",customize avatar <url>", summary: "Customize the bot's server avatar", permission: "Server Owner" },
+      { name: "banner", usage: ",customize banner <url>", summary: "Customize the bot's server banner", permission: "Server Owner" },
+      { name: "bio", usage: ",customize bio <text>", summary: "Customize the bot's server bio", permission: "Server Owner" },
     ],
   },
   {
