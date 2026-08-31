@@ -16,10 +16,16 @@ export interface Site {
   // A photo post carries the same id a video would, and yt-dlp answers for the
   // video form even when it refuses the photo one. That is where the counts are.
   counts?: { from: RegExp; to: string };
+  // A second fixer, read only for engagement numbers when the site itself will
+  // not answer. One host serves the file, another publishes the counts, and no
+  // single one does both.
+  figures?: string;
 }
 
 // `through` is a third-party service that re-serves a post so Discord can play
-// the video inline. It is only a fallback now that the downloader exists, and it
+// the video inline. These die constantly and without warning: vxtiktok was taken
+// down by a legal request and kkinstagram stopped answering, both within a week,
+// which is why a repost squeezes a file to fit before it ever considers a link. It is only a fallback now that the downloader exists, and it
 // is empty for most sites because no such service exists for them. They also come
 // and go: ddinstagram.com stopped resolving entirely and kkinstagram took over,
 // which is why this is one table to edit rather than a rule spread through the
@@ -36,16 +42,20 @@ export const SITES: Site[] = [
     path: /^\/[^/]+\/status\/\d+/,
   },
   {
+    // No instagram rewrite host is alive: kkinstagram stopped serving video tags
+    // and ddinstagram no longer resolves, so a failed download leaves the poster's
+    // own link alone rather than replacing it with a dead one.
     name: "instagram",
     hosts: ["instagram.com", "www.instagram.com", "ddinstagram.com"],
-    through: "kkinstagram.com",
+    through: "",
     path: /^\/(?:p|reel|reels|tv|share)\//,
   },
   {
     name: "tiktok",
     hosts: ["tiktok.com", "www.tiktok.com", "m.tiktok.com"],
-    through: "vxtiktok.com",
+    through: "tnktok.com",
     album: "tnktok.com",
+    figures: "tiktxk.com",
     path: /^\/(?:@[^/]+\/(?:video|photo)\/|t\/)/,
     short: /^\/t\//,
     photos: /\/photo\//,
@@ -54,8 +64,9 @@ export const SITES: Site[] = [
   {
     name: "tiktok",
     hosts: ["vm.tiktok.com", "vt.tiktok.com"],
-    through: "vxtiktok.com",
+    through: "tnktok.com",
     album: "tnktok.com",
+    figures: "tiktxk.com",
     path: /^\/[\w-]+/,
     short: /^\//,
     photos: /\/photo\//,

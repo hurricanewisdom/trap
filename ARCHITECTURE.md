@@ -564,6 +564,15 @@ around it tints.
   `paginateWith`, the same Redis-backed state, owner check and buttons every other
   paged view uses; only the send differs, because a repost is not a reply to a
   command. A second pagination system would be a second set of expiry bugs.
+- **Shrink it rather than refuse it.** A file a few percent over the upload limit
+  is the common case on a server with no boosts, and replacing a video with a link
+  to satisfy a ceiling serves nobody. The download is measured on disk and
+  re-encoded to fit, because the flag that was supposed to enforce the ceiling
+  checks each stream separately and lets unknown sizes through.
+- **Ask the middleman for the goods, not for directions.** A rewrite host serves
+  tags to crawlers and redirects browsers back to the origin. A downloader that
+  impersonates a browser therefore walks back into the block it was sent to avoid,
+  so the media url from the tags is fetched directly instead.
 - **When the front door is shut, ask the same question of the side door.** Reddit
   returns 403 to this address for everything, so the reposter asks its rewrite host
   instead — and gets the video *and* the counts from it. `opengraph.ts` returns the

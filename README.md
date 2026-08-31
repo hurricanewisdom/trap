@@ -432,7 +432,7 @@ expected:
 | --- | --- |
 | **Downloads the video** | youtube, tiktok, instagram, x, snapchat, tumblr, pinterest, twitch, streamable, medal |
 | **Downloads the audio** | soundcloud, as an `.m4a` |
-| **Downloads through a fixer** | reddit, via `vxreddit.com` |
+| **Downloads through a fixer** | reddit via `vxreddit.com`, tiktok via `tnktok.com` |
 | **Pages the photos instead** | tiktok photo posts, via `tnktok.com` |
 
 ⚠️ **ffmpeg is required, not a quality nicety.** Youtube no longer serves a
@@ -447,10 +447,23 @@ Chrome, but only after checking that impersonation is actually available —
 requesting it when the library is missing fails *every* download, so the check
 happens once and the answer is reused.
 
-**Reddit answers this address with `403`** — not the extractor, the whole site —
-so nothing can be read from it directly. When a site refuses like that, the rewrite
-host is asked instead, and it turns out to serve **both** the video and the counts:
-reddit posts a real file with real numbers, by way of `vxreddit.com`.
+**Reddit answers this address with `403`**, and **tiktok now answers it with a
+CAPTCHA** — 398KB of challenge page, on every video, with or without browser
+impersonation, on both the stable and nightly yt-dlp. Neither is an extractor
+problem and neither is fixable from here: the address is the thing being refused.
+
+When a site refuses like that, the rewrite hosts are asked instead, and they
+answer from their own addresses. Two details make that work:
+
+- ⚠️ **Download the file the fixer advertises, not the fixer's page.** These hosts
+  serve OpenGraph tags to a crawler and redirect anything that looks like a
+  browser back to the original site — which is where the block is. yt-dlp
+  impersonates a browser, so pointing it at the page walks it straight into the
+  CAPTCHA. The `og:video` url is a plain mp4 and downloads fine.
+- ⚠️ **No single host has both halves.** `tnktok.com` serves the file but publishes
+  no counts; `tiktxk.com` publishes `❤️ 186.4k 💬 1.1k` but its video url answers
+  `403` here. So the file comes from one and the numbers from the other, and only
+  in this path, which is already the slow one.
 
 Those numbers come from the OpenGraph tags the fixers publish for Discord's own
 crawler — `⬆️ 14493 | 💬 448` and the like — read back into the same shape a
@@ -542,19 +555,33 @@ the video is over the upload limit, or yt-dlp is missing. A reposter that goes
 silent whenever an extractor breaks is worse than one that posts a link that
 plays, and extractors do break — these sites change deliberately to stop them.
 
-⚠️ **The upload limit is per server, not per bot.** 10MB on an unboosted server,
-50MB at level 2, 100MB at level 3, and the bot takes 90% of whichever applies.
-A video over that goes out as a link rather than failing. Anything longer than
-**45 minutes** is not attempted at all, since it was never going to fit.
+⚠️ **A video over the upload limit is re-encoded to fit, not abandoned.** The
+limit is per server — 10MB unboosted, 50MB at level 2, 100MB at level 3, and the
+bot takes 90% of whichever applies. On an unboosted server almost everything is
+over it: a tiktok two percent above the line used to be thrown away and replaced
+with a link. Now ffmpeg squeezes it to fit, which takes about ten seconds for a
+two-minute clip and a minute for a four-minute one. Anything longer than **ten
+minutes** is left alone, because the bitrate it would need looks like a slideshow,
+and anything over **45 minutes** is never fetched at all.
+
+⚠️ **`--max-filesize` does not mean what it looks like.** It is checked per stream
+and not on the merged result, and a `filesize_approx<?` format filter admits
+formats whose size is unknown. Between them, an attempt that asked for nine
+megabytes hands back twenty-one. The file that arrives is measured on disk rather
+than trusted, whichever attempt produced it.
 
 Two costs worth stating plainly. **yt-dlp needs updating** — when tiktok or
 youtube changes something, extraction breaks until it is updated, and that is a
 standing maintenance task, not a one-off. And the fallback sends the link through
-a **third-party host**, which come and go: `ddinstagram.com` stopped resolving
-entirely and `rxddit.com` began answering `502` — both while this was being
-written, and the second one is why reddit appeared broken. That is the whole
-argument for `sites.ts` being one table to edit rather than a rule spread through
-the code.
+a **third-party host**, and those die constantly: `ddinstagram.com` stopped
+resolving, `rxddit.com` began answering `502`, `vxtiktok.com` was taken down by a
+legal request, and `kkinstagram.com` stopped serving video tags — all within a
+week. That is the whole argument for `sites.ts` being one table to edit rather
+than a rule spread through the code, and the reason a repost now squeezes a file
+to fit before it ever considers posting a link.
+
+**Instagram has no working rewrite host at all**, so a failed instagram download
+leaves the poster's own link alone rather than replacing it with a dead one.
 
 `strict` off means the message has to be **nothing but the link**, so a link
 mentioned in passing does not drag a video into the channel. `prefix` on means

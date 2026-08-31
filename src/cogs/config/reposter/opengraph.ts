@@ -116,9 +116,17 @@ function counted(text: string, icons: string[]): number | null {
   return null;
 }
 
-// Reads what a rewrite host would show Discord. Returns the same shape as a
-// yt-dlp probe, so the caller does not have to care which one answered.
-export async function readCard(url: string): Promise<Facts | null> {
+export interface Card {
+  facts: Facts;
+  // The file the fixer advertises. Downloading the fixer's *page* does not work:
+  // it serves OpenGraph tags to a crawler and redirects anything that looks like
+  // a browser back to the original site, which is where the block is.
+  media: string | null;
+}
+
+// Reads what a rewrite host would show Discord. The facts come back in the same
+// shape as a yt-dlp probe, so the caller does not have to care which answered.
+export async function readCard(url: string): Promise<Card | null> {
   const html = await pageAt(url);
   if (html === null) return null;
 
@@ -130,18 +138,26 @@ export async function readCard(url: string): Promise<Facts | null> {
   // page would otherwise be reported as a perfectly good card.
   if (!title && !meta.get("og:video")) return null;
 
-  const where = `${site} ${meta.get("og:description") ?? ""}`;
-  const who = site.match(/^(u\/[\w-]+|@[\w.]+)/);
+  // Some fixers put the counts in the title rather than the description, so all
+  // three are searched rather than guessing which house style this one follows.
+  const where = `${site} ${title} ${meta.get("og:description") ?? ""}`;
+  const who = site.match(/^(u\/[\w-]+|@[\w.]+)/) ?? title.match(/\((@[\w.]+)\)/);
+
+  // A title that is only a row of counts is not a title.
+  const named = /^[\s\d.,kmb❤️⬆️💬🔁👁️▶♥♻👍]+$/i.test(title) ? "" : title;
 
   return {
-    title: title.slice(0, 200),
-    uploader: (who?.[1] ?? "").slice(0, 80),
-    duration: null,
-    views: counted(where, MARKS[0]!.icons),
-    likes: counted(where, MARKS[1]!.icons),
-    comments: counted(where, MARKS[2]!.icons),
-    shares: counted(where, MARKS[3]!.icons),
-    bytes: null,
+    facts: {
+      title: named.slice(0, 200),
+      uploader: (who?.[1] ?? "").slice(0, 80),
+      duration: null,
+      views: counted(where, MARKS[0]!.icons),
+      likes: counted(where, MARKS[1]!.icons),
+      comments: counted(where, MARKS[2]!.icons),
+      shares: counted(where, MARKS[3]!.icons),
+      bytes: null,
+    },
+    media: meta.get("og:video") ?? null,
   };
 }
 

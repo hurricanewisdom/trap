@@ -179,8 +179,34 @@ async function deliver(
   let facts = await probe(target);
   let source = target;
   if (!facts && fixer) {
-    facts = await readCard(fixer);
-    source = fixer;
+    const card = await readCard(fixer);
+    if (card) {
+      facts = card.facts;
+      // The file the fixer advertises, not the fixer's page: fetching that page
+      // as a downloader would follow its redirect straight back to the site that
+      // is refusing us.
+      source = card.media ?? fixer;
+
+      // Whichever host serves the file may publish no numbers at all, so a second
+      // one is read for those alone. Only in this path, which is already the slow
+      // one, and only when the first came back empty.
+      const bare = facts.views === null && facts.likes === null && facts.comments === null;
+      const elsewhere = bare && found.site.figures ? hostedAt(target, found.site.figures) : null;
+      if (elsewhere) {
+        const more = await readCard(elsewhere);
+        if (more) {
+          facts = {
+            ...facts,
+            title: facts.title || more.facts.title,
+            uploader: facts.uploader || more.facts.uploader,
+            views: more.facts.views,
+            likes: more.facts.likes,
+            comments: more.facts.comments,
+            shares: more.facts.shares,
+          };
+        }
+      }
+    }
   }
 
   const tooLong = facts !== null && facts.duration !== null && facts.duration > MAX_SECONDS;
