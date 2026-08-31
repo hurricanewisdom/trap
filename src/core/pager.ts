@@ -69,30 +69,45 @@ export function renderPage(
   };
 }
 
+// Snowflakes arrive as a bigint from the library and as a string from the REST
+// helpers, and both have to be accepted or one of the two callers will not fit.
+export type PagerSend = (body: {
+  flags: number;
+  components: unknown[];
+}) => Promise<{ id?: string | number | bigint } | null | undefined>;
+
+// Not everything that pages is a reply to a command. The reposter pages a photo
+// post nobody asked for by name, so the send is passed in rather than taken from
+// a command context. Returns the message id, or null if nothing was posted.
+export async function paginateWith(
+  send: PagerSend,
+  channelId: string,
+  ownerId: string,
+  pages: unknown[][],
+  accent: number | null,
+): Promise<string | null> {
+  if (pages.length === 0) return null;
+
+  const settled = resolveAccent(accent);
+  const page = renderPage(pages, 0, settled, ownerId);
+  const sent = await send(page);
+  const messageId = sent?.id ? String(sent.id) : null;
+  if (!messageId) return null;
+
+  keepAlive(channelId, messageId, page.components as unknown[]);
+  if (pages.length <= 1) return messageId;
+
+  const state: PagerState = { pages, ownerId, channelId, accent: settled, index: 0 };
+  await redis.set(key(messageId), JSON.stringify(state), "EX", TTL).catch(() => {});
+  return messageId;
+}
+
 export async function paginate(
   ctx: PrefixContext,
   pages: unknown[][],
   accent: number | null,
 ): Promise<void> {
-  if (pages.length === 0) return;
-
-  const settled = resolveAccent(accent);
-  const page = renderPage(pages, 0, settled, ctx.authorId);
-  const sent = await ctx.reply(page);
-  const messageId = sent?.id ? String(sent.id) : null;
-  if (!messageId) return;
-
-  keepAlive(ctx.channelId, messageId, page.components as unknown[]);
-  if (pages.length <= 1) return;
-
-  const state: PagerState = {
-    pages,
-    ownerId: ctx.authorId,
-    channelId: ctx.channelId,
-    accent: settled,
-    index: 0,
-  };
-  await redis.set(key(messageId), JSON.stringify(state), "EX", TTL).catch(() => {});
+  await paginateWith((body) => ctx.reply(body), ctx.channelId, ctx.authorId, pages, accent);
 }
 
 export async function loadState(messageId: string): Promise<PagerState | null> {

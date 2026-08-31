@@ -6,6 +6,13 @@ export interface Site {
   // Tumblr gives every blog its own subdomain, so no list of exact hosts can
   // ever cover it.
   suffixes?: string[];
+  // A path that hides what it points at, and has to be followed before anything
+  // can be decided about it.
+  short?: RegExp;
+  // Where photo posts can be read from, and the path that says it is one. Photo
+  // posts are not video and yt-dlp will not touch them.
+  album?: string;
+  photos?: RegExp;
 }
 
 // `through` is a third-party service that re-serves a post so Discord can play
@@ -35,13 +42,19 @@ export const SITES: Site[] = [
     name: "tiktok",
     hosts: ["tiktok.com", "www.tiktok.com", "m.tiktok.com"],
     through: "vxtiktok.com",
-    path: /^\/@[^/]+\/(?:video|photo)\//,
+    album: "tnktok.com",
+    path: /^\/(?:@[^/]+\/(?:video|photo)\/|t\/)/,
+    short: /^\/t\//,
+    photos: /\/photo\//,
   },
   {
     name: "tiktok",
     hosts: ["vm.tiktok.com", "vt.tiktok.com"],
     through: "vxtiktok.com",
+    album: "tnktok.com",
     path: /^\/[\w-]+/,
+    short: /^\//,
+    photos: /\/photo\//,
   },
   {
     name: "youtube",
@@ -141,17 +154,47 @@ export interface Found {
   rewritten: string;
 }
 
+// Moves a link onto another host, keeping the path and dropping the tracking
+// query that short links arrive with.
+export function hostedAt(url: string, host: string): string | null {
+  try {
+    const out = new URL(url);
+    out.host = host;
+    out.protocol = "https:";
+    out.search = "";
+    out.hash = "";
+    return out.toString();
+  } catch {
+    return null;
+  }
+}
+
 function rewrite(site: Site, parsed: URL): string {
   // Most sites have no rewrite host: Discord either plays them already or
   // nothing re-serves them, so the downloader is the only path.
   if (!site.through) return parsed.toString();
+  return hostedAt(parsed.toString(), site.through) ?? parsed.toString();
+}
 
-  const out = new URL(parsed.toString());
-  out.host = site.through;
-  out.protocol = "https:";
-  out.search = "";
-  out.hash = "";
-  return out.toString();
+// True when the link cannot be understood without following it first.
+export function isShort(site: Site, url: string): boolean {
+  if (!site.short) return false;
+  try {
+    return site.short.test(new URL(url).pathname);
+  } catch {
+    return false;
+  }
+}
+
+// Where to read a photo post from, or null when this is not one.
+export function albumFor(site: Site, url: string): string | null {
+  if (!site.album || !site.photos) return null;
+  try {
+    if (!site.photos.test(new URL(url).pathname)) return null;
+  } catch {
+    return null;
+  }
+  return hostedAt(url, site.album);
 }
 
 export function findLink(content: string, strict: boolean): Found | null {

@@ -383,6 +383,37 @@ is posted — which is the honest outcome, and better than a soundtrack.
 needs a scraped website-token on top of a guest token. Matching the link and then
 doing nothing would be worse than leaving it alone.
 
+### Short links
+
+`tiktok.com/t/ZP8vEyVef`, `vm.tiktok.com/…` and the rest are followed before
+anything is decided, because a short link says nothing about what it points at.
+The same tiktok short link can land on a video or on a photo post, and those need
+completely different handling — one is downloaded, the other is paged. Everything
+after the redirect works on where it landed, including which rewrite host applies.
+
+### Photo posts
+
+A photo post is not a video, and yt-dlp answers `Unsupported URL` for one. The
+images are reachable only as the repeated `og:image` tags a fixer publishes, so
+for tiktok they come from `tnktok.com` — the one place measured to list them.
+
+They are posted as **pages with Back / Next / Page / Close**, reusing the same
+pager the rest of the bot uses, so a twelve-photo post is one message rather than
+twelve. Nothing is downloaded and nothing is attached: the images stay public URLs
+that Discord fetches itself, which is also why an album costs no upload quota.
+
+⚠️ **Only the person who posted the link can turn the page.** That is the pager's
+own rule everywhere in the bot, and it applies here too — a stranger clicking Next
+is told the menu belongs to someone else, rather than changing what everyone is
+looking at.
+
+⚠️ **Photo posts carry no counts.** The fixer publishes the images and the caption
+but no views or likes for them, so there is nothing to label. Videos are unaffected.
+
+Tiktok is the only site with a photo route today. Instagram's fixer published no
+`og:image` for any carousel tried against it, so its photo posts are not claimed
+rather than claimed and left blank.
+
 **When the download cannot happen, it falls back to posting the rewritten link**
 so Discord plays it inline instead — with the same counts on it, so a repost reads
 the same whether the file made it through or not. That happens when a site refuses the extractor,

@@ -9,11 +9,13 @@ import {
   type PrefixContext,
   type PrefixHandler,
 } from "../../../core/prefix.js";
+import { paginateWith } from "../../../core/pager.js";
+import { gallery, text } from "../../../helpers/components.js";
 import { switchWord } from "../../../helpers/flags.js";
 import { compact, plain } from "../../../helpers/markdown.js";
 import { grab, probe, type Facts } from "./download.js";
-import { readCard } from "./opengraph.js";
-import { SITE_NAMES, findLink } from "./sites.js";
+import { readAlbum, readCard, resolved } from "./opengraph.js";
+import { SITE_NAMES, albumFor, findLink, hostedAt, isShort } from "./sites.js";
 import { settings, save, type Settings } from "./store.js";
 
 const HEADING = "Reposter";
@@ -70,10 +72,6 @@ function stats(facts: Facts): string {
     .join(" · ");
 }
 
-// Sends the video itself, falling back to the rewritten link when the site will
-// not give it up, the file is too big, or yt-dlp is not installed. That fallback
-// matters: a reposter that goes quiet whenever an extractor breaks is worse than
-// one that posts a link which plays.
 // The caption is the same whichever route produced the video, so a repost never
 // reads differently depending on which one answered.
 function caption(event: MessageEvent, facts: Facts, held: Settings): string {
@@ -93,6 +91,46 @@ function caption(event: MessageEvent, facts: Facts, held: Settings): string {
     .join("\n");
 }
 
+// A photo post has no video in it at all, so it is paged rather than uploaded:
+// the images are public URLs the fixer generates, which Discord fetches itself.
+// Nothing is downloaded and nothing is attached.
+async function postAlbum(event: MessageEvent, url: string, held: Settings): Promise<boolean> {
+  const album = await readAlbum(url);
+  if (!album || album.images.length === 0) return false;
+
+  const heading = [
+    album.title ? "**" + plain(album.title.slice(0, 120)) + "**" : "",
+    album.uploader ? "-# " + plain(album.uploader) : "",
+  ].filter(Boolean);
+
+  const pages = album.images.map((image, at) => [
+    ...(held.embed && heading.length > 0 ? [text(heading.join("\n"))] : []),
+    gallery({ url: image }),
+    text(
+      "-# photo " +
+        (at + 1) +
+        " of " +
+        album.images.length +
+        (held.embed ? " · posted by <@" + event.authorId + ">" : ""),
+    ),
+  ]);
+
+  const posted = await paginateWith(
+    async (body) => {
+      const sent = await sendMessage(event.channelId, {
+        ...body,
+        allowed_mentions: { parse: [] },
+      });
+      return sent.ok ? sent.data : null;
+    },
+    event.channelId,
+    event.authorId,
+    pages,
+    null,
+  );
+  return posted !== null;
+}
+
 async function deliver(
   event: MessageEvent,
   found: NonNullable<ReturnType<typeof findLink>>,
@@ -101,13 +139,23 @@ async function deliver(
   const guild = await getGuild(event.guildId);
   const cap = uploadCap(Number(guild?.premium_tier ?? 0));
 
-  const fixer = found.rewritten && found.rewritten !== found.original ? found.rewritten : null;
+  // A short link says nothing about what it points at, and tiktok's resolve to
+  // either a video or a photo post, which need entirely different handling. So it
+  // is followed first, and everything after this works on where it landed.
+  const target = isShort(found.site, found.original)
+    ? await resolved(found.original)
+    : found.original;
+
+  const album = albumFor(found.site, target);
+  if (album && (await postAlbum(event, album, held))) return true;
+
+  const fixer = found.site.through ? hostedAt(target, found.site.through) : null;
 
   // The site itself first. Reddit answers this address with 403 whatever is asked
   // of it, so when the site refuses, the rewrite host is asked instead: it serves
   // the video and the counts that the site would not.
-  let facts = await probe(found.original);
-  let source = found.original;
+  let facts = await probe(target);
+  let source = target;
   if (!facts && fixer) {
     facts = await readCard(fixer);
     source = fixer;

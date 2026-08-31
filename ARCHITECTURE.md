@@ -93,9 +93,9 @@ src/
       fakeperms/        letting a role use the bot without the real permission
       reposter/         social links downloaded and reposted as video, with
                         stats; download.ts wraps yt-dlp, ffmpeg and curl_cffi,
-                        sites.ts is the 12-site host table, opengraph.ts reads
-                        the counts a rewrite host publishes when the site itself
-                        will not answer
+                        sites.ts is the 12-site host table, opengraph.ts follows
+                        short links and reads the counts, and the photos, that a
+                        rewrite host publishes when the site will not answer
       pins/             the pin archive: where a channel's pins are flushed to,
                         and the channelPinsUpdate hook that does it at 45
       pagination/       several embeds behind one message, turned with buttons:
@@ -520,6 +520,14 @@ around it tints.
   the file is too large, or the tool is missing. Extractors against tiktok and
   youtube break by design of the other side; a feature built on one of them
   needs somewhere to land.
+- **A short link is a question, not an answer.** It is followed before anything is
+  decided about it, because the same tiktok short link lands on either a video or a
+  photo post and the two share no handling at all. Guessing from the shape of the
+  link would be guessing.
+- **Reuse the pager rather than inventing a second one.** A photo post pages through
+  `paginateWith`, the same Redis-backed state, owner check and buttons every other
+  paged view uses; only the send differs, because a repost is not a reply to a
+  command. A second pagination system would be a second set of expiry bugs.
 - **When the front door is shut, ask the same question of the side door.** Reddit
   returns 403 to this address for everything, so the reposter asks its rewrite host
   instead — and gets the video *and* the counts from it. `opengraph.ts` returns the
