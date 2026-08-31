@@ -92,8 +92,9 @@ src/
                         token fetched when needed and never kept
       fakeperms/        letting a role use the bot without the real permission
       reposter/         social links downloaded and reposted as video, with
-                        stats; download.ts wraps yt-dlp, sites.ts is the host
-                        table used when a download is not possible
+                        stats; download.ts wraps yt-dlp, ffmpeg and curl_cffi,
+                        sites.ts is the 15-site host table and the rewrite
+                        fallback used when a download is not possible
       pins/             the pin archive: where a channel's pins are flushed to,
                         and the channelPinsUpdate hook that does it at 45
       pagination/       several embeds behind one message, turned with buttons:
@@ -518,6 +519,17 @@ around it tints.
   the file is too large, or the tool is missing. Extractors against tiktok and
   youtube break by design of the other side; a feature built on one of them
   needs somewhere to land.
+- **Ask the tool what it can do, once, and reuse the answer.** yt-dlp is asked
+  to impersonate a browser only after checking that impersonation is installed,
+  because requesting it when the library is absent fails every download rather
+  than degrading. The check is one memoised promise, not a flag per call and not
+  a retry after failure.
+- **A short link and a profile link are not the same pattern.** Sites whose
+  videos sit at the root of a domain get their own table entry rather than a
+  looser pattern on the main one: `fb.watch/abc` is a video, `facebook.com/page`
+  is not, and one rule covering both would have the bot download strangers'
+  profiles. Tumblr is the inverse — a blog per subdomain, matched on a suffix,
+  because no list of exact hosts can ever be complete.
 - **Anything on the message path must not do I/O.** `messageCreate` runs for
   every message in every channel: prefix resolution, the sticky check and the
   alias fallback all read an in-process cache invalidated on write, never the

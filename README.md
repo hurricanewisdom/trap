@@ -37,7 +37,7 @@ rather than turning it into a three-word path with named fields.
 - `,webhook` — post as a named identity in a channel
 - `,fakepermissions` — let a role use the bot without the real permission
 - `,extractemotes`, `,extractstickers` — the server's emojis or stickers as a zip
-- `,reposter` — repost social links so the video plays inline
+- `,reposter` — download and repost videos from 15 social sites, with their stats
 - `,filter` — ten chat filters, five of them enforced by Discord's AutoMod
 - `,snipe` — what was deleted, edited or unreacted in this channel
 - `,lf link` DMs an authorisation link; after that `,fm` works
@@ -312,9 +312,9 @@ sentence about `,pins archive` rather than an API error.
 ,reposter prefix on     only repost after a server prefix
 ```
 
-**Manage Server.** When somebody posts a youtube, tiktok, x, instagram or reddit
-link, the bot **downloads the video and posts the file**, captioned with the
-title, the uploader, and the engagement numbers:
+**Manage Server.** When somebody posts a link from one of the sites below, the
+bot **downloads the video and posts the file**, captioned with the title, the
+uploader, and the engagement numbers:
 
 ```
 **what started on TikTok grew into a special…**
@@ -323,9 +323,43 @@ title, the uploader, and the engagement numbers:
 [video.mp4 — 10MB]
 ```
 
-That runs on **yt-dlp**, installed at `/usr/local/bin/yt-dlp`. It is a runtime
-dependency of this feature and nothing else; without it the reposter still works,
-it just falls back to links.
+That runs on **yt-dlp**, installed at `/usr/local/bin/yt-dlp`, with **ffmpeg** and
+**curl_cffi** alongside it. All three are runtime dependencies of this feature and
+nothing else; without yt-dlp the reposter still works, it just falls back to links.
+
+### What each site actually does
+
+Measured from this box rather than assumed, because the answers were not the ones
+expected:
+
+| | sites |
+| --- | --- |
+| **Downloads the video** | youtube, tiktok, instagram, x, snapchat, tumblr, pinterest, twitch, streamable, medal |
+| **Downloads the audio** | soundcloud, as an `.m4a` |
+| **Rewrites the link instead** | reddit |
+| **Left alone** | facebook, bilibili |
+
+⚠️ **ffmpeg is required, not a quality nicety.** Youtube no longer serves a
+combined video-and-audio format at all — every format is one or the other — so
+without ffmpeg to join them every youtube download fails outright with
+`Requested format is not available`. That is why youtube looked broken while
+tiktok worked.
+
+⚠️ **Impersonation is what makes tumblr answer.** Without `curl_cffi` installed,
+tumblr closes the connection on this address. yt-dlp is asked to impersonate
+Chrome, but only after checking that impersonation is actually available —
+requesting it when the library is missing fails *every* download, so the check
+happens once and the answer is reused.
+
+**reddit and facebook want an account** and bilibili answers `412` to this
+datacenter, impersonated or not. Reddit is the one with a rewrite host, so it
+still plays; the other two are left for Discord's own embed to handle. Setting
+`YTDLP_COOKIES` to a Netscape cookie file makes all three work, and private
+instagram posts with them — nothing else needs it.
+
+**Gofile is absent on purpose.** yt-dlp has no extractor for it, and its own API
+needs a scraped website-token on top of a guest token. Matching the link and then
+doing nothing would be worse than leaving it alone.
 
 **When the download cannot happen, it falls back to rewriting the link** so
 Discord plays it inline instead. That happens when a site refuses the extractor,
@@ -335,7 +369,8 @@ plays, and extractors do break — these sites change deliberately to stop them.
 
 ⚠️ **The upload limit is per server, not per bot.** 10MB on an unboosted server,
 50MB at level 2, 100MB at level 3, and the bot takes 90% of whichever applies.
-A video over that goes out as a link rather than failing.
+A video over that goes out as a link rather than failing. Anything longer than
+**45 minutes** is not attempted at all, since it was never going to fit.
 
 Two costs worth stating plainly. **yt-dlp needs updating** — when tiktok or
 youtube changes something, extraction breaks until it is updated, and that is a
@@ -349,15 +384,18 @@ mentioned in passing does not drag a video into the channel. `prefix` on means
 only `,<link>` is reposted, for servers that want it opt-in per message. There
 is a three second cooldown per person per channel.
 
+⚠️ **A profile link is not a video.** Short-link hosts get their own entry in the
+table for exactly this reason: `fb.watch/abc` is a video but `facebook.com/somepage`
+is a page, and one greedy pattern covering both would have the bot download
+strangers' profiles. Tumblr needs the opposite treatment — every blog is its own
+subdomain, so no list of exact hosts can cover it and it matches on a suffix.
+
 Downloading takes seconds, so the handler is **not awaited**: `emitMessage` runs
 handlers in order, and waiting would hold up the filter and everything after it
 for every link somebody posts. At most two downloads run at once, each into a
-temp directory that is removed whether or not it succeeded.
-
-⚠️ **There is no ffmpeg on the box**, so only pre-muxed formats are requested.
-yt-dlp would otherwise pick the best video and best audio separately and have
-nothing to join them with. In practice that caps youtube at 720p and leaves
-tiktok untouched, since it serves a single file anyway.
+temp directory that is removed whether or not it succeeded. Progress output is
+switched off — a long download otherwise writes thousands of progress lines, and
+enough of them overruns the read buffer and kills the process.
 
 `,disableevent #channel reposter` switches it off in one channel.
 

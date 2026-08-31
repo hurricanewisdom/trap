@@ -1,15 +1,24 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { access, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const TOOL = process.env.YTDLP_PATH ?? "/usr/local/bin/yt-dlp";
 
-const PROBE_MS = 25_000;
+// Some sites hand a logged-out visitor nothing. Point this at a Netscape cookie
+// file and reddit, facebook and private instagram posts start working; without
+// it they fall back to a rewrite host or are left alone.
+const COOKIES = process.env.YTDLP_COOKIES ?? "";
 
-const FETCH_MS = 120_000;
+const PROBE_MS = 30_000;
+
+const FETCH_MS = 150_000;
 
 const AT_ONCE = 2;
+
+// Merging separate video and audio needs ffmpeg, which youtube now requires: it
+// serves no combined format at all any more.
+const FORMAT = "bv*[height<=720]+ba/b[height<=720]/b";
 
 let running = 0;
 
@@ -35,6 +44,45 @@ function run(args: string[], ms: number): Promise<{ ok: boolean; out: string }> 
   });
 }
 
+// Impersonating a real browser is what makes tumblr answer at all, but it needs
+// curl_cffi installed alongside yt-dlp. Asking for it when it is missing fails
+// every download, so the answer is worked out once and reused.
+let browser: Promise<string[]> | null = null;
+
+async function impersonation(): Promise<string[]> {
+  browser ??= (async () => {
+    const got = await run(["--list-impersonate-targets"], 15_000);
+    if (!got.ok) return [];
+    const usable = got.out
+      .split("\n")
+      .some((line) => line.includes("curl_cffi") && !line.includes("unavailable"));
+    return usable ? ["--impersonate", "chrome"] : [];
+  })();
+  return browser;
+}
+
+async function cookies(): Promise<string[]> {
+  if (!COOKIES) return [];
+  try {
+    await access(COOKIES);
+    return ["--cookies", COOKIES];
+  } catch {
+    return [];
+  }
+}
+
+// --no-progress matters: a long download otherwise writes thousands of progress
+// lines, and enough of them overruns the buffer and kills the process.
+async function common(): Promise<string[]> {
+  return [
+    "--no-warnings",
+    "--no-progress",
+    "--no-playlist",
+    ...(await impersonation()),
+    ...(await cookies()),
+  ];
+}
+
 function facts(raw: string): Facts | null {
   const line = raw.split("\n").find((one) => one.trim().startsWith("{"));
   if (!line) return null;
@@ -53,7 +101,7 @@ function facts(raw: string): Facts | null {
 
   return {
     title: String(held.title ?? "").slice(0, 200),
-    uploader: String(held.uploader ?? held.channel ?? "").slice(0, 80),
+    uploader: String(held.uploader ?? held.channel ?? held.creator ?? "").slice(0, 80),
     duration: number("duration"),
     views: number("view_count"),
     likes: number("like_count"),
@@ -64,10 +112,7 @@ function facts(raw: string): Facts | null {
 }
 
 export async function probe(url: string): Promise<Facts | null> {
-  const got = await run(
-    ["--no-warnings", "--no-playlist", "--skip-download", "--dump-json", url],
-    PROBE_MS,
-  );
+  const got = await run([...(await common()), "--skip-download", "--dump-json", url], PROBE_MS);
   return got.ok ? facts(got.out) : null;
 }
 
@@ -77,9 +122,8 @@ export interface Grabbed {
 }
 
 // Downloads to a temp directory and reads the one file back, so a failure part
-// way through leaves nothing behind. No ffmpeg on the box, so only pre-muxed
-// formats are asked for: yt-dlp would otherwise pick separate video and audio
-// and have nothing to join them with.
+// way through leaves nothing behind. The format is not pinned to mp4: soundcloud
+// has no video at all and would match nothing.
 export async function grab(url: string, maxBytes: number): Promise<Grabbed | null> {
   if (running >= AT_ONCE) return null;
   running += 1;
@@ -88,13 +132,14 @@ export async function grab(url: string, maxBytes: number): Promise<Grabbed | nul
   try {
     const got = await run(
       [
-        "--no-warnings",
-        "--no-playlist",
+        ...(await common()),
         "--no-part",
         "--max-filesize",
         String(maxBytes),
         "-f",
-        "b[ext=mp4]/b",
+        FORMAT,
+        "--merge-output-format",
+        "mp4",
         "-o",
         join(dir, "video.%(ext)s"),
         url,

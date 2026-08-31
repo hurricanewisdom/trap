@@ -12,7 +12,7 @@ import {
 import { switchWord } from "../../../helpers/flags.js";
 import { compact, plain } from "../../../helpers/markdown.js";
 import { grab, probe, type Facts } from "./download.js";
-import { SITES, findLink } from "./sites.js";
+import { SITE_NAMES, findLink } from "./sites.js";
 import { settings, save, type Settings } from "./store.js";
 
 const HEADING = "Reposter";
@@ -43,6 +43,9 @@ function offCooldown(channelId: string, userId: string): boolean {
 
 const MB = 1024 * 1024;
 
+// Nothing this long fits an upload, so the download slot is not spent on it.
+const MAX_SECONDS = 45 * 60;
+
 function uploadCap(tier: number): number {
   const whole = tier >= 3 ? 100 * MB : tier >= 2 ? 50 * MB : 10 * MB;
   return Math.floor(whole * 0.9);
@@ -72,7 +75,8 @@ async function deliver(
   const cap = uploadCap(Number(guild?.premium_tier ?? 0));
 
   const facts = await probe(found.original);
-  if (facts && (facts.bytes === null || facts.bytes <= cap)) {
+  const tooLong = facts !== null && facts.duration !== null && facts.duration > MAX_SECONDS;
+  if (facts && !tooLong && (facts.bytes === null || facts.bytes <= cap)) {
     const file = await grab(found.original, cap);
     if (file) {
       const line = stats(facts);
@@ -95,8 +99,8 @@ async function deliver(
     }
   }
 
-  // youtube has no rewrite host, and Discord plays it already, so there is
-  // nothing useful left to fall back to
+  // Most sites have no rewrite host, and Discord plays several of them already,
+  // so there is nothing useful left to fall back to
   if (!found.rewritten || found.rewritten === found.original) return false;
 
   const body = held.embed
@@ -211,7 +215,8 @@ async function overview(ctx: PrefixContext): Promise<void> {
       "`reposter on` or `off` switches the whole thing",
       TOGGLES.map((one) => `\`reposter ${one.name} on\` or \`off\` · ${one.describes}`).join("\n"),
       "",
-      `-# Reposts ${SITES.map((site) => site.name).join(", ")} through a service that lets Discord play the video.`,
+      `-# Downloads and reposts: ${SITE_NAMES.join(", ")}.`,
+      "-# Where a site refuses, the link is rewritten instead so Discord still plays it.",
     ].join("\n"),
   );
 }
