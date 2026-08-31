@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 151 source files, no comments — the names and the
+the read path and the cache. 152 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -20,6 +20,7 @@ src/
     permissions.ts      guild and Manage Server gates, and the denial card
     accent.ts           the ambient per-viewer card colour
     slash.ts            slash payloads, autocomplete, and command mentions
+    throttle.ts         one rate limit across every command, in memory
     pager.ts            paginated Components V2 cards + their interactions,
                         for commands that reply and for callers that post
     expiry.ts           disables a card's controls after 60s of no clicks
@@ -588,6 +589,11 @@ around it tints.
   `twitch.tv/streamer` is not, and one rule covering both would have the bot
   download strangers' profiles. Tumblr is the inverse — a blog per subdomain, matched on a suffix,
   because no list of exact hosts can ever be complete.
+- **A refusal must be quieter than the thing it refuses.** The command limit tells
+  somebody once and then drops them in silence, because answering every command in
+  a flood makes the bot the loudest thing in the channel. The same reasoning keeps
+  the per-server ceiling silent entirely: explaining it to each of twenty raiders
+  is twenty more messages.
 - **Anything on the message path must not do I/O.** `messageCreate` runs for
   every message in every channel: prefix resolution, the sticky check and the
   alias fallback all read an in-process cache invalidated on write, never the

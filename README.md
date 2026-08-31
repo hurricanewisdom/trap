@@ -983,6 +983,43 @@ the bot needs Manage Messages there.
 **Members with Manage Server are exempt**, because otherwise setting the channel
 up from inside it would delete the command that did it.
 
+## Command limits
+
+Every command runs through one limit, so nobody can hold the bot down by holding
+down a key:
+
+```
+5 commands per person per 10 seconds
+30 commands per server per 10 seconds
+```
+
+Five in ten seconds is more than anyone types by hand and far less than a script
+manages, so a normal conversation never touches it.
+
+⚠️ **Somebody over the line is told once, then dropped in silence for 30 seconds.**
+Answering every command in a flood makes the bot the loudest thing in the channel
+— it would be doing the spamming on the spammer's behalf. One sentence, then
+nothing. If they keep going for a full minute they are told twice, not sixty times.
+
+⚠️ **Stopping is not punished.** The window is a sliding one, so somebody who
+pauses long enough to fall back under the limit is served normally again, even
+inside the quiet spell. The quiet spell only suppresses the *warning*.
+
+**The server ceiling is separate**, so twenty accounts arriving at once are
+stopped even though each is under their own limit. Whoever trips that ceiling is
+never told why: it is usually not about them, and explaining it to each of twenty
+raiders is twenty more messages.
+
+Direct messages are judged per person only — a shared bucket there would let one
+person silence strangers.
+
+Nothing here touches the database. It runs for every message that looks like a
+command, and the message path does no I/O. The counters live in memory and are
+pruned once they pass five thousand tracked keys.
+
+The numbers are constants at the top of `core/throttle.ts`. Custom commands go
+through the same limit; `/help`, the one slash command, does not.
+
 ## Run
 
 1. Put the bot token in `.env` (`DISCORD_TOKEN=...`).

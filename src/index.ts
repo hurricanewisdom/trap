@@ -42,6 +42,8 @@ const LASTFM_COG = "lastfm";
 import { provideMessageEditor } from "./core/expiry.js";
 import { completeSlash, rememberCommandIds } from "./core/slash.js";
 import { matchPrefix } from "./core/prefixes.js";
+import { allow } from "./core/throttle.js";
+import { notice } from "./core/permissions.js";
 
 const BOOST_MESSAGES = new Set([8, 9, 10, 11]);
 
@@ -337,6 +339,7 @@ async function runPrefixCommand(message: any, muted?: boolean): Promise<void> {
   const command = lookup(name);
   if (command) {
     if (ignored && !ALWAYS_ANSWERS.has(command.name)) return;
+    if (!(await withinLimit(context, guildId, authorId))) return;
     if (
       await commandBlocked(
         guildId,
@@ -363,9 +366,36 @@ async function runPrefixCommand(message: any, muted?: boolean): Promise<void> {
 
   const fallback = await resolveFallback(name, context);
   if (!fallback) return;
+  if (!(await withinLimit(context, guildId, authorId))) return;
 
   const accent = await accentFor(authorId);
   await withAccent(accent, () => fallback({ ...context, argument }));
+}
+
+// Told once, then dropped in silence. Replying to every command in a flood makes
+// the bot the loudest thing in the channel, which is the problem it is meant to
+// be solving.
+async function withinLimit(
+  context: Omit<PrefixContext, "argument">,
+  guildId: string | undefined,
+  authorId: string,
+): Promise<boolean> {
+  const verdict = allow(guildId, authorId);
+  if (verdict === "ok") return true;
+
+  if (verdict === "warn") {
+    await context
+      .reply(
+        notice(
+          [
+            "### Slow down",
+            "That is a lot of commands at once. Give it a few seconds.",
+          ].join("\n"),
+        ),
+      )
+      .catch(() => {});
+  }
+  return false;
 }
 
 function mentionPrefix(content: string): string | null {
@@ -436,6 +466,20 @@ async function dispatchSlash(interaction: any): Promise<void> {
   const userId = String(interaction.user?.id ?? interaction.member?.user?.id ?? "");
   const channelId = String(interaction.channelId ?? "");
   if (!userId || !channelId) return;
+
+  // Dropping an interaction in silence shows the user an error of Discord's own,
+  // so this one always answers — but only to them, which keeps the refusal out of
+  // the channel the way the silent drop does for a prefix command.
+  const guildId = interaction.guildId ? String(interaction.guildId) : undefined;
+  if (allow(guildId, userId) !== "ok") {
+    await bot.helpers
+      .sendInteractionResponse(interaction.id, interaction.token, {
+        type: InteractionResponseTypes.ChannelMessageWithSource,
+        data: { content: "That is a lot of commands at once. Give it a few seconds.", flags: 64 },
+      })
+      .catch(() => {});
+    return;
+  }
 
   await runInteraction(interaction, found.handler, argumentFrom(options, found.options), `/${name}`);
 }
