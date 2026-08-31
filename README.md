@@ -314,11 +314,13 @@ sentence about `,pins archive` rather than an API error.
 
 **Manage Server.** When somebody posts a link from one of the sites below, the
 bot **downloads the video and posts the file**, captioned with the title, the
-uploader, and the engagement numbers:
+uploader, and whichever engagement counts that site reports — tiktok gives
+shares, youtube does not, and a count nobody reports is left out rather than
+shown as zero:
 
 ```
 **what started on TikTok grew into a special…**
--# tiktok · 195.7K views · 3.8K likes · 1.2K comments · 418 shares
+-# tiktok · 👁️views: 195.7K · ❤️likes: 3.8K · 💬comments: 1.2K · 🔁shares: 418
 -# posted by @someone
 [video.mp4 — 10MB]
 ```

@@ -51,13 +51,20 @@ function uploadCap(tier: number): number {
   return Math.floor(whole * 0.9);
 }
 
+const COUNTS: { key: keyof Facts; icon: string; label: string }[] = [
+  { key: "views", icon: "👁️", label: "views" },
+  { key: "likes", icon: "❤️", label: "likes" },
+  { key: "comments", icon: "💬", label: "comments" },
+  { key: "shares", icon: "🔁", label: "shares" },
+];
+
+// Only the counts a site actually reports are shown, so tiktok gets shares and
+// youtube does not, rather than a row of zeroes.
 function stats(facts: Facts): string {
-  return [
-    facts.views === null ? null : compact(facts.views) + " views",
-    facts.likes === null ? null : compact(facts.likes) + " likes",
-    facts.comments === null ? null : compact(facts.comments) + " comments",
-    facts.shares === null ? null : compact(facts.shares) + " shares",
-  ]
+  return COUNTS.map((one) => {
+    const value = facts[one.key];
+    return typeof value === "number" ? `${one.icon}${one.label}: ${compact(value)}` : null;
+  })
     .filter(Boolean)
     .join(" · ");
 }
