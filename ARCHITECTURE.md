@@ -20,7 +20,8 @@ src/
     permissions.ts      guild and Manage Server gates, and the denial card
     accent.ts           the ambient per-viewer card colour
     slash.ts            slash payloads, autocomplete, and command mentions
-    pager.ts            paginated Components V2 cards + their interactions
+    pager.ts            paginated Components V2 cards + their interactions,
+                        for commands that reply and for callers that post
     expiry.ts           disables a card's controls after 60s of no clicks
     guard.ts            UserError and the handler wrapper every command uses
     runner.ts           lets a cog run a command from a component click

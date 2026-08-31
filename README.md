@@ -339,6 +339,7 @@ expected:
 | **Downloads the video** | youtube, tiktok, instagram, x, snapchat, tumblr, pinterest, twitch, streamable, medal |
 | **Downloads the audio** | soundcloud, as an `.m4a` |
 | **Downloads through a fixer** | reddit, via `vxreddit.com` |
+| **Pages the photos instead** | tiktok photo posts, via `tnktok.com` |
 
 ⚠️ **ffmpeg is required, not a quality nicety.** Youtube no longer serves a
 combined video-and-audio format at all — every format is one or the other — so
@@ -660,6 +661,11 @@ one empty-array check per message.
 ,pagination delete <link>                     stop paginating that message
 ,pagination reset                             clear them all
 ```
+
+These commands page **messages the bot has already sent**. The same Back / Next /
+Page / Close buttons also appear on a paged photo repost and on any long listing,
+because all three sit on `core/pager.ts` — but those are built as they are posted
+and are not managed from here.
 
 **Manage Messages**, except `reset`, which asks for **Administrator** because it
 takes out every pagination in the server at once. Up to 25 pages a message and
