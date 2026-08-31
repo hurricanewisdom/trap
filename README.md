@@ -1053,10 +1053,15 @@ that out during a sync means one silent failure per member with nothing to read.
 after changing the role list, without pinging half the server. The announcement
 takes the same `{user}` and `{guild}` tokens the greetings use.
 
+Verified against a real wearer: the tag reads as
+`{identity_guild_id: <this server>, identity_enabled: true, tag: "ping"}`, the role
+lands, the announcement goes out once and not twice, and a second sweep with
+announcing switched on stays quiet.
+
 ⚠️ **Automatic awarding is best-effort.** A member update is treated as a reason to
-re-check that one person, but whether Discord reports a tag going on as a member
-update could not be verified from here. `badge sync` is the path that is known to
-work.
+re-check that one person, and that re-check is known to work — what is not
+confirmed is whether Discord reports a *tag* going on as a member update at all.
+`badge sync` is the path that does not depend on the answer.
 
 ## Command limits
 
