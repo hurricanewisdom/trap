@@ -409,6 +409,15 @@ export async function migrate(): Promise<void> {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS fake_permissions (
+      guild_id   TEXT NOT NULL,
+      role_id    TEXT NOT NULL,
+      permission TEXT NOT NULL,
+      PRIMARY KEY (guild_id, role_id, permission)
+    )
+  `;
+
   console.log("db: schema ready");
 }
 

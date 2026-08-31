@@ -146,6 +146,12 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Flushing a channel's pins into an archive channel",
   },
   {
+    slug: "fakeperms",
+    label: "Fake permissions",
+    emoji: "",
+    blurb: "Letting a role use the bot without the real Discord permission",
+  },
+  {
     slug: "webhook",
     label: "Webhooks",
     emoji: "",
@@ -357,6 +363,27 @@ export const DOCS: CommandDoc[] = [
     examples: [",seticon https://i.imgur.com/abc.png"],
     permission: "Manage Server",
     guildOnly: true,
+  },
+  {
+    name: "fakepermissions",
+    category: "fakeperms",
+    usage: ",fakepermissions",
+    summary: "Let a role use my commands without the real permission",
+    details:
+      "A fake permission changes what my commands allow and nothing else: nobody gains anything on Discord itself, and the role still cannot delete a channel by hand. Grantable are manage_messages, manage_channels, manage_guild, manage_roles, manage_webhooks and administrator, which is exactly the set my commands gate on. Server Owner only, and ownership is checked against the guild owner rather than a permission bit, so a granted role can never reach this command and grant itself more. @everyone is refused, since that would hand the permission to the whole server. Aliases: ,fakeperms and ,fp.",
+    examples: [
+      ",fakepermissions add @Moderator manage_messages",
+      ",fakepermissions list @Moderator",
+      ",fakepermissions remove @Moderator manage_messages",
+    ],
+    permission: "Server Owner",
+    guildOnly: true,
+    subcommands: [
+      { name: "add", usage: ",fakepermissions add <role> <permission>", summary: "Grant a fake permission to a role", permission: "Server Owner" },
+      { name: "remove", usage: ",fakepermissions remove <role> <permission>", summary: "Take a fake permission back", permission: "Server Owner" },
+      { name: "list", usage: ",fakepermissions list [role]", summary: "What a role has been granted", permission: "Server Owner" },
+      { name: "reset", usage: ",fakepermissions reset", summary: "Clear every fake permission", permission: "Server Owner" },
+    ],
   },
   {
     name: "webhook",

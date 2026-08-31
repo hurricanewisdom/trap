@@ -1,4 +1,5 @@
-import { PERMISSION, canManageGuild, hasPermission } from "./discord.js";
+import { PERMISSION, getGuild, hasPermission, memberOf } from "./discord.js";
+import { fakeBits } from "./fakeperms.js";
 import { accented, IS_COMPONENTS_V2 } from "../helpers/components.js";
 import type { PrefixContext, ReplyPayload } from "./prefix.js";
 
@@ -11,6 +12,24 @@ export const MANAGE_MESSAGES = "Manage Messages";
 export const ADMINISTRATOR = "Administrator";
 
 export const MANAGE_WEBHOOKS = "Manage Webhooks";
+
+export const OWNER = "Server Owner";
+
+// Command gates go through this rather than hasPermission directly, so a role
+// granted a fake permission can use the bot without holding the real one on
+// Discord. Nothing here changes what anyone can do outside the bot.
+export async function holds(guildId: string, userId: string, bit: bigint): Promise<boolean> {
+  if (await hasPermission(guildId, userId, bit)) return true;
+
+  const member = await memberOf(guildId, userId);
+  const bits = await fakeBits(guildId, member?.roles ?? []);
+  return (bits & PERMISSION.administrator) !== 0n || (bits & bit) !== 0n;
+}
+
+export async function isOwner(guildId: string, userId: string): Promise<boolean> {
+  const guild = await getGuild(guildId);
+  return Boolean(guild) && guild?.owner_id === userId;
+}
 
 export function notice(body: string): ReplyPayload {
   return {
@@ -37,7 +56,7 @@ export async function requireManageGuild(
   const guildId = await requireGuild(ctx, action);
   if (!guildId) return null;
 
-  if (await canManageGuild(guildId, ctx.authorId)) return guildId;
+  if (await holds(guildId, ctx.authorId, PERMISSION.manageGuild)) return guildId;
 
   await ctx.reply(
     notice(
@@ -55,7 +74,7 @@ export async function requireManageChannels(
   const guildId = await requireGuild(ctx, action);
   if (!guildId) return null;
 
-  if (await hasPermission(guildId, ctx.authorId, PERMISSION.manageChannels)) return guildId;
+  if (await holds(guildId, ctx.authorId, PERMISSION.manageChannels)) return guildId;
 
   await ctx.reply(
     notice(
@@ -73,7 +92,7 @@ export async function requireManageMessages(
   const guildId = await requireGuild(ctx, action);
   if (!guildId) return null;
 
-  if (await hasPermission(guildId, ctx.authorId, PERMISSION.manageMessages)) return guildId;
+  if (await holds(guildId, ctx.authorId, PERMISSION.manageMessages)) return guildId;
 
   await ctx.reply(
     notice(
@@ -93,7 +112,7 @@ export async function requireAdministrator(
   const guildId = await requireGuild(ctx, action);
   if (!guildId) return null;
 
-  if (await hasPermission(guildId, ctx.authorId, PERMISSION.administrator)) return guildId;
+  if (await holds(guildId, ctx.authorId, PERMISSION.administrator)) return guildId;
 
   await ctx.reply(
     notice(
@@ -113,7 +132,7 @@ export async function requireManageWebhooks(
   const guildId = await requireGuild(ctx, action);
   if (!guildId) return null;
 
-  if (await hasPermission(guildId, ctx.authorId, PERMISSION.manageWebhooks)) return guildId;
+  if (await holds(guildId, ctx.authorId, PERMISSION.manageWebhooks)) return guildId;
 
   await ctx.reply(
     notice(
@@ -121,6 +140,25 @@ export async function requireManageWebhooks(
 You need the **${MANAGE_WEBHOOKS}** permission to ${action}.` +
         `
 -# Ask a server administrator, or someone who has it.`,
+    ),
+  );
+  return null;
+}
+
+// Deliberately not routed through holds(): ownership cannot be faked, or the
+// role granted a fake permission could grant itself more.
+export async function requireOwner(ctx: PrefixContext, action: string): Promise<string | null> {
+  const guildId = await requireGuild(ctx, action);
+  if (!guildId) return null;
+
+  if (await isOwner(guildId, ctx.authorId)) return guildId;
+
+  await ctx.reply(
+    notice(
+      `### Missing permission
+Only the **${OWNER}** can ${action}.` +
+        `
+-# This one hands out permissions, so it cannot be handed out.`,
     ),
   );
   return null;

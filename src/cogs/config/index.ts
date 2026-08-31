@@ -14,6 +14,7 @@ import { registerIgnore } from "./ignore/index.js";
 import { registerAppearance } from "./appearance/index.js";
 import { registerPinArchive } from "./pins/index.js";
 import { registerWebhooks } from "./webhook/index.js";
+import { registerFakePermissions } from "./fakeperms/index.js";
 
 export const configCog: Cog = {
   name: "configuration",
@@ -36,5 +37,6 @@ export const configCog: Cog = {
     inCategory("appearance", registerAppearance);
     inCategory("pins", registerPinArchive);
     inCategory("webhook", registerWebhooks);
+    inCategory("fakeperms", registerFakePermissions);
   },
 };

@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 286 commands across five cogs,
+(TypeScript strict, Node 22), run bare with pm2. 291 commands across five cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -35,6 +35,7 @@ rather than turning it into a three-word path with named fields.
 - `,pin`, `,unpin`, `,firstmessage`, `,pins` — pins, and archiving them
 - `,seticon`, `,setbanner`, `,setsplashbackground` — the server's look
 - `,webhook` — post as a named identity in a channel
+- `,fakepermissions` — let a role use the bot without the real permission
 - `,filter` — ten chat filters, five of them enforced by Discord's AutoMod
 - `,snipe` — what was deleted, edited or unreacted in this channel
 - `,lf link` DMs an authorisation link; after that `,fm` works
@@ -272,6 +273,37 @@ than with the pin archive: nothing about them is configured per server.
 
 `pin` checks Discord's 50-pin cap before trying, so a full channel gets a
 sentence about `,pins archive` rather than an API error.
+
+## Fake permissions
+
+```
+,fakepermissions add @Moderator manage_messages
+,fakepermissions remove @Moderator manage_messages
+,fakepermissions list [@Moderator]
+,fakepermissions reset
+```
+
+**Server Owner only.** A fake permission lets a role use commands the bot gates
+behind a Discord permission, without that role holding it on Discord.
+
+Grantable: `manage_messages`, `manage_channels`, `manage_guild`, `manage_roles`,
+`manage_webhooks`, `administrator` — exactly the set the bot's own gates check.
+Granting something it never checks would be a lie.
+
+⚠️ **This changes what the bot allows and nothing else.** A role given
+`manage_messages` can run `,pin`; it still cannot pin by hand, delete a channel,
+or do anything at all outside the bot. The real Discord permission is untouched,
+and verified untouched in the tests.
+
+⚠️ **Ownership is not a permission bit, so it cannot be faked.** Every gate goes
+through `holds()`, which consults the granted bits — except `requireOwner`,
+which compares against the guild's `owner_id` directly. A role granted a fake
+`administrator` opens every other gate in the bot and still cannot run
+`,fakepermissions`, which is the whole point: a permission that could hand out
+more of itself would not be a permission, it would be a ladder.
+
+`@everyone` is refused, because granting it there hands the permission to
+everybody in the server, which is never what somebody means.
 
 ## Webhooks
 
@@ -757,12 +789,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 253 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 257 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 396 views** and asserts unique
+The check that keeps this honest renders **all 403 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.
