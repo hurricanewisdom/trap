@@ -11,6 +11,12 @@ export const PERMISSION = {
   manageChannels: 1n << 4n,
   manageMessages: 1n << 13n,
   manageWebhooks: 1n << 29n,
+  banMembers: 1n << 2n,
+  kickMembers: 1n << 1n,
+  moderateMembers: 1n << 40n,
+  manageNicknames: 1n << 27n,
+  moveMembers: 1n << 24n,
+  manageThreads: 1n << 34n,
 } as const;
 
 const MEMBER_TTL = 600;
@@ -578,6 +584,84 @@ export function startThread(
     name: name.slice(0, 100) || "Suggestion",
     auto_archive_duration: 1440,
   });
+}
+
+// A DM to somebody who is not the invoker: the channel has to be opened first,
+// and a closed inbox is a normal outcome rather than an error.
+export async function dmUser(
+  userId: string,
+  body: { content?: string; components?: unknown[]; flags?: number },
+): Promise<boolean> {
+  const opened = await write<{ id: string }>("POST", "/users/@me/channels", {
+    recipient_id: userId,
+  });
+  if (!opened.ok) return false;
+
+  const sent = await write<{ id: string }>(
+    "POST",
+    `/channels/${opened.data.id}/messages`,
+    body,
+  );
+  return sent.ok;
+}
+
+export function banMember(
+  guildId: string,
+  userId: string,
+  seconds: number,
+  reason: string,
+): Promise<Wrote<void>> {
+  return write<void>(
+    "PUT",
+    `/guilds/${guildId}/bans/${userId}`,
+    { delete_message_seconds: Math.max(0, Math.min(604800, seconds)) },
+    reason,
+  );
+}
+
+export function unbanMember(guildId: string, userId: string, reason: string): Promise<Wrote<void>> {
+  return write<void>("DELETE", `/guilds/${guildId}/bans/${userId}`, undefined, reason);
+}
+
+export function kickMember(guildId: string, userId: string, reason: string): Promise<Wrote<void>> {
+  return write<void>("DELETE", `/guilds/${guildId}/members/${userId}`, undefined, reason);
+}
+
+export interface Ban {
+  user: { id: string; username?: string };
+  reason: string | null;
+}
+
+export function guildBans(guildId: string, after = "0"): Promise<Ban[] | null> {
+  return api<Ban[]>(`/guilds/${guildId}/bans?limit=1000&after=${after}`);
+}
+
+export function banOf(guildId: string, userId: string): Promise<Ban | null> {
+  return api<Ban>(`/guilds/${guildId}/bans/${userId}`);
+}
+
+// Discord's own timeout. `until` is an ISO string, or null to lift it.
+export function timeoutMember(
+  guildId: string,
+  userId: string,
+  until: string | null,
+  reason: string,
+): Promise<Wrote<GuildMember>> {
+  return write<GuildMember>(
+    "PATCH",
+    `/guilds/${guildId}/members/${userId}`,
+    { communication_disabled_until: until },
+    reason,
+  );
+}
+
+export function editMember(
+  guildId: string,
+  userId: string,
+  body: Record<string, unknown>,
+  reason: string,
+): Promise<Wrote<GuildMember>> {
+  return write<GuildMember>("PATCH", `/guilds/${guildId}/members/${userId}`, body, reason);
 }
 
 export function deleteMessage(channelId: string, messageId: string): Promise<Wrote<void>> {

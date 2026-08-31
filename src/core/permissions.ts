@@ -163,3 +163,123 @@ Only the **${OWNER}** can ${action}.` +
   );
   return null;
 }
+
+export const BAN_MEMBERS = "Ban Members";
+
+export async function requireBanMembers(
+  ctx: PrefixContext,
+  action: string,
+): Promise<string | null> {
+  const guildId = await requireGuild(ctx, action);
+  if (!guildId) return null;
+
+  if (await holds(guildId, ctx.authorId, PERMISSION.banMembers)) return guildId;
+
+  await ctx.reply(
+    notice(
+      `### Missing permission
+You need the **${BAN_MEMBERS}** permission to ${action}.`,
+    ),
+  );
+  return null;
+}
+
+export const MODERATE_MEMBERS = "Moderate Members";
+
+export async function requireModerateMembers(
+  ctx: PrefixContext,
+  action: string,
+): Promise<string | null> {
+  const guildId = await requireGuild(ctx, action);
+  if (!guildId) return null;
+
+  if (await holds(guildId, ctx.authorId, PERMISSION.moderateMembers)) return guildId;
+
+  await ctx.reply(
+    notice(
+      `### Missing permission
+You need the **${MODERATE_MEMBERS}** permission to ${action}.`,
+    ),
+  );
+  return null;
+}
+
+export const MANAGE_ROLES = "Manage Roles";
+
+export async function requireManageRoles(
+  ctx: PrefixContext,
+  action: string,
+): Promise<string | null> {
+  const guildId = await requireGuild(ctx, action);
+  if (!guildId) return null;
+
+  if (await holds(guildId, ctx.authorId, PERMISSION.manageRoles)) return guildId;
+
+  await ctx.reply(
+    notice(
+      `### Missing permission
+You need the **${MANAGE_ROLES}** permission to ${action}.`,
+    ),
+  );
+  return null;
+}
+
+export const MANAGE_NICKNAMES = "Manage Nicknames";
+
+export async function requireManageNicknames(
+  ctx: PrefixContext,
+  action: string,
+): Promise<string | null> {
+  const guildId = await requireGuild(ctx, action);
+  if (!guildId) return null;
+
+  if (await holds(guildId, ctx.authorId, PERMISSION.manageNicknames)) return guildId;
+
+  await ctx.reply(
+    notice(
+      `### Missing permission
+You need the **${MANAGE_NICKNAMES}** permission to ${action}.`,
+    ),
+  );
+  return null;
+}
+
+export const MOVE_MEMBERS = "Move Members";
+
+export async function requireMoveMembers(
+  ctx: PrefixContext,
+  action: string,
+): Promise<string | null> {
+  const guildId = await requireGuild(ctx, action);
+  if (!guildId) return null;
+
+  if (await holds(guildId, ctx.authorId, PERMISSION.moveMembers)) return guildId;
+
+  await ctx.reply(
+    notice(
+      `### Missing permission
+You need the **${MOVE_MEMBERS}** permission to ${action}.`,
+    ),
+  );
+  return null;
+}
+
+export const MANAGE_THREADS = "Manage Threads";
+
+export async function requireManageThreads(
+  ctx: PrefixContext,
+  action: string,
+): Promise<string | null> {
+  const guildId = await requireGuild(ctx, action);
+  if (!guildId) return null;
+
+  if (await holds(guildId, ctx.authorId, PERMISSION.manageThreads)) return guildId;
+
+  await ctx.reply(
+    notice(
+      `### Missing permission
+You need the **${MANAGE_THREADS}** permission to ${action}.`,
+    ),
+  );
+  return null;
+}

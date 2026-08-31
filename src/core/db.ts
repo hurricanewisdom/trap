@@ -435,6 +435,96 @@ export async function migrate(): Promise<void> {
   await sql`ALTER TABLE reposter ADD COLUMN IF NOT EXISTS container BOOLEAN NOT NULL DEFAULT true`;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS mod_config (
+      guild_id     TEXT NOT NULL,
+      jail_role    TEXT,
+      jail_channel TEXT,
+      mute_role    TEXT,
+      imute_role   TEXT,
+      rmute_role   TEXT,
+      lock_role    TEXT,
+      log_channel  TEXT,
+      ban_purge    INTEGER NOT NULL DEFAULT 0,
+      next_case    INTEGER NOT NULL DEFAULT 1,
+      updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS mod_cases (
+      guild_id     TEXT NOT NULL,
+      case_id      INTEGER NOT NULL,
+      action       TEXT NOT NULL,
+      target_id    TEXT NOT NULL,
+      moderator_id TEXT NOT NULL,
+      reason       TEXT,
+      duration_ms  BIGINT,
+      proof        TEXT,
+      at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, case_id)
+    )
+  `;
+
+  await sql`CREATE INDEX IF NOT EXISTS mod_cases_target ON mod_cases (guild_id, target_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS mod_cases_mod ON mod_cases (guild_id, moderator_id)`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS mod_case_proof (
+      guild_id TEXT NOT NULL,
+      case_id  INTEGER NOT NULL,
+      idx      INTEGER NOT NULL,
+      url      TEXT NOT NULL,
+      PRIMARY KEY (guild_id, case_id, idx)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS mod_notes (
+      guild_id  TEXT NOT NULL,
+      user_id   TEXT NOT NULL,
+      note_id   INTEGER NOT NULL,
+      author_id TEXT NOT NULL,
+      body      TEXT NOT NULL,
+      at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, user_id, note_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS mod_pending (
+      id        BIGSERIAL PRIMARY KEY,
+      guild_id  TEXT NOT NULL,
+      kind      TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      extra     TEXT,
+      due       TIMESTAMPTZ NOT NULL
+    )
+  `;
+
+  await sql`CREATE INDEX IF NOT EXISTS mod_pending_due ON mod_pending (due)`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS mod_hardbans (
+      guild_id TEXT NOT NULL,
+      user_id  TEXT NOT NULL,
+      by_id    TEXT NOT NULL,
+      at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, user_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS mod_jailed (
+      guild_id TEXT NOT NULL,
+      user_id  TEXT NOT NULL,
+      roles    TEXT NOT NULL DEFAULT '',
+      at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, user_id)
+    )
+  `;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS badge_config (
       guild_id   TEXT NOT NULL,
       enabled    BOOLEAN NOT NULL DEFAULT false,

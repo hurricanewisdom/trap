@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 157 source files, no comments — the names and the
+the read path and the cache. 164 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -47,6 +47,8 @@ src/
     cache.ts            read-through Redis caching, negative results included
     cards.ts            Components V2 cards, pages and the shared skin
     markdown.ts         the two escapers, plus number and duration formatting
+    duration.ts         reading 10m or 2h30m, telling one from a reason, and
+                        saying it back in words
     imageurl.ts         is this URL safe to show to everyone else
     sysinfo.ts          host, process and codebase statistics for ,botinfo
     components.ts       Components V2 primitives and builders
@@ -225,7 +227,7 @@ is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 288 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 292 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.
@@ -324,8 +326,14 @@ returns `null`, and they run in rough order of how far the change reaches:
 | | |
 | --- | --- |
 | `requireGuild` | not a permission, just "not in a DM" |
-| `requireManageMessages` | one message: pinning, clearing snipes |
-| `requireManageChannels` | one channel: filters, availability |
+| `requireManageMessages` | one message: pinning, clearing snipes, warning somebody |
+| `requireModerateMembers` | silencing somebody for a while: timeouts and mutes |
+| `requireManageNicknames` | what somebody is called here |
+| `requireMoveMembers` | dragging people between voice channels |
+| `requireManageThreads` | one thread: renaming, locking, membership |
+| `requireManageChannels` | one channel: filters, availability, lockdown |
+| `requireManageRoles` | who holds what: role commands, temporary roles |
+| `requireBanMembers` | removing somebody from the server |
 | `requireManageGuild` | what the whole server sees: prefixes, greetings, aliases |
 | `requireManageWebhooks` | posting as somebody else |
 | `requireAdministrator` | clearing everything at once |
