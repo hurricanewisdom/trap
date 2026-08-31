@@ -525,10 +525,9 @@ around it tints.
   instead — and gets the video *and* the counts from it. `opengraph.ts` returns the
   same shape as a yt-dlp probe, so nothing downstream knows or cares which source
   answered, and the caption is built once for both.
-- **A site that cannot be made to work is removed, not matched.** Facebook and
-  bilibili were dropped from the table rather than left in it failing quietly: a
-  link that is recognised and then does nothing is worse than one that was never
-  claimed.
+- **A site that cannot be made to work is removed, not matched.** A link that is
+  recognised and then does nothing is worse than one that was never claimed, so a
+  site that cannot be served leaves the table rather than sitting in it failing.
 - **A reported size is not the size you will fetch.** The reposter does not check
   a probe's `filesize` against the upload limit, because it describes the best
   format available rather than the one requested — youtube reports 232MB for a
@@ -545,9 +544,9 @@ around it tints.
   a retry after failure.
 - **A short link and a profile link are not the same pattern.** Sites whose
   videos sit at the root of a domain get their own table entry rather than a
-  looser pattern on the main one: `fb.watch/abc` is a video, `facebook.com/page`
-  is not, and one rule covering both would have the bot download strangers'
-  profiles. Tumblr is the inverse — a blog per subdomain, matched on a suffix,
+  looser pattern on the main one: `clips.twitch.tv/abc` is a clip,
+  `twitch.tv/streamer` is not, and one rule covering both would have the bot
+  download strangers' profiles. Tumblr is the inverse — a blog per subdomain, matched on a suffix,
   because no list of exact hosts can ever be complete.
 - **Anything on the message path must not do I/O.** `messageCreate` runs for
   every message in every channel: prefix resolution, the sticky check and the

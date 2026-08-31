@@ -17,9 +17,7 @@ export interface Site {
 //
 // Measured from this box, not assumed. Reddit refuses this address outright, so
 // it is fetched through its rewrite host instead, which serves both the video and
-// the counts. Facebook and bilibili were dropped: facebook wants an account and
-// bilibili answers 412 here, so neither could be made to work without cookies.
-// Gofile is absent because yt-dlp has no extractor for it at all.
+// the counts. Gofile is absent because yt-dlp has no extractor for it at all.
 export const SITES: Site[] = [
   {
     name: "x",

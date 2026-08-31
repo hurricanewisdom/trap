@@ -6,8 +6,8 @@ import { join } from "node:path";
 const TOOL = process.env.YTDLP_PATH ?? "/usr/local/bin/yt-dlp";
 
 // Some sites hand a logged-out visitor nothing. Point this at a Netscape cookie
-// file and reddit, facebook and private instagram posts start working; without
-// it they fall back to a rewrite host or are left alone.
+// file and private posts start working; without it they fall back to a rewrite
+// host or are left alone.
 const COOKIES = process.env.YTDLP_COOKIES ?? "";
 
 const PROBE_MS = 30_000;

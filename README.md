@@ -361,12 +361,8 @@ Those numbers come from the OpenGraph tags the fixers publish for Discord's own
 crawler — `⬆️ 14493 | 💬 448` and the like — read back into the same shape a
 yt-dlp probe returns, so the rest of the code cannot tell which one answered.
 
-**Facebook and bilibili were dropped.** Facebook wants an account, and bilibili
-answers `412` to this datacenter whether or not yt-dlp impersonates a browser.
-Neither could be made to work without cookies, so their links are now left alone
-entirely rather than matched and then quietly failed. Setting `YTDLP_COOKIES` to a
-Netscape cookie file is what would bring them back, and private instagram posts
-with them.
+Setting `YTDLP_COOKIES` to a Netscape cookie file makes private instagram posts
+work too. Nothing else needs it.
 
 ⚠️ **The size a probe reports is not the size you are about to download.** Youtube
 says `232MB` for a video this downloads at `20MB`, because that figure describes
@@ -414,9 +410,9 @@ only `,<link>` is reposted, for servers that want it opt-in per message. There
 is a three second cooldown per person per channel.
 
 ⚠️ **A profile link is not a video.** Short-link hosts get their own entry in the
-table for exactly this reason: `fb.watch/abc` is a video but `facebook.com/somepage`
-is a page, and one greedy pattern covering both would have the bot download
-strangers' profiles. Tumblr needs the opposite treatment — every blog is its own
+table for exactly this reason: `clips.twitch.tv/abc` is a clip but
+`twitch.tv/somestreamer` is a channel, and one greedy pattern covering both would
+have the bot download strangers' profiles. Tumblr needs the opposite treatment — every blog is its own
 subdomain, so no list of exact hosts can cover it and it matches on a suffix.
 
 Downloading takes seconds, so the handler is **not awaited**: `emitMessage` runs
