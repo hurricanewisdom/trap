@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 143 source files, no comments — the names and the
+the read path and the cache. 144 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -93,8 +93,9 @@ src/
       fakeperms/        letting a role use the bot without the real permission
       reposter/         social links downloaded and reposted as video, with
                         stats; download.ts wraps yt-dlp, ffmpeg and curl_cffi,
-                        sites.ts is the 15-site host table and the rewrite
-                        fallback used when a download is not possible
+                        sites.ts is the 12-site host table, opengraph.ts reads
+                        the counts a rewrite host publishes when the site itself
+                        will not answer
       pins/             the pin archive: where a channel's pins are flushed to,
                         and the channelPinsUpdate hook that does it at 45
       pagination/       several embeds behind one message, turned with buttons:
@@ -519,6 +520,15 @@ around it tints.
   the file is too large, or the tool is missing. Extractors against tiktok and
   youtube break by design of the other side; a feature built on one of them
   needs somewhere to land.
+- **When the front door is shut, ask the same question of the side door.** Reddit
+  returns 403 to this address for everything, so the reposter asks its rewrite host
+  instead — and gets the video *and* the counts from it. `opengraph.ts` returns the
+  same shape as a yt-dlp probe, so nothing downstream knows or cares which source
+  answered, and the caption is built once for both.
+- **A site that cannot be made to work is removed, not matched.** Facebook and
+  bilibili were dropped from the table rather than left in it failing quietly: a
+  link that is recognised and then does nothing is worse than one that was never
+  claimed.
 - **A reported size is not the size you will fetch.** The reposter does not check
   a probe's `filesize` against the upload limit, because it describes the best
   format available rather than the one requested — youtube reports 232MB for a

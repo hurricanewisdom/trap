@@ -37,7 +37,7 @@ rather than turning it into a three-word path with named fields.
 - `,webhook` — post as a named identity in a channel
 - `,fakepermissions` — let a role use the bot without the real permission
 - `,extractemotes`, `,extractstickers` — the server's emojis or stickers as a zip
-- `,reposter` — download and repost videos from 15 social sites, with their stats
+- `,reposter` — download and repost videos from 12 social sites, with their stats
 - `,filter` — ten chat filters, five of them enforced by Discord's AutoMod
 - `,snipe` — what was deleted, edited or unreacted in this channel
 - `,lf link` DMs an authorisation link; after that `,fm` works
@@ -314,9 +314,9 @@ sentence about `,pins archive` rather than an API error.
 
 **Manage Server.** When somebody posts a link from one of the sites below, the
 bot **downloads the video and posts the file**, captioned with the title, the
-uploader, and whichever engagement counts that site reports — tiktok gives
-shares, youtube does not, and a count nobody reports is left out rather than
-shown as zero:
+uploader, and whichever engagement counts that site reports. Every count is
+labelled with its own icon, and one the site does not report is left out rather
+than shown as zero — tiktok gives shares, youtube does not:
 
 ```
 **what started on TikTok grew into a special…**
@@ -338,8 +338,7 @@ expected:
 | --- | --- |
 | **Downloads the video** | youtube, tiktok, instagram, x, snapchat, tumblr, pinterest, twitch, streamable, medal |
 | **Downloads the audio** | soundcloud, as an `.m4a` |
-| **Rewrites the link instead** | reddit, through `vxreddit.com` |
-| **Left alone** | facebook, bilibili |
+| **Downloads through a fixer** | reddit, via `vxreddit.com` |
 
 ⚠️ **ffmpeg is required, not a quality nicety.** Youtube no longer serves a
 combined video-and-audio format at all — every format is one or the other — so
@@ -354,10 +353,20 @@ requesting it when the library is missing fails *every* download, so the check
 happens once and the answer is reused.
 
 **Reddit answers this address with `403`** — not the extractor, the whole site —
-so it can only ever play through a rewrite host. **Facebook wants an account** and
-**bilibili answers `412`** to this datacenter, impersonated or not. Setting
-`YTDLP_COOKIES` to a Netscape cookie file makes all three work, and private
-instagram posts with them — nothing else needs it.
+so nothing can be read from it directly. When a site refuses like that, the rewrite
+host is asked instead, and it turns out to serve **both** the video and the counts:
+reddit posts a real file with real numbers, by way of `vxreddit.com`.
+
+Those numbers come from the OpenGraph tags the fixers publish for Discord's own
+crawler — `⬆️ 14493 | 💬 448` and the like — read back into the same shape a
+yt-dlp probe returns, so the rest of the code cannot tell which one answered.
+
+**Facebook and bilibili were dropped.** Facebook wants an account, and bilibili
+answers `412` to this datacenter whether or not yt-dlp impersonates a browser.
+Neither could be made to work without cookies, so their links are now left alone
+entirely rather than matched and then quietly failed. Setting `YTDLP_COOKIES` to a
+Netscape cookie file is what would bring them back, and private instagram posts
+with them.
 
 ⚠️ **The size a probe reports is not the size you are about to download.** Youtube
 says `232MB` for a video this downloads at `20MB`, because that figure describes
@@ -378,8 +387,9 @@ is posted — which is the honest outcome, and better than a soundtrack.
 needs a scraped website-token on top of a guest token. Matching the link and then
 doing nothing would be worse than leaving it alone.
 
-**When the download cannot happen, it falls back to rewriting the link** so
-Discord plays it inline instead. That happens when a site refuses the extractor,
+**When the download cannot happen, it falls back to posting the rewritten link**
+so Discord plays it inline instead — with the same counts on it, so a repost reads
+the same whether the file made it through or not. That happens when a site refuses the extractor,
 the video is over the upload limit, or yt-dlp is missing. A reposter that goes
 silent whenever an extractor breaks is worse than one that posts a link that
 plays, and extractors do break — these sites change deliberately to stop them.

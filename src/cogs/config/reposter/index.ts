@@ -12,6 +12,7 @@ import {
 import { switchWord } from "../../../helpers/flags.js";
 import { compact, plain } from "../../../helpers/markdown.js";
 import { grab, probe, type Facts } from "./download.js";
+import { readCard } from "./opengraph.js";
 import { SITE_NAMES, findLink } from "./sites.js";
 import { settings, save, type Settings } from "./store.js";
 
@@ -73,6 +74,25 @@ function stats(facts: Facts): string {
 // not give it up, the file is too big, or yt-dlp is not installed. That fallback
 // matters: a reposter that goes quiet whenever an extractor breaks is worse than
 // one that posts a link which plays.
+// The caption is the same whichever route produced the video, so a repost never
+// reads differently depending on which one answered.
+function caption(event: MessageEvent, facts: Facts, held: Settings): string {
+  if (!held.embed) return "";
+
+  const line = stats(facts);
+  return [
+    facts.title ? "**" + plain(facts.title.slice(0, 120)) + "**" : "",
+    facts.uploader
+      ? "-# " + plain(facts.uploader) + (line ? " · " + line : "")
+      : line
+        ? "-# " + line
+        : "",
+    "-# posted by <@" + event.authorId + ">",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 async function deliver(
   event: MessageEvent,
   found: NonNullable<ReturnType<typeof findLink>>,
@@ -81,29 +101,29 @@ async function deliver(
   const guild = await getGuild(event.guildId);
   const cap = uploadCap(Number(guild?.premium_tier ?? 0));
 
-  const facts = await probe(found.original);
+  const fixer = found.rewritten && found.rewritten !== found.original ? found.rewritten : null;
+
+  // The site itself first. Reddit answers this address with 403 whatever is asked
+  // of it, so when the site refuses, the rewrite host is asked instead: it serves
+  // the video and the counts that the site would not.
+  let facts = await probe(found.original);
+  let source = found.original;
+  if (!facts && fixer) {
+    facts = await readCard(fixer);
+    source = fixer;
+  }
+
   const tooLong = facts !== null && facts.duration !== null && facts.duration > MAX_SECONDS;
   // Deliberately not checked against `facts.bytes`: that is the size of the best
-  // format on offer, not of the one actually requested. Youtube reports 243MB for
+  // format on offer, not of the one actually requested. Youtube reports 232MB for
   // a video this downloads at 20MB, which rejected every youtube link before it
   // was ever tried. The real ceiling is enforced during the download instead.
   if (facts && !tooLong) {
-    const file = await grab(found.original, cap);
+    const file = await grab(source, cap);
     if (file) {
-      const line = stats(facts);
-      const caption = held.embed
-        ? [
-            facts.title ? "**" + plain(facts.title.slice(0, 120)) + "**" : "",
-            facts.uploader ? "-# " + plain(facts.uploader) + (line ? " · " + line : "") : line ? "-# " + line : "",
-            "-# posted by <@" + event.authorId + ">",
-          ]
-            .filter(Boolean)
-            .join("\n")
-        : "";
-
       const sent = await sendFile(
         event.channelId,
-        { content: caption || undefined, allowed_mentions: { parse: [] } },
+        { content: caption(event, facts, held) || undefined, allowed_mentions: { parse: [] } },
         { name: file.name, body: file.body },
       );
       if (sent.ok) return true;
@@ -112,11 +132,16 @@ async function deliver(
 
   // Most sites have no rewrite host, and Discord plays several of them already,
   // so there is nothing useful left to fall back to
-  if (!found.rewritten || found.rewritten === found.original) return false;
+  if (!fixer) return false;
 
+  // The counts go on the link too, so a repost carries the same numbers whether
+  // the file made it through or not.
+  const line = facts ? stats(facts) : "";
   const body = held.embed
-    ? found.rewritten + "\n-# from <@" + event.authorId + ">"
-    : found.rewritten;
+    ? [fixer, line ? "-# " + line : "", "-# from <@" + event.authorId + ">"]
+        .filter(Boolean)
+        .join("\n")
+    : fixer;
   const sent = await sendMessage(event.channelId, {
     content: body,
     allowed_mentions: { parse: [] },

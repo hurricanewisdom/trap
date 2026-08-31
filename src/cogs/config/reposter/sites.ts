@@ -15,10 +15,10 @@ export interface Site {
 // which is why this is one table to edit rather than a rule spread through the
 // code.
 //
-// Measured from this box, not assumed. These download: youtube, tiktok,
-// instagram, x, snapchat, tumblr, pinterest, twitch, streamable, medal,
-// soundcloud. These do not, and lean on `through` or on Discord's own embed:
-// reddit and facebook want an account, bilibili answers 412 to this datacenter.
+// Measured from this box, not assumed. Reddit refuses this address outright, so
+// it is fetched through its rewrite host instead, which serves both the video and
+// the counts. Facebook and bilibili were dropped: facebook wants an account and
+// bilibili answers 412 here, so neither could be made to work without cookies.
 // Gofile is absent because yt-dlp has no extractor for it at all.
 export const SITES: Site[] = [
   {
@@ -73,18 +73,6 @@ export const SITES: Site[] = [
     path: /^\/(?:spotlight|p|t)\//,
   },
   {
-    name: "facebook",
-    hosts: ["facebook.com", "www.facebook.com", "m.facebook.com", "web.facebook.com"],
-    through: "",
-    path: /^\/(?:watch|reel\/|share\/|video\.php|[^/]+\/videos\/)/,
-  },
-  {
-    name: "facebook",
-    hosts: ["fb.watch"],
-    through: "",
-    path: /^\/[\w-]+/,
-  },
-  {
     name: "tumblr",
     hosts: ["tumblr.com", "www.tumblr.com"],
     suffixes: [".tumblr.com"],
@@ -102,18 +90,6 @@ export const SITES: Site[] = [
     hosts: ["pin.it"],
     through: "",
     path: /^\/[\w-]+/,
-  },
-  {
-    name: "bilibili",
-    hosts: ["bilibili.com", "www.bilibili.com", "m.bilibili.com"],
-    through: "",
-    path: /^\/video\//,
-  },
-  {
-    name: "bilibili",
-    hosts: ["b23.tv"],
-    through: "",
-    path: /^\/[A-Za-z0-9]+$/,
   },
   {
     // clips.twitch.tv puts the slug at the root; twitch.tv itself needs a longer
