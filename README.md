@@ -1058,10 +1058,14 @@ Verified against a real wearer: the tag reads as
 lands, the announcement goes out once and not twice, and a second sweep with
 announcing switched on stays quiet.
 
-⚠️ **Automatic awarding is best-effort.** A member update is treated as a reason to
-re-check that one person, and that re-check is known to work — what is not
-confirmed is whether Discord reports a *tag* going on as a member update at all.
-`badge sync` is the path that does not depend on the answer.
+**Awarding is automatic.** Discord does send `GUILD_MEMBER_UPDATE` when somebody
+puts a tag on — confirmed by watching the raw gateway while the tag was toggled,
+nine of them inside six seconds — and the bot gave the role and posted the
+announcement on its own, six seconds after the toggle, with nothing run by hand.
+
+`badge sync` is still worth having: it settles everybody at once after the role
+list changes, and it covers anyone whose change was missed while the bot was
+restarting.
 
 ## Command limits
 
