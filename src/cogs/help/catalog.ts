@@ -152,6 +152,12 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Reposting social links so the video plays inline",
   },
   {
+    slug: "ratelimit",
+    label: "Command limits",
+    emoji: "",
+    blurb: "How many commands a person or a server may run before the bot stops answering",
+  },
+  {
     slug: "botlook",
     label: "Bot appearance",
     emoji: "",
@@ -405,6 +411,23 @@ export const DOCS: CommandDoc[] = [
       { name: "delete", usage: ",reposter delete <on or off>", summary: "Delete the original message", permission: "Manage Server" },
       { name: "prefix", usage: ",reposter prefix <on or off>", summary: "Require a prefix before the link", permission: "Manage Server" },
       { name: "container", usage: ",reposter container <on or off>", summary: "Draw the repost inside a container", permission: "Manage Server" },
+    ],
+  },
+  {
+    name: "ratelimit",
+    category: "ratelimit",
+    usage: ",ratelimit",
+    summary: "How many commands a person or a server may run",
+    details:
+      "Five commands per person and thirty per server every ten seconds by default, which is more than anyone types by hand and far less than a script manages. Somebody over the line is told once and then ignored for half a minute, because answering every command in a flood makes the bot the loudest thing in the channel. Stopping is not punished: the window slides, so falling back under the limit is served normally again. The server ceiling is separate and never explains itself, since it is usually not about the person who tripped it. This counts commands; reposting, autoresponders and the filter answer ordinary messages and keep their own cooldowns. Aliases: ,cooldown and ,antispam.",
+    examples: [",ratelimit", ",ratelimit user 8", ",ratelimit window 15"],
+    permission: "Manage Server",
+    guildOnly: true,
+    subcommands: [
+      { name: "user", usage: ",ratelimit user <1-60>", summary: "Commands one person may run in the window", permission: "Manage Server" },
+      { name: "server", usage: ",ratelimit server <5-1000>", summary: "Commands the whole server may run", permission: "Manage Server" },
+      { name: "window", usage: ",ratelimit window <3-120>", summary: "Seconds the limits are counted over", permission: "Manage Server" },
+      { name: "reset", usage: ",ratelimit reset", summary: "Back to the defaults", permission: "Manage Server" },
     ],
   },
   {

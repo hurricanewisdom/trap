@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 321 commands across five cogs,
+(TypeScript strict, Node 22), run bare with pm2. 326 commands across five cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -989,12 +989,25 @@ Every command runs through one limit, so nobody can hold the bot down by holding
 down a key:
 
 ```
-5 commands per person per 10 seconds
-30 commands per server per 10 seconds
+,ratelimit                on or off, and what it is set to
+,ratelimit user 5         commands one person may run in the window
+,ratelimit server 30      commands the whole server may run
+,ratelimit window 10      seconds the two are counted over
+,ratelimit reset          back to the defaults
 ```
 
-Five in ten seconds is more than anyone types by hand and far less than a script
-manages, so a normal conversation never touches it.
+**Manage Server**, and every server sets its own. The defaults are five per person
+and thirty per server every ten seconds — more than anyone types by hand and far
+less than a script manages, so a normal conversation never touches it.
+
+⚠️ **The two numbers have to make sense together.** A per-person limit above the
+server ceiling can never be reached, and a ceiling below the per-person limit lets
+one person exhaust it and leave everyone else refused for a reason they are never
+told. Either way round the command says so and changes nothing.
+
+`user` accepts 1-60, `server` 5-1000, `window` 3-120 seconds. `ratelimit off`
+removes the limit entirely, which is the server's business but leaves nothing
+between the bot and somebody holding down a key.
 
 ⚠️ **Somebody over the line is told once, then dropped in silence for 30 seconds.**
 Answering every command in a flood makes the bot the loudest thing in the channel
@@ -1017,7 +1030,11 @@ Nothing here touches the database. It runs for every message that looks like a
 command, and the message path does no I/O. The counters live in memory and are
 pruned once they pass five thousand tracked keys.
 
-The numbers are constants at the top of `core/throttle.ts`. Custom commands go
+The settings are read through the same provider inversion the ignore and
+availability gates use: the cog owns the table and the cache, `core/throttle.ts`
+knows only how to ask. A server that has never touched it, and a database that
+cannot be reached, both fall back to **the defaults rather than to no limit** —
+an unreachable database is a reason to keep the guard, not to drop it. Custom commands go
 through the same limit, and so does a command re-run by editing a message, since
 both take the same dispatch path. `/help`, the one slash command, does not.
 
@@ -1197,12 +1214,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 282 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 286 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 444 views** and asserts unique
+The check that keeps this honest renders **all 451 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

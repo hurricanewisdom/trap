@@ -42,7 +42,7 @@ const LASTFM_COG = "lastfm";
 import { provideMessageEditor } from "./core/expiry.js";
 import { completeSlash, rememberCommandIds } from "./core/slash.js";
 import { matchPrefix } from "./core/prefixes.js";
-import { allow } from "./core/throttle.js";
+import { allow, limitsFor } from "./core/throttle.js";
 import { notice } from "./core/permissions.js";
 
 const BOOST_MESSAGES = new Set([8, 9, 10, 11]);
@@ -380,7 +380,7 @@ async function withinLimit(
   guildId: string | undefined,
   authorId: string,
 ): Promise<boolean> {
-  const verdict = allow(guildId, authorId);
+  const verdict = allow(guildId, authorId, await limitsFor(guildId));
   if (verdict === "ok") return true;
 
   if (verdict === "warn") {

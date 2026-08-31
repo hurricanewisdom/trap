@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 152 source files, no comments — the names and the
+the read path and the cache. 154 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -20,7 +20,8 @@ src/
     permissions.ts      guild and Manage Server gates, and the denial card
     accent.ts           the ambient per-viewer card colour
     slash.ts            slash payloads, autocomplete, and command mentions
-    throttle.ts         one rate limit across every command, in memory
+    throttle.ts         one rate limit across every command, in memory; the
+                        numbers come from the ratelimit cog through a provider
     pager.ts            paginated Components V2 cards + their interactions,
                         for commands that reply and for callers that post
     expiry.ts           disables a card's controls after 60s of no clicks
@@ -93,6 +94,8 @@ src/
       webhook/          posting as a named identity; ids in the database, the
                         token fetched when needed and never kept
       fakeperms/        letting a role use the bot without the real permission
+      ratelimit/        how many commands a person or a server may run, and the
+                        provider that hands those numbers to core/throttle.ts
       customize/        the bot's own avatar, banner and bio in one server;
                         images.ts fetches the link and refuses private addresses
       suggest/          member suggestions and the statuses staff move them
@@ -218,7 +221,7 @@ is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 282 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 286 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.
@@ -589,6 +592,15 @@ around it tints.
   `twitch.tv/streamer` is not, and one rule covering both would have the bot
   download strangers' profiles. Tumblr is the inverse — a blog per subdomain, matched on a suffix,
   because no list of exact hosts can ever be complete.
+- **Failing open is not always failing safe.** Most providers here return "not
+  blocked" when they cannot answer. The limit provider returns the *defaults*
+  instead: a database that cannot be reached is a reason to keep the guard rather
+  than to drop it, and the cost of being wrong is a slow user rather than an
+  unguarded bot.
+- **Two settings that constrain each other are validated against each other.** A
+  per-person limit above the server ceiling is unreachable, and a ceiling below it
+  lets one person exhaust the server's whole allowance. Both are refused with the
+  reason, rather than stored and left to behave strangely.
 - **A limit on commands is not a limit on the bot.** The throttle sits in the
   command dispatch path, so the features that fire on an ordinary message — the
   reposter on a link, the autoresponder on a word, the filter on anything — never
