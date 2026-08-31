@@ -42,6 +42,13 @@ rather than turning it into a three-word path with named fields.
 - `,suggest` — members suggest ideas, staff move them through statuses
 - `,customize` — the bot's own avatar, banner and bio in one server
 - `,filter` — ten chat filters, five of them enforced by Discord's AutoMod
+- `,ban`, `,tempban`, `,softban`, `,hardban`, `,warn`, `,timeout` — punishments, each writing a case
+- `,history`, `,caselog`, `,reason`, `,proof`, `,notes` — the case log and what is on it
+- `,jail`, `,mute`, `,imute`, `,rmute` — holding somebody's roles, and three kinds of mute
+- `,role` — twenty ways to give, take, edit and mass-assign roles
+- `,purge` — twenty-one ways to clear messages
+- `,lockdown`, `,unlock`, `,hide`, `,slowmode`, `,nuke` — channel control
+- `,thread`, `,remind`, `,stickyrole`, `,restrictcommand`, `,raid` — the rest of moderation
 - `,snipe` — what was deleted, edited or unreacted in this channel
 - `,lf link` DMs an authorisation link; after that `,fm` works
 
