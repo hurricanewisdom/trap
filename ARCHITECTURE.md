@@ -71,15 +71,15 @@ src/
                         spoilers), mentions.ts, automodfilters.ts (invites,
                         links), content.ts (music files, rate), patterns.ts,
                         store.ts for the bot-side settings, shared.ts for the
-                        role and channel parsing they all do
+                        role and channel parsing they all do, and snipe.ts,
+                        which switches sniping off for a server and registers
+                        the gate the utility cog asks through
       alias/            per-server shortcuts, resolved through
                         onUnmatchedCommand so they can never shadow a command
       sticky/           a message kept at the bottom of a channel, reposted
                         once the chat settles
       gallery/          channels that only take images; deletes anything
                         posted without one
-      filter/snipe.ts   switches sniping off for a server, and registers the
-                        gate the utility cog asks through
       autoresponder/    automatic replies: store.ts, responder.ts (the matcher
                         on the message path), roles.ts, exclusive.ts, gate.ts
                         (the role hierarchy check), shared.ts
@@ -194,7 +194,7 @@ is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 237 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 240 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.
