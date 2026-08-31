@@ -227,6 +227,32 @@ Like every other message-path feature, the matcher reads an in-process cache
 invalidated on write, never the database. A server with no autoresponders costs
 one map lookup per message.
 
+## Editing a command
+
+Fix a typo in a command and it runs. Edit `,pign` into `,ping` and you get the
+answer, without deleting and retyping. Edit a command that already ran into a
+different one and both replies stand, in the order you made them.
+
+⚠️ **`messageUpdate` fires for things nobody edited.** A link preview resolving,
+a pin, an attachment finishing its upload — all arrive as an update carrying the
+same content. Re-running on every update would mean any command with a link in
+it silently runs twice. So the bot keeps the last content it saw for recent
+messages and only acts when the text actually changed. **If it has no record of
+the message it does nothing**, which is the safe way round: a missed rerun is an
+inconvenience, a phantom one is a command nobody typed.
+
+Three more bounds. A message older than **15 minutes** is left alone, so editing
+something from yesterday does not fire. There is a **1.2 second cooldown** per
+message, so holding down edits cannot spam. And a deleted message is forgotten
+outright.
+
+The edit goes through exactly the same path as the original — one
+`runPrefixCommand`, called from both events — so prefixes, the disabled-command
+gate, group routing and card colour all behave identically. A second dispatch
+path would drift from the first.
+
+`,disableevent #channel editrerun` switches it off.
+
 ## Availability
 
 Three things can be switched off, each with its own pair of commands.

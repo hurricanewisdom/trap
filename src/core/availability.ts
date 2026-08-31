@@ -11,6 +11,7 @@ export const EVENTS: EventKind[] = [
   { name: "snipe", describes: "recording what was deleted or edited", channel: true },
   { name: "sticky", describes: "reposting a stuck message", channel: true },
   { name: "reactions", describes: "the vote reactions on a now playing post", channel: true },
+  { name: "editrerun", describes: "running a command again when its message is edited", channel: true },
   { name: "welcome", describes: "the message posted when somebody joins", channel: false },
   { name: "goodbye", describes: "the message posted when somebody leaves", channel: false },
   { name: "boost", describes: "the message and role given when somebody boosts", channel: false },

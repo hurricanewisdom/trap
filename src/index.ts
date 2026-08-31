@@ -21,7 +21,8 @@ import {
 } from "./core/hooks.js";
 import { registerPagerInteractions } from "./core/pager.js";
 import { lookup, split, type PrefixContext, type ReplyPayload, type SentMessage } from "./core/prefix.js";
-import { commandBlocked } from "./core/availability.js";
+import { commandBlocked, eventBlocked } from "./core/availability.js";
+import { editedInto, forgetMessage, noteMessage } from "./core/edits.js";
 import {
   argumentFrom,
   buildAllSlashCommands,
@@ -181,6 +182,7 @@ const bot = createBot({
       });
     },
     async messageDelete({ id, channelId, guildId }) {
+      forgetMessage(String(id));
       await emitMessageDelete({
         guildId: guildId ? String(guildId) : "",
         channelId: String(channelId),
@@ -189,13 +191,27 @@ const bot = createBot({
     },
     async messageUpdate(message) {
       if (!message.guildId || message.author?.bot) return;
+
+      const messageId = String(message.id ?? "");
+      const channelId = String(message.channelId ?? "");
+      const content = message.content ?? "";
+
       await emitMessageEdit({
         guildId: String(message.guildId),
-        channelId: String(message.channelId ?? ""),
-        messageId: String(message.id ?? ""),
+        channelId,
+        messageId,
         authorId: String(message.author?.id ?? ""),
-        content: message.content ?? "",
+        content,
       });
+
+      if (!editedInto(messageId, content)) return;
+      if (await eventBlocked(String(message.guildId), channelId, "editrerun")) return;
+
+      try {
+        await runPrefixCommand(message);
+      } catch (err) {
+        console.error("edited command failed:", err);
+      }
     },
     async guildMemberAdd(member: any) {
       await emitMemberJoin({
@@ -254,48 +270,8 @@ const bot = createBot({
           });
         }
 
-        const content = message.content ?? "";
-        if (!content) return;
-
-        const authorId = String(message.author?.id ?? "");
-        if (!authorId) return;
-
-        const guildId = message.guildId ? String(message.guildId) : undefined;
-        const used = mentionPrefix(content) ?? (await matchPrefix(content, guildId));
-        if (used === null) return;
-
-        const { name, argument } = split(content.slice(used.length));
-        const context = buildContext(message, authorId);
-
-        const command = lookup(name);
-        if (command) {
-          if (
-            await commandBlocked(
-              guildId,
-              String(message.channelId ?? ""),
-              authorId,
-              command.name,
-              command.cog ?? "",
-            )
-          ) {
-            return;
-          }
-          if (command.groupedUnder) {
-            await context.reply({
-              content: `That is \`${used}${command.groupedUnder} ${command.name}\`.`,
-            });
-            return;
-          }
-          const accent = command.cog === LASTFM_COG ? await accentFor(authorId) : null;
-          await withAccent(accent, () => command.handler({ ...context, argument }));
-          return;
-        }
-
-        const fallback = await resolveFallback(name, context);
-        if (!fallback) return;
-
-        const accent = await accentFor(authorId);
-        await withAccent(accent, () => fallback({ ...context, argument }));
+        noteMessage(String(message.id ?? ""), message.content ?? "");
+        await runPrefixCommand(message);
       } catch (err) {
         console.error("prefix command failed:", err);
       }
@@ -326,6 +302,51 @@ const bot = createBot({
     },
   },
 });
+
+async function runPrefixCommand(message: any): Promise<void> {
+  const content = message.content ?? "";
+  if (!content) return;
+
+  const authorId = String(message.author?.id ?? "");
+  if (!authorId) return;
+
+  const guildId = message.guildId ? String(message.guildId) : undefined;
+  const used = mentionPrefix(content) ?? (await matchPrefix(content, guildId));
+  if (used === null) return;
+
+  const { name, argument } = split(content.slice(used.length));
+  const context = buildContext(message, authorId);
+
+  const command = lookup(name);
+  if (command) {
+    if (
+      await commandBlocked(
+        guildId,
+        String(message.channelId ?? ""),
+        authorId,
+        command.name,
+        command.cog ?? "",
+      )
+    ) {
+      return;
+    }
+    if (command.groupedUnder) {
+      await context.reply({
+        content: `That is \`${used}${command.groupedUnder} ${command.name}\`.`,
+      });
+      return;
+    }
+    const accent = command.cog === LASTFM_COG ? await accentFor(authorId) : null;
+    await withAccent(accent, () => command.handler({ ...context, argument }));
+    return;
+  }
+
+  const fallback = await resolveFallback(name, context);
+  if (!fallback) return;
+
+  const accent = await accentFor(authorId);
+  await withAccent(accent, () => fallback({ ...context, argument }));
+}
 
 function mentionPrefix(content: string): string | null {
   const match = /^<@!?(\d{15,25})>\s*/.exec(content);

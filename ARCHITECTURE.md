@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 124 source files, no comments — the names and the
+the read path and the cache. 125 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -31,6 +31,7 @@ src/
     automod.ts          Discord AutoMod rules, their caps, and error translation
     sniping.ts          the two-way link between the snipe store and its filter
     availability.ts     what is switched off where, and what can never be
+    edits.ts            whether an edited message should run its command again
     env.ts              typed configuration access
 
   helpers/              feature-agnostic utilities. No I/O of their own except
@@ -424,6 +425,14 @@ around it tints.
 - **A safety list has to hold on both sides.** The commands that re-enable
   things are refused at write time *and* ignored by the gate at read time, so
   neither a mistake nor a stale row can lock a server out of its own settings.
+- **An update event is not the same as an edit.** `messageUpdate` also fires
+  when a link preview resolves, a message is pinned, or an upload finishes, all
+  carrying unchanged content. `core/edits.ts` keeps the last text seen and acts
+  only on a real change, and does nothing at all when it has no record — a
+  missed rerun beats a command nobody typed.
+- **One dispatch path, called from two events.** `runPrefixCommand` in
+  `index.ts` serves both `messageCreate` and `messageUpdate`, so prefixes, the
+  availability gate, group routing and accent cannot drift between them.
 - **Anything on the message path must not do I/O.** `messageCreate` runs for
   every message in every channel: prefix resolution, the sticky check and the
   alias fallback all read an in-process cache invalidated on write, never the
