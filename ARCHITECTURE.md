@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 139 source files, no comments — the names and the
+the read path and the cache. 142 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -91,6 +91,8 @@ src/
       webhook/          posting as a named identity; ids in the database, the
                         token fetched when needed and never kept
       fakeperms/        letting a role use the bot without the real permission
+      reposter/         social links reposted so Discord plays them; sites.ts is
+                        the host table, deliberately one place to edit
       pins/             the pin archive: where a channel's pins are flushed to,
                         and the channelPinsUpdate hook that does it at 45
       pagination/       several embeds behind one message, turned with buttons:
@@ -206,7 +208,7 @@ is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 257 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 262 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.
@@ -269,7 +271,7 @@ collide over the same button.
 `onMessage`, `onReactionAdd` and `onReactionRemove` take an optional **event
 name** as a second argument. A named handler is skipped when that event is
 switched off in the channel the event came from, which is how
-`,disableevent` reaches nine of its ten events without any feature knowing it
+`,disableevent` reaches ten of its eleven events without any feature knowing it
 exists. The tenth, `editrerun`, rides no hook and is checked where
 `messageUpdate` decides whether to dispatch.
 
@@ -507,6 +509,11 @@ around it tints.
   already compressed. A test validates the output with Python's `zipfile` rather
   than with the writer that produced it — a hand-rolled format has to be checked
   by something that did not write it.
+- **Let Discord do the fetching where it can.** The reposter rewrites a link
+  and posts it rather than downloading the video: scraping tiktok or instagram
+  from a datacenter address means cookies, rotating headers, extractors that
+  break weekly, and an upload ceiling. The rewrite has none of that. The cost is
+  a third-party host in the path, and those disappear, so they live in one table.
 - **Anything on the message path must not do I/O.** `messageCreate` runs for
   every message in every channel: prefix resolution, the sticky check and the
   alias fallback all read an in-process cache invalidated on write, never the

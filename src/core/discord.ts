@@ -360,7 +360,7 @@ export function getMessage(channelId: string, messageId: string): Promise<Posted
 export function editMessage(
   channelId: string,
   messageId: string,
-  body: { content?: string | null; embeds?: unknown[]; components?: unknown[] },
+  body: { content?: string | null; embeds?: unknown[]; components?: unknown[]; flags?: number },
 ): Promise<Wrote<PostedMessage>> {
   return write<PostedMessage>("PATCH", `/channels/${channelId}/messages/${messageId}`, body);
 }

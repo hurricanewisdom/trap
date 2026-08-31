@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 293 commands across five cogs,
+(TypeScript strict, Node 22), run bare with pm2. 299 commands across five cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -37,6 +37,7 @@ rather than turning it into a three-word path with named fields.
 - `,webhook` — post as a named identity in a channel
 - `,fakepermissions` — let a role use the bot without the real permission
 - `,extractemotes`, `,extractstickers` — the server's emojis or stickers as a zip
+- `,reposter` — repost social links so the video plays inline
 - `,filter` — ten chat filters, five of them enforced by Discord's AutoMod
 - `,snipe` — what was deleted, edited or unreacted in this channel
 - `,lf link` DMs an authorisation link; after that `,fm` works
@@ -300,6 +301,41 @@ than with the pin archive: nothing about them is configured per server.
 `pin` checks Discord's 50-pin cap before trying, so a full channel gets a
 sentence about `,pins archive` rather than an API error.
 
+## Reposter
+
+```
+,reposter on / off
+,reposter embed on      name who posted the link
+,reposter strict on     match a link anywhere in a message
+,reposter suppress on   hide the original preview
+,reposter delete on     remove the original message
+,reposter prefix on     only repost after a server prefix
+```
+
+**Manage Server.** When somebody posts an x, instagram, tiktok or reddit link,
+the bot reposts it through a service that lets Discord play the video inline.
+
+⚠️ **It does not scrape anything, and that is the design, not a shortcut.** The
+bot rewrites the host and posts the new link; **Discord** then fetches it. Doing
+it the other way — download the video here and upload the file — means running
+a scraper against tiktok and instagram from an **OVH datacenter address**, which
+those two block routinely, and then keeping cookies, headers and extractors
+working as the sites change them. The rewrite has none of that: no cookies, no
+extractor to maintain, no 25MB upload ceiling, and it keeps working while the
+bot is doing something else.
+
+The cost is honest and worth stating: the link goes through a **third-party
+host**, and those hosts come and go — `ddinstagram.com` stopped resolving
+entirely while this was being written, which is why `sites.ts` is one table to
+edit rather than a rule spread through the code.
+
+`strict` off means the message has to be **nothing but the link**, so a link
+mentioned in passing does not drag a video into the channel. `prefix` on means
+only `,<link>` is reposted, for servers that want it opt-in per message. There
+is a three second cooldown per person per channel.
+
+`,disableevent #channel reposter` switches it off in one channel.
+
 ## Fake permissions
 
 ```
@@ -462,10 +498,10 @@ carry their own `list`. Sixteen commands, all **Manage Channels**.
 `help` — so switching one off takes every command in it with it.
 
 **An event is something the bot does that nobody typed**: `autoresponder`,
-`filter`, `gallery`, `snipe`, `sticky`, `reactions`, `editrerun`, `welcome`,
-`goodbye` and `boost`. Ten of them.
+`filter`, `gallery`, `snipe`, `sticky`, `reactions`, `reposter`, `editrerun`,
+`welcome`, `goodbye` and `boost`. Eleven of them.
 
-Nine are enforced in `core/hooks.ts` rather than in each feature: a handler
+Ten are enforced in `core/hooks.ts` rather than in each feature: a handler
 registers with a name (`onMessage(police, "filter")`), and the emitter skips a
 named handler whose event is off in that channel. One check covers every feature
 that rides a hook, including ones added later, instead of each of them
@@ -815,12 +851,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 257 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 262 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 407 views** and asserts unique
+The check that keeps this honest renders **all 415 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

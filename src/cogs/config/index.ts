@@ -15,6 +15,7 @@ import { registerAppearance } from "./appearance/index.js";
 import { registerPinArchive } from "./pins/index.js";
 import { registerWebhooks } from "./webhook/index.js";
 import { registerFakePermissions } from "./fakeperms/index.js";
+import { registerReposter } from "./reposter/index.js";
 
 export const configCog: Cog = {
   name: "configuration",
@@ -38,5 +39,6 @@ export const configCog: Cog = {
     inCategory("pins", registerPinArchive);
     inCategory("webhook", registerWebhooks);
     inCategory("fakeperms", registerFakePermissions);
+    inCategory("reposter", registerReposter);
   },
 };

@@ -146,6 +146,12 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Flushing a channel's pins into an archive channel",
   },
   {
+    slug: "reposter",
+    label: "Reposter",
+    emoji: "",
+    blurb: "Reposting social links so the video plays inline",
+  },
+  {
     slug: "fakeperms",
     label: "Fake permissions",
     emoji: "",
@@ -369,6 +375,24 @@ export const DOCS: CommandDoc[] = [
     examples: [",seticon https://i.imgur.com/abc.png"],
     permission: "Manage Server",
     guildOnly: true,
+  },
+  {
+    name: "reposter",
+    category: "reposter",
+    usage: ",reposter <on or off>",
+    summary: "Repost social media links so the video plays",
+    details:
+      "When somebody posts an x, instagram, tiktok or reddit link, the bot reposts it through a service that lets Discord play the video inline. It does not download or scrape anything: Discord fetches the rewritten link itself, which is why this works from a datacenter address that tiktok and instagram would otherwise refuse. Five switches sit under it: embed names who posted, strict matches a link anywhere in a message rather than only a message that is nothing else, suppress hides the original preview, delete removes the original message, and prefix requires a server prefix before the link. Alias: ,repost.",
+    examples: [",reposter on", ",reposter strict on", ",reposter delete on"],
+    permission: "Manage Server",
+    guildOnly: true,
+    subcommands: [
+      { name: "embed", usage: ",reposter embed <on or off>", summary: "Name who posted the link", permission: "Manage Server" },
+      { name: "strict", usage: ",reposter strict <on or off>", summary: "Match a link anywhere in a message", permission: "Manage Server" },
+      { name: "suppress", usage: ",reposter suppress <on or off>", summary: "Hide the original preview", permission: "Manage Server" },
+      { name: "delete", usage: ",reposter delete <on or off>", summary: "Delete the original message", permission: "Manage Server" },
+      { name: "prefix", usage: ",reposter prefix <on or off>", summary: "Require a prefix before the link", permission: "Manage Server" },
+    ],
   },
   {
     name: "fakepermissions",
