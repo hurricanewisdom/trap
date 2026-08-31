@@ -101,7 +101,8 @@ src/
       suggest/          member suggestions and the statuses staff move them
                         through; store.ts holds config, suggestions and the
                         ignore list, post.ts renders a card and edits it in place
-      reposter/         social links downloaded and reposted as video, with
+      reposter/         NOT REGISTERED at the moment, switched off in the cog's
+                        index; social links downloaded and reposted as video, with
                         stats; download.ts wraps yt-dlp, ffmpeg and curl_cffi,
                         sites.ts is the 12-site host table, opengraph.ts follows
                         short links and reads the counts, and the photos, that a
@@ -221,7 +222,7 @@ is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 286 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 280 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.

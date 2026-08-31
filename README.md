@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 326 commands across five cogs,
+(TypeScript strict, Node 22), run bare with pm2. 319 commands across five cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -37,7 +37,7 @@ rather than turning it into a three-word path with named fields.
 - `,webhook` — post as a named identity in a channel
 - `,fakepermissions` — let a role use the bot without the real permission
 - `,extractemotes`, `,extractstickers` — the server's emojis or stickers as a zip
-- `,reposter` — download and repost videos from 12 social sites, with their stats
+- ~~`,reposter`~~ — **switched off for now**, see below
 - `,suggest` — members suggest ideas, staff move them through statuses
 - `,customize` — the bot's own avatar, banner and bio in one server
 - `,filter` — ten chat filters, five of them enforced by Discord's AutoMod
@@ -395,6 +395,12 @@ unignore command in the set, so naming somebody already ignored puts them back.
 `suggest ignore list` shows who is on it.
 
 ## Reposter
+
+⚠️ **Switched off.** The cog is untouched but not registered, so it has no
+commands, no help entry and no message hook. One commented line in
+`cogs/config/index.ts` brings it back. Everything below still describes it, and
+the parts worth knowing before picking it up again are the CAPTCHA and the
+rewrite hosts.
 
 ```
 ,reposter on / off
@@ -1241,12 +1247,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 286 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 280 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 451 views** and asserts unique
+The check that keeps this honest renders **all 442 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

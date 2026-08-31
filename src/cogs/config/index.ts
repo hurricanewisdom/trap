@@ -15,7 +15,10 @@ import { registerAppearance } from "./appearance/index.js";
 import { registerPinArchive } from "./pins/index.js";
 import { registerWebhooks } from "./webhook/index.js";
 import { registerFakePermissions } from "./fakeperms/index.js";
-import { registerReposter } from "./reposter/index.js";
+// Switched off for now, to be picked up later. The cog is untouched; not
+// registering it takes away its commands, its help entry and its message hook
+// in one line.
+// import { registerReposter } from "./reposter/index.js";
 import { registerSuggest } from "./suggest/index.js";
 import { registerCustomize } from "./customize/index.js";
 import { registerRateLimit } from "./ratelimit/index.js";
@@ -42,7 +45,7 @@ export const configCog: Cog = {
     inCategory("pins", registerPinArchive);
     inCategory("webhook", registerWebhooks);
     inCategory("fakeperms", registerFakePermissions);
-    inCategory("reposter", registerReposter);
+    // inCategory("reposter", registerReposter);
     inCategory("suggest", registerSuggest);
     inCategory("botlook", registerCustomize);
     inCategory("ratelimit", registerRateLimit);
