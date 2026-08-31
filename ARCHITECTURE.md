@@ -212,7 +212,7 @@ is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 262 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 263 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.
@@ -521,6 +521,10 @@ around it tints.
   the file is too large, or the tool is missing. Extractors against tiktok and
   youtube break by design of the other side; a feature built on one of them
   needs somewhere to land.
+- **Two halves of one post can live in two places.** A tiktok photo post gets its
+  images from the fixer and its counts from yt-dlp, which refuses the photo url but
+  answers for the same id in its video form. Fetching twice and joining the halves
+  beats showing a post with no numbers on it because one source was incomplete.
 - **A short link is a question, not an answer.** It is followed before anything is
   decided about it, because the same tiktok short link lands on either a video or a
   photo post and the two share no handling at all. Guessing from the shape of the

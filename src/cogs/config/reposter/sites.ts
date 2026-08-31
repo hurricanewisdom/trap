@@ -13,6 +13,9 @@ export interface Site {
   // posts are not video and yt-dlp will not touch them.
   album?: string;
   photos?: RegExp;
+  // A photo post carries the same id a video would, and yt-dlp answers for the
+  // video form even when it refuses the photo one. That is where the counts are.
+  counts?: { from: RegExp; to: string };
 }
 
 // `through` is a third-party service that re-serves a post so Discord can play
@@ -46,6 +49,7 @@ export const SITES: Site[] = [
     path: /^\/(?:@[^/]+\/(?:video|photo)\/|t\/)/,
     short: /^\/t\//,
     photos: /\/photo\//,
+    counts: { from: /\/photo\//, to: "/video/" },
   },
   {
     name: "tiktok",
@@ -55,6 +59,7 @@ export const SITES: Site[] = [
     path: /^\/[\w-]+/,
     short: /^\//,
     photos: /\/photo\//,
+    counts: { from: /\/photo\//, to: "/video/" },
   },
   {
     name: "youtube",
@@ -184,6 +189,14 @@ export function isShort(site: Site, url: string): boolean {
   } catch {
     return false;
   }
+}
+
+// The url to ask for a photo post's engagement counts, which is not the url the
+// photos come from.
+export function countsUrl(site: Site, url: string): string | null {
+  if (!site.counts) return null;
+  const swapped = url.replace(site.counts.from, site.counts.to);
+  return swapped === url ? null : swapped;
 }
 
 // Where to read a photo post from, or null when this is not one.

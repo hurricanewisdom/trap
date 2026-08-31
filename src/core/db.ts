@@ -432,6 +432,8 @@ export async function migrate(): Promise<void> {
     )
   `;
 
+  await sql`ALTER TABLE reposter ADD COLUMN IF NOT EXISTS container BOOLEAN NOT NULL DEFAULT true`;
+
   console.log("db: schema ready");
 }
 

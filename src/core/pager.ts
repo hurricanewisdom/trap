@@ -15,6 +15,8 @@ export interface PagerState {
   channelId: string;
   accent: number | null;
   index: number;
+  // Stored so a button press re-renders the way the message was first posted.
+  boxed?: boolean;
 }
 
 export const BUTTON = {
@@ -56,16 +58,20 @@ export function controls(pageCount: number, ownerId: string): unknown {
 
 export const IS_COMPONENTS_V2 = 1 << 15;
 
+// Unboxed still needs the Components V2 flag, because the buttons and the media
+// are components either way. What goes is the container drawn around them, and
+// the accent with it: there is nothing left to tint.
 export function renderPage(
   pages: unknown[][],
   index: number,
   accent: number | null,
   ownerId: string,
+  boxed = true,
 ): { flags: number; components: unknown[] } {
   const body = [...(pages[index] ?? []), controls(pages.length, ownerId)];
   return {
     flags: IS_COMPONENTS_V2,
-    components: [accented({ type: 17, components: body }, accent)],
+    components: boxed ? [accented({ type: 17, components: body }, accent)] : body,
   };
 }
 
@@ -85,11 +91,12 @@ export async function paginateWith(
   ownerId: string,
   pages: unknown[][],
   accent: number | null,
+  boxed = true,
 ): Promise<string | null> {
   if (pages.length === 0) return null;
 
   const settled = resolveAccent(accent);
-  const page = renderPage(pages, 0, settled, ownerId);
+  const page = renderPage(pages, 0, settled, ownerId, boxed);
   const sent = await send(page);
   const messageId = sent?.id ? String(sent.id) : null;
   if (!messageId) return null;
@@ -97,7 +104,7 @@ export async function paginateWith(
   keepAlive(channelId, messageId, page.components as unknown[]);
   if (pages.length <= 1) return messageId;
 
-  const state: PagerState = { pages, ownerId, channelId, accent: settled, index: 0 };
+  const state: PagerState = { pages, ownerId, channelId, accent: settled, index: 0, boxed };
   await redis.set(key(messageId), JSON.stringify(state), "EX", TTL).catch(() => {});
   return messageId;
 }
@@ -212,7 +219,13 @@ async function handleButton(interaction: any, deps: PagerDeps): Promise<void> {
 
   state.index = wrap(state.index + (action === BUTTON.next ? 1 : -1), state.pages.length);
   await saveState(messageId, state);
-  const rendered = renderPage(state.pages, state.index, state.accent, state.ownerId);
+  const rendered = renderPage(
+    state.pages,
+    state.index,
+    state.accent,
+    state.ownerId,
+    state.boxed ?? true,
+  );
   await interaction.edit(rendered);
   keepAlive(state.channelId, messageId, rendered.components as unknown[]);
 }
@@ -241,7 +254,13 @@ async function handleJump(interaction: any): Promise<void> {
 
   state.index = requested - 1;
   await saveState(messageId, state);
-  const rendered = renderPage(state.pages, state.index, state.accent, state.ownerId);
+  const rendered = renderPage(
+    state.pages,
+    state.index,
+    state.accent,
+    state.ownerId,
+    state.boxed ?? true,
+  );
   await interaction.edit(rendered);
   keepAlive(state.channelId, messageId, rendered.components as unknown[]);
 }

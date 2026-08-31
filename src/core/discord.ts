@@ -474,7 +474,12 @@ export function guildStickers(guildId: string): Promise<GuildSticker[] | null> {
 // multipart, with the message itself in a payload_json part.
 export async function sendFile(
   channelId: string,
-  body: { content?: string; allowed_mentions?: unknown },
+  body: {
+    content?: string;
+    allowed_mentions?: unknown;
+    components?: unknown[];
+    flags?: number;
+  },
   file: { name: string; body: Uint8Array<ArrayBuffer> },
 ): Promise<Wrote<{ id: string }>> {
   const form = new FormData();

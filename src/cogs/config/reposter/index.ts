@@ -10,12 +10,18 @@ import {
   type PrefixHandler,
 } from "../../../core/prefix.js";
 import { paginateWith } from "../../../core/pager.js";
-import { gallery, text } from "../../../helpers/components.js";
+import { resolveAccent } from "../../../core/accent.js";
+import {
+  IS_COMPONENTS_V2,
+  accented,
+  gallery,
+  text,
+} from "../../../helpers/components.js";
 import { switchWord } from "../../../helpers/flags.js";
 import { compact, plain } from "../../../helpers/markdown.js";
 import { grab, probe, type Facts } from "./download.js";
 import { readAlbum, readCard, resolved } from "./opengraph.js";
-import { SITE_NAMES, albumFor, findLink, hostedAt, isShort } from "./sites.js";
+import { SITE_NAMES, albumFor, countsUrl, findLink, hostedAt, isShort } from "./sites.js";
 import { settings, save, type Settings } from "./store.js";
 
 const HEADING = "Reposter";
@@ -94,13 +100,28 @@ function caption(event: MessageEvent, facts: Facts, held: Settings): string {
 // A photo post has no video in it at all, so it is paged rather than uploaded:
 // the images are public URLs the fixer generates, which Discord fetches itself.
 // Nothing is downloaded and nothing is attached.
-async function postAlbum(event: MessageEvent, url: string, held: Settings): Promise<boolean> {
+async function postAlbum(
+  event: MessageEvent,
+  url: string,
+  numbers: string | null,
+  held: Settings,
+): Promise<boolean> {
   const album = await readAlbum(url);
   if (!album || album.images.length === 0) return false;
 
+  // The photos and the numbers live in different places. The fixer lists the
+  // images; yt-dlp will not touch a photo post but answers happily for the same
+  // id asked for as a video, and that is where the counts are.
+  const facts = numbers ? await probe(numbers) : null;
+  const line = facts ? stats(facts) : "";
+
   const heading = [
     album.title ? "**" + plain(album.title.slice(0, 120)) + "**" : "",
-    album.uploader ? "-# " + plain(album.uploader) : "",
+    album.uploader
+      ? "-# " + plain(album.uploader) + (line ? " · " + line : "")
+      : line
+        ? "-# " + line
+        : "",
   ].filter(Boolean);
 
   const pages = album.images.map((image, at) => [
@@ -127,6 +148,7 @@ async function postAlbum(event: MessageEvent, url: string, held: Settings): Prom
     event.authorId,
     pages,
     null,
+    held.container,
   );
   return posted !== null;
 }
@@ -147,7 +169,7 @@ async function deliver(
     : found.original;
 
   const album = albumFor(found.site, target);
-  if (album && (await postAlbum(event, album, held))) return true;
+  if (album && (await postAlbum(event, album, countsUrl(found.site, target), held))) return true;
 
   const fixer = found.site.through ? hostedAt(target, found.site.through) : null;
 
@@ -169,11 +191,29 @@ async function deliver(
   if (facts && !tooLong) {
     const file = await grab(source, cap);
     if (file) {
-      const sent = await sendFile(
-        event.channelId,
-        { content: caption(event, facts, held) || undefined, allowed_mentions: { parse: [] } },
-        { name: file.name, body: file.body },
-      );
+      const words = caption(event, facts, held);
+      const boxed = {
+        flags: IS_COMPONENTS_V2,
+        components: [
+          accented(
+            {
+              type: 17,
+              components: [
+                ...(words ? [text(words)] : []),
+                gallery({ url: `attachment://${file.name}` }),
+              ],
+            },
+            resolveAccent(null),
+          ),
+        ],
+        allowed_mentions: { parse: [] },
+      };
+      const bare = { content: words || undefined, allowed_mentions: { parse: [] } };
+
+      const sent = await sendFile(event.channelId, held.container ? boxed : bare, {
+        name: file.name,
+        body: file.body,
+      });
       if (sent.ok) return true;
     }
   }
@@ -182,6 +222,10 @@ async function deliver(
   // so there is nothing useful left to fall back to
   if (!fixer) return false;
 
+  // Always plain, even with the container switched on: a Components V2 message
+  // carries no content for Discord to unfurl, and the whole point of falling back
+  // to a link is that Discord turns it into a player.
+  //
   // The counts go on the link too, so a repost carries the same numbers whether
   // the file made it through or not.
   const line = facts ? stats(facts) : "";
@@ -264,6 +308,13 @@ const TOGGLES: Toggle[] = [
     off: "The original message is kept.",
   },
   {
+    name: "container",
+    field: "container",
+    describes: "drawing a box around the repost",
+    on: "Reposts are drawn inside a container.",
+    off: "Reposts are posted plainly, with no container.",
+  },
+  {
     name: "prefix",
     field: "prefixed",
     describes: "requiring a prefix before the link",
@@ -279,6 +330,7 @@ function state(held: Settings): string {
     `-# links anywhere in a message: ${held.strict ? "on" : "off"}`,
     `-# original preview: ${held.suppress ? "hidden" : "kept"}`,
     `-# original message: ${held.wipe ? "deleted" : "kept"}`,
+    `-# container: ${held.container ? "drawn" : "none"}`,
     `-# prefix required: ${held.prefixed ? "yes" : "no"}`,
   ].join("\n");
 }

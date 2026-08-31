@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 299 commands across five cogs,
+(TypeScript strict, Node 22), run bare with pm2. 300 commands across five cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -310,6 +310,7 @@ sentence about `,pins archive` rather than an API error.
 ,reposter suppress on   hide the original preview
 ,reposter delete on     remove the original message
 ,reposter prefix on     only repost after a server prefix
+,reposter container on  draw the repost inside a container
 ```
 
 **Manage Server.** When somebody posts a link from one of the sites below, the
@@ -384,6 +385,29 @@ is posted — which is the honest outcome, and better than a soundtrack.
 needs a scraped website-token on top of a guest token. Matching the link and then
 doing nothing would be worse than leaving it alone.
 
+### The container
+
+```
+,reposter container on    the whole repost is drawn inside a container
+,reposter container off   no container, no box, just the video or the photos
+```
+
+On by default. With it on, a video goes out as a Components V2 container holding
+the caption and the video, and a photo post is boxed the same way, so reposts
+match the rest of the bot. With it off, a video is a plain message with an
+attachment exactly as before, and a photo post keeps its pages and buttons but
+loses the box around them.
+
+⚠️ **The link fallback is always plain, whatever this is set to.** A Components V2
+message has no `content` for Discord to unfurl, and the entire point of falling
+back to a link is that Discord turns it into a player. Boxing that would produce a
+tidy container with a dead link in it.
+
+⚠️ **With the container on there is no attachment to right-click.** The file is
+consumed by the media gallery, so `message.attachments` comes back empty and the
+video is a component instead. It plays the same; it is worth knowing if something
+downstream reads attachments.
+
 ### Short links
 
 `tiktok.com/t/ZP8vEyVef`, `vm.tiktok.com/…` and the rest are followed before
@@ -408,8 +432,11 @@ own rule everywhere in the bot, and it applies here too — a stranger clicking 
 is told the menu belongs to someone else, rather than changing what everyone is
 looking at.
 
-⚠️ **Photo posts carry no counts.** The fixer publishes the images and the caption
-but no views or likes for them, so there is nothing to label. Videos are unaffected.
+**Photo posts carry the same counts as videos**, but the photos and the numbers
+come from different places. The fixer lists the images and publishes no numbers
+at all; yt-dlp refuses a photo post outright — yet it answers happily for **the
+same id asked for as a video**, which is where the counts turn out to live. The
+post is fetched twice, once for each half.
 
 Tiktok is the only site with a photo route today. Instagram's fixer published no
 `og:image` for any carousel tried against it, so its photo posts are not claimed
@@ -1009,12 +1036,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 262 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 263 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 415 views** and asserts unique
+The check that keeps this honest renders **all 416 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

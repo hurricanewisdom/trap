@@ -7,6 +7,7 @@ export interface Settings {
   suppress: boolean;
   wipe: boolean;
   prefixed: boolean;
+  container: boolean;
 }
 
 export const OFF: Settings = {
@@ -16,6 +17,7 @@ export const OFF: Settings = {
   suppress: true,
   wipe: false,
   prefixed: false,
+  container: true,
 };
 
 const CACHE_MS = 60_000;
@@ -40,9 +42,10 @@ export async function settings(guildId: string): Promise<Settings> {
         suppress: boolean;
         wipe: boolean;
         prefixed: boolean;
+        container: boolean;
       }[]
     >`
-      SELECT enabled, embed, strict, suppress, wipe, prefixed
+      SELECT enabled, embed, strict, suppress, wipe, prefixed, container
       FROM reposter WHERE guild_id = ${guildId}
     `;
     held = rows[0] ? { ...rows[0] } : { ...OFF };
@@ -58,13 +61,14 @@ export async function save(guildId: string, patch: Partial<Settings>): Promise<S
   const next: Settings = { ...(await settings(guildId)), ...patch };
 
   await sql`
-    INSERT INTO reposter (guild_id, enabled, embed, strict, suppress, wipe, prefixed, updated_at)
+    INSERT INTO reposter (guild_id, enabled, embed, strict, suppress, wipe, prefixed,
+                          container, updated_at)
     VALUES (${guildId}, ${next.enabled}, ${next.embed}, ${next.strict},
-            ${next.suppress}, ${next.wipe}, ${next.prefixed}, now())
+            ${next.suppress}, ${next.wipe}, ${next.prefixed}, ${next.container}, now())
     ON CONFLICT (guild_id) DO UPDATE
       SET enabled = EXCLUDED.enabled, embed = EXCLUDED.embed, strict = EXCLUDED.strict,
           suppress = EXCLUDED.suppress, wipe = EXCLUDED.wipe, prefixed = EXCLUDED.prefixed,
-          updated_at = now()
+          container = EXCLUDED.container, updated_at = now()
   `;
   forget(guildId);
   return next;
