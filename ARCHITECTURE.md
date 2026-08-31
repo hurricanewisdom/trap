@@ -521,6 +521,12 @@ around it tints.
   the file is too large, or the tool is missing. Extractors against tiktok and
   youtube break by design of the other side; a feature built on one of them
   needs somewhere to land.
+- **Bytes do not fit through a JSON body.** `write()` encodes its body as JSON, so
+  uploading goes through `sendFile` and `multipart/form-data` instead, with the
+  message in a `payload_json` part. The same call carries `components` and `flags`,
+  because posting a file plainly and posting it inside a container differ only in
+  that payload, and splitting them into two functions would duplicate the transport
+  to express a formatting choice.
 - **Two halves of one post can live in two places.** A tiktok photo post gets its
   images from the fixer and its counts from yt-dlp, which refuses the photo url but
   answers for the same id in its video form. Fetching twice and joining the halves

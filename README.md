@@ -997,6 +997,27 @@ only by inspecting the structure. Both have shipped: first as selects sharing a
 custom id, then as the repeated `exempt` and `list` subcommands under `,filter`
 colliding on option value, which killed 18 of the browser's views at once.
 
+Two consequences of having no `content`, both found by building on it:
+
+- ⚠️ **A V2 message does not unfurl links.** There is no `content` for Discord to
+  read, so a link inside a text component stays text. Anything that depends on
+  Discord turning a link into a player — the reposter's fallback — has to be sent
+  as a plain message, whatever the surrounding feature is set to.
+- ⚠️ **A file shown by a component is not an attachment.** Upload a file and point
+  a media gallery at `attachment://name`, and Discord moves it into the component:
+  `message.attachments` comes back **empty** and the media carries a CDN url
+  instead. It plays identically, but anything reading attachments — including a
+  test asserting on `content_type` — sees nothing.
+
+### Uploading a file
+
+`write()` JSON-encodes its body, which cannot carry bytes. An upload has to be
+`multipart/form-data` with the message itself in a `payload_json` part and the
+bytes in `files[0]`, which is what `sendFile` in `core/discord.ts` does. It takes
+`components` and `flags` as well as `content`, because a file can be posted either
+plainly or inside a container and the two are the same request with a different
+payload.
+
 ## Help
 
 `,help` opens the browser; `/help` is the same thing from Discord's picker,
