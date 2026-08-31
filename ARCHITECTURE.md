@@ -589,6 +589,11 @@ around it tints.
   `twitch.tv/streamer` is not, and one rule covering both would have the bot
   download strangers' profiles. Tumblr is the inverse — a blog per subdomain, matched on a suffix,
   because no list of exact hosts can ever be complete.
+- **A limit on commands is not a limit on the bot.** The throttle sits in the
+  command dispatch path, so the features that fire on an ordinary message — the
+  reposter on a link, the autoresponder on a word, the filter on anything — never
+  reach it and keep their own per-trigger cooldowns. Two layers guarding two
+  doors, not one job done twice.
 - **A refusal must be quieter than the thing it refuses.** The command limit tells
   somebody once and then drops them in silence, because answering every command in
   a flood makes the bot the loudest thing in the channel. The same reasoning keeps

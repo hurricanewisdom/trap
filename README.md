@@ -1018,7 +1018,17 @@ command, and the message path does no I/O. The counters live in memory and are
 pruned once they pass five thousand tracked keys.
 
 The numbers are constants at the top of `core/throttle.ts`. Custom commands go
-through the same limit; `/help`, the one slash command, does not.
+through the same limit, and so does a command re-run by editing a message, since
+both take the same dispatch path. `/help`, the one slash command, does not.
+
+⚠️ **This covers commands, and several features are not commands.** The reposter
+fires on somebody posting a link, the autoresponder on somebody saying a word, and
+the filter, sticky, gallery and snipe hooks on any message at all. None of those
+begin with a prefix, so none of them reach this limit — which is why they keep
+their own cooldowns: **four seconds** per trigger per channel for the
+autoresponder, **three** per person per channel for the reposter, **1.2** for a
+re-run edit. The two layers guard different doors rather than doing the same job
+twice.
 
 ## Run
 
