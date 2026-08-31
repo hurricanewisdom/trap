@@ -13,6 +13,7 @@ import { registerAvailability } from "./availability/index.js";
 import { registerIgnore } from "./ignore/index.js";
 import { registerAppearance } from "./appearance/index.js";
 import { registerPinArchive } from "./pins/index.js";
+import { registerWebhooks } from "./webhook/index.js";
 
 export const configCog: Cog = {
   name: "configuration",
@@ -34,5 +35,6 @@ export const configCog: Cog = {
     inCategory("ignore", registerIgnore);
     inCategory("appearance", registerAppearance);
     inCategory("pins", registerPinArchive);
+    inCategory("webhook", registerWebhooks);
   },
 };

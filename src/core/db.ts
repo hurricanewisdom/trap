@@ -396,6 +396,19 @@ export async function migrate(): Promise<void> {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS webhooks (
+      guild_id   TEXT NOT NULL,
+      identifier TEXT NOT NULL,
+      webhook_id TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      created_by TEXT NOT NULL,
+      locked_by  TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, identifier)
+    )
+  `;
+
   console.log("db: schema ready");
 }
 

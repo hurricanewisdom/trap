@@ -10,6 +10,7 @@ export const PERMISSION = {
   manageRoles: 1n << 28n,
   manageChannels: 1n << 4n,
   manageMessages: 1n << 13n,
+  manageWebhooks: 1n << 29n,
 } as const;
 
 const MEMBER_TTL = 600;
@@ -397,6 +398,56 @@ export function editGuild(
   reason: string,
 ): Promise<Wrote<Guild>> {
   return write<Guild>("PATCH", `/guilds/${guildId}`, body, reason);
+}
+
+export interface Webhook {
+  id: string;
+  type?: number;
+  name?: string | null;
+  channel_id?: string;
+  token?: string;
+  application_id?: string | null;
+}
+
+export function guildWebhooks(guildId: string): Promise<Webhook[] | null> {
+  return api<Webhook[]>(`/guilds/${guildId}/webhooks`);
+}
+
+export function createWebhook(
+  channelId: string,
+  name: string,
+  reason: string,
+): Promise<Wrote<Webhook>> {
+  return write<Webhook>("POST", `/channels/${channelId}/webhooks`, { name }, reason);
+}
+
+export function deleteWebhook(webhookId: string, reason: string): Promise<Wrote<void>> {
+  return write<void>("DELETE", `/webhooks/${webhookId}`, undefined, reason);
+}
+
+export function executeWebhook(
+  webhookId: string,
+  webhookToken: string,
+  body: Record<string, unknown>,
+): Promise<Wrote<{ id: string }>> {
+  return write<{ id: string }>(
+    "POST",
+    `/webhooks/${webhookId}/${webhookToken}?wait=true`,
+    body,
+  );
+}
+
+export function editWebhookMessage(
+  webhookId: string,
+  webhookToken: string,
+  messageId: string,
+  body: Record<string, unknown>,
+): Promise<Wrote<{ id: string }>> {
+  return write<{ id: string }>(
+    "PATCH",
+    `/webhooks/${webhookId}/${webhookToken}/messages/${messageId}`,
+    body,
+  );
 }
 
 export function deleteMessage(channelId: string, messageId: string): Promise<Wrote<void>> {

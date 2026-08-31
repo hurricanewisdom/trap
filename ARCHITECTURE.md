@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 132 source files, no comments — the names and the
+the read path and the cache. 134 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -86,6 +86,8 @@ src/
       availability/     turning commands, modules and events off per channel
       ignore/           members and channels skipped before anything runs
       appearance/       the server icon, banner and splash background
+      webhook/          posting as a named identity; ids in the database, the
+                        token fetched when needed and never kept
       pins/             the pin archive: where a channel's pins are flushed to,
                         and the channelPinsUpdate hook that does it at 45
       pagination/       several embeds behind one message, turned with buttons:
@@ -199,7 +201,7 @@ is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 246 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 253 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.
@@ -460,6 +462,10 @@ around it tints.
   while the prose was stale: updating a test and updating a sentence are
   separate acts. It also fails when a total *disappears*, not only when it is
   wrong.
+- **Never store a credential you can fetch.** A webhook URL is a password that
+  needs no account behind it, so `webhooks` has no token column: the token is
+  read from Discord at the moment of a send and dropped. The row is worthless on
+  its own, and the card never prints the URL either.
 - **Anything on the message path must not do I/O.** `messageCreate` runs for
   every message in every channel: prefix resolution, the sticky check and the
   alias fallback all read an in-process cache invalidated on write, never the

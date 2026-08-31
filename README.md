@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 278 commands across five cogs,
+(TypeScript strict, Node 22), run bare with pm2. 286 commands across five cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -34,6 +34,7 @@ rather than turning it into a three-word path with named fields.
 - `,ignore` — members and channels the bot reads nothing from
 - `,pin`, `,unpin`, `,firstmessage`, `,pins` — pins, and archiving them
 - `,seticon`, `,setbanner`, `,setsplashbackground` — the server's look
+- `,webhook` — post as a named identity in a channel
 - `,filter` — ten chat filters, five of them enforced by Discord's AutoMod
 - `,snipe` — what was deleted, edited or unreacted in this channel
 - `,lf link` DMs an authorisation link; after that `,fm` works
@@ -271,6 +272,36 @@ than with the pin archive: nothing about them is configured per server.
 
 `pin` checks Discord's 50-pin cap before trying, so a full channel gets a
 sentence about `,pins archive` rather than an API error.
+
+## Webhooks
+
+```
+,webhook create announcements       make one in this channel
+,webhook list                       every webhook here
+,webhook send <id> hello            post through it
+,webhook send <id> {title: Notice}  post an embed
+,webhook edit <link> <message>      rewrite what it posted
+,webhook lock <id> / unlock <id>
+,webhook delete <id>
+```
+
+**Manage Webhooks**, except `list`. Up to 25 per server. Each one gets a short
+id, and that id is what every other command takes.
+
+⚠️ **A webhook URL is a password.** Anyone holding it can post as that webhook,
+in that channel, with no authentication and no audit trail. So the URL is never
+printed and **the token is never stored** — there is no column for it. When a
+send needs one, it is fetched from Discord at that moment and dropped
+immediately. A leaked database row gives an attacker nothing but an id.
+
+`send` takes plain text, or page code (`{title: ...}{description: ...}`) for an
+embed, sharing the parser with the pin archive. Mentions are pinned to
+`parse: []`, so a webhook cannot be used to ping a role.
+
+`lock` keeps a webhook to the person who locked it: nobody else can send
+through it, unlock it, or delete it until they release it. `edit` only works on
+messages one of these webhooks posted, which is Discord's rule rather than
+mine — a webhook can only edit its own output.
 
 ## Pin archive
 
@@ -719,12 +750,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 246 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 253 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 386 views** and asserts unique
+The check that keeps this honest renders **all 396 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

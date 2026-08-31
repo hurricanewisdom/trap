@@ -146,6 +146,12 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Flushing a channel's pins into an archive channel",
   },
   {
+    slug: "webhook",
+    label: "Webhooks",
+    emoji: "",
+    blurb: "Posting as a named identity in a channel",
+  },
+  {
     slug: "messages",
     label: "Messages",
     emoji: "",
@@ -351,6 +357,31 @@ export const DOCS: CommandDoc[] = [
     examples: [",seticon https://i.imgur.com/abc.png"],
     permission: "Manage Server",
     guildOnly: true,
+  },
+  {
+    name: "webhook",
+    category: "webhook",
+    usage: ",webhook",
+    summary: "Post as a named identity in a channel",
+    details:
+      "Each webhook gets a short id, and that id is what every other command takes. The URL is never printed and never stored: anyone holding a webhook URL can post as it with no authentication, so the token is fetched from Discord at the moment it is needed and kept nowhere. A message is sent as plain text, or as an embed if it contains brace fields like {title: ...}, the same page code the pin archive uses. Locking a webhook keeps it to you until you unlock it. Everything needs Manage Webhooks except list. Aliases: ,webhooks.",
+    examples: [
+      ",webhook create announcements",
+      ",webhook send a1b2c3 hello everyone",
+      ",webhook send a1b2c3 {title: Notice}{description: read this}",
+      ",webhook lock a1b2c3",
+    ],
+    permission: "Manage Webhooks",
+    guildOnly: true,
+    subcommands: [
+      { name: "create", usage: ",webhook create <name>", summary: "Make a webhook in this channel", permission: "Manage Webhooks" },
+      { name: "list", usage: ",webhook list", summary: "Every webhook in this server" },
+      { name: "send", usage: ",webhook send <id> <message>", summary: "Post through a webhook", permission: "Manage Webhooks" },
+      { name: "edit", usage: ",webhook edit <link> <message>", summary: "Rewrite something a webhook posted", permission: "Manage Webhooks" },
+      { name: "lock", usage: ",webhook lock <id>", summary: "Keep a webhook to yourself", permission: "Manage Webhooks" },
+      { name: "unlock", usage: ",webhook unlock <id>", summary: "Give a webhook back to everyone", permission: "Manage Webhooks" },
+      { name: "delete", usage: ",webhook delete <id>", summary: "Delete a webhook", permission: "Manage Webhooks" },
+    ],
   },
   {
     name: "pins",
