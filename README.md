@@ -266,6 +266,11 @@ so and points at `,filter`. The gate runs at dispatch, where only top-level
 commands arrive, so a promise to disable a subcommand would be one the
 enforcement could not keep.
 
+`copydisabled` reports what it found as well as what it wrote, because "nothing
+is switched off there" and "all of it was already switched off in the target"
+are different answers and the first one is a lie about the server's own
+configuration.
+
 `,disablecommand` is the only one that takes a member as well as a channel,
 because a module or an event has no per-member meaning. Everything reads an
 in-process cache invalidated on write, and a guild with nothing disabled costs
@@ -327,7 +332,7 @@ leftovers.
 
 ## Filters
 
-`,filter` is ten filters behind one command, 34 commands in all.
+`,filter` is ten filters behind one command, 35 commands in all.
 
 ```
 ,filter add <word>                filter a word, * wildcards allowed
@@ -541,7 +546,7 @@ edit never lands, and the user sees "Trap didn't respond in time" — so compone
 payloads are checked by posting one to a channel and reading the status, not
 only by inspecting the structure. Both have shipped: first as selects sharing a
 custom id, then as the repeated `exempt` and `list` subcommands under `,filter`
-colliding on option value, which killed 18 of the browser's 302 views at once.
+colliding on option value, which killed 18 of the browser's views at once.
 
 ## Help
 
@@ -582,12 +587,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 201 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 237 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 302 views** and asserts unique
+The check that keeps this honest renders **all 364 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

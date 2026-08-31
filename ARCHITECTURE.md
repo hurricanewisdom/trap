@@ -119,11 +119,12 @@ The dependency rule is one-way: **cogs may import from `core`, `helpers`,
 import from a sibling cog.** If core needs to reach into a feature, that is a
 missing hook.
 
-Five things follow that shape rather than importing across it — a provider is
+Six things follow that shape rather than importing across it — a provider is
 registered at setup and core asks for it: `core/listening.ts` (who is playing
 what), `core/runner.ts` (run a command from a click), `core/expiry.ts` (edit a
-message later), `core/accent.ts` (this viewer's colour) and `core/sniping.ts`.
-Each still works when nothing registers.
+message later), `core/accent.ts` (this viewer's colour), `core/sniping.ts` and
+`core/availability.ts` (what is switched off where). Each still works when
+nothing registers, and each fails open: no provider means no restriction.
 
 `sniping.ts` is the one that goes both ways, and it exists because `,filter
 snipe` lives in the config cog while the store lives in the utility cog. The
@@ -189,7 +190,7 @@ is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 201 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 237 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.
@@ -248,6 +249,11 @@ Cogs extend the runtime through `core/hooks.ts` instead of core importing them:
 Interactions are routed by custom-id prefix, so two cogs cannot silently
 collide over the same button.
 
+`onMessage`, `onReactionAdd` and `onReactionRemove` take an optional **event
+name** as a second argument. A named handler is skipped when that event is
+switched off in the channel the event came from, which is how
+`,disableevent` reaches nine features without any of them knowing it exists.
+
 ## Commands
 
 `ctx` carries the argument, ids, and `reply` / `react` / `dm`. Replies are
@@ -303,8 +309,8 @@ around it tints.
   sharing an id; then **Next** (`page + 1`) and **»** (`count - 1`) computing
   the same id on a two-page list; then selects keyed by bare command name, where
   the repeated `exempt` and `list` subcommands under `,filter` collided and
-  killed 18 of 302 views. Nav buttons carry distinct *actions* and compute the page at handle
-  time; selects carry paths.
+  killed 18 views at once. Nav buttons carry distinct *actions* and compute the
+  page at handle time; selects carry paths.
 - **Verify component payloads against the real API.** Structure checks passed
   on payloads Discord rejected outright. Post one to a channel and read the
   status, and space the posts out — a burst comes back 429, which reads exactly
