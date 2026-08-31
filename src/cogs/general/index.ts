@@ -6,6 +6,7 @@ import { registerImages } from "./images.js";
 import { registerInfo } from "./info.js";
 import { registerLookups } from "./lookups.js";
 import { registerPersonal } from "./personal.js";
+import { registerServices } from "./services.js";
 
 export const generalCog: Cog = {
   name: "information",
@@ -25,5 +26,6 @@ export const generalCog: Cog = {
     inCategory("images", registerImages);
     inCategory("lookups", registerLookups);
     inCategory("personal", registerPersonal);
+    inCategory("lookups", registerServices);
   },
 };

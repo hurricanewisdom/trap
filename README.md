@@ -334,6 +334,33 @@ still works through its parent. An **alias** clash is different — `mc` was alr
 `membercount`, and the registry refused it for `minecraft` with a warning rather
 than silently taking it.
 
+### The ones that needed a key
+
+`weather`, `valorant` and the Roblox account links read their keys from `.env`
+(`OPENWEATHER_API_KEY`, `HENRIK_API_KEY`, `BLOXLINK_API_KEY`), and `steam` uses
+`STEAM_API_KEY` for the level, game count and real name on top of the keyless
+profile. A missing key is reported as a missing key, not as the service being
+down.
+
+⚠️ **`xbox` needs no key.** The obvious provider would not hand one out, and
+`playerdb.co` answers for a gamertag without one, so that is what it asks.
+
+⚠️ **A new OpenWeatherMap key is refused for up to a couple of hours**, which
+looks exactly like a wrong one. The command says which it is.
+
+⚠️ **Riot only exposes a Valorant account through recent match data**, so a player
+who has not played lately cannot be looked up at all. The reply says that rather
+than "no such player", because the name is usually fine.
+
+⚠️ **Bloxlink's routes disagree with each other.** `discord-to-roblox` says
+`Unknown Guild` where `roblox-to-discord` only says `User not found`, so the
+second is checked against a second request before being believed — and that
+request has to name a **real** account, because Bloxlink checks the user before
+the guild and a made-up id never reaches the guild check. Both directions now say
+the same thing about a server that does not use Bloxlink.
+
+`osu` is deliberately absent.
+
 ### What answers without a key
 
 Every one of these was tried from the box before it was written, because a

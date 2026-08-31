@@ -6,6 +6,7 @@ import {
   type PrefixHandler,
 } from "../../core/prefix.js";
 import { plain } from "../../helpers/markdown.js";
+import { linkedDiscord, linkedRoblox, steamExtra } from "./services.js";
 import { card, stamp, words } from "./shared.js";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0 Safari/537.36";
@@ -186,10 +187,15 @@ async function steam(ctx: PrefixContext): Promise<void> {
   };
 
   const state = pick("stateMessage");
+  const id64 = pick("steamID64");
+  const extra = id64 ? await steamExtra(id64) : { level: null, games: null, realName: null };
   await card(ctx, [
     `### ${plain(pick("steamID") ?? said)}`,
     ...(pick("avatarFull") ? [pick("avatarFull") as string] : []),
-    `-# id64: ${pick("steamID64") ?? "unknown"}`,
+    ...(extra.realName ? [`-# ${plain(extra.realName)}`] : []),
+    `-# id64: ${id64 ?? "unknown"}`,
+    ...(extra.level !== null ? [`-# level ${extra.level}`] : []),
+    ...(extra.games !== null ? [`-# ${extra.games} games`] : []),
     ...(state ? [`-# ${plain(state.replace(/<[^>]+>/g, " ").slice(0, 120))}`] : []),
     ...(pick("memberSince") ? [`-# member since ${plain(pick("memberSince") as string)}`] : []),
     ...(pick("location") ? [`-# ${plain(pick("location") as string)}`] : []),
@@ -360,11 +366,46 @@ function robloxSimple(
     }
 
     if (which === "fromdiscord" || which === "todiscord") {
+      if (!ctx.guildId) {
+        await card(ctx, ["That one only works in a server."]);
+        return;
+      }
+      const asked = said.replace(/[<@!>]/g, "").trim();
+      if (!asked) {
+        await card(ctx, [
+          "Which account?",
+          "",
+          "-# `roblox " + which + (which === "fromdiscord" ? " @member`" : " <username>`"),
+        ]);
+        return;
+      }
+
+      if (which === "fromdiscord") {
+        const found = await linkedRoblox(ctx.guildId, asked);
+        if (!found.robloxId) {
+          await card(ctx, [found.why ?? "Nothing linked."]);
+          return;
+        }
+        const who = await json<{ name: string }>(
+          "https://users.roblox.com/v1/users/" + found.robloxId,
+        );
+        await card(ctx, [
+          "<@" + asked + "> is **" + plain(who?.name ?? found.robloxId) + "** on Roblox.",
+          "-# id: " + found.robloxId,
+        ]);
+        return;
+      }
+
+      const who = await robloxIdOf(asked);
+      if (!who) {
+        await card(ctx, ["No Roblox user called **" + plain(asked) + "**."]);
+        return;
+      }
+      const found = await linkedDiscord(ctx.guildId, String(who.id), ctx.authorId);
       await card(ctx, [
-        "That one needs a linking service.",
-        "",
-        "-# Roblox and Discord accounts are only connected through Bloxlink or",
-        "-# RoVer, and both want an API key. Nothing here can answer it alone.",
+        found.robloxId
+          ? "**" + plain(who.name) + "** is <@" + found.robloxId + "> here."
+          : (found.why ?? "Nothing linked."),
       ]);
       return;
     }
