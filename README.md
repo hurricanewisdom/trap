@@ -336,7 +336,7 @@ expected:
 | --- | --- |
 | **Downloads the video** | youtube, tiktok, instagram, x, snapchat, tumblr, pinterest, twitch, streamable, medal |
 | **Downloads the audio** | soundcloud, as an `.m4a` |
-| **Rewrites the link instead** | reddit |
+| **Rewrites the link instead** | reddit, through `vxreddit.com` |
 | **Left alone** | facebook, bilibili |
 
 ⚠️ **ffmpeg is required, not a quality nicety.** Youtube no longer serves a
@@ -351,11 +351,26 @@ Chrome, but only after checking that impersonation is actually available —
 requesting it when the library is missing fails *every* download, so the check
 happens once and the answer is reused.
 
-**reddit and facebook want an account** and bilibili answers `412` to this
-datacenter, impersonated or not. Reddit is the one with a rewrite host, so it
-still plays; the other two are left for Discord's own embed to handle. Setting
+**Reddit answers this address with `403`** — not the extractor, the whole site —
+so it can only ever play through a rewrite host. **Facebook wants an account** and
+**bilibili answers `412`** to this datacenter, impersonated or not. Setting
 `YTDLP_COOKIES` to a Netscape cookie file makes all three work, and private
 instagram posts with them — nothing else needs it.
+
+⚠️ **The size a probe reports is not the size you are about to download.** Youtube
+says `232MB` for a video this downloads at `20MB`, because that figure describes
+the best format on offer and not the 720p one actually requested. Checking it
+against the upload limit rejected every youtube link before it was ever tried.
+The ceiling is enforced during the download instead, where it means something.
+
+⚠️ **Read back the file you asked for, not whatever is in the directory.** yt-dlp
+leaves each stream beside the merged result as `video.f251.webm` and the like, so
+taking the first file in the folder posts an **audio-only fragment as a video**
+whenever a merge fails. Only a name with a single extension is accepted.
+
+The format ladder is built from the server's own upload limit, so a small server
+gets 480p or 360p rather than nothing. If even the smallest will not fit, nothing
+is posted — which is the honest outcome, and better than a soundtrack.
 
 **Gofile is absent on purpose.** yt-dlp has no extractor for it, and its own API
 needs a scraped website-token on top of a guest token. Matching the link and then
@@ -376,8 +391,10 @@ Two costs worth stating plainly. **yt-dlp needs updating** — when tiktok or
 youtube changes something, extraction breaks until it is updated, and that is a
 standing maintenance task, not a one-off. And the fallback sends the link through
 a **third-party host**, which come and go: `ddinstagram.com` stopped resolving
-entirely while this was being written, which is why `sites.ts` is one table to
-edit rather than a rule spread through the code.
+entirely and `rxddit.com` began answering `502` — both while this was being
+written, and the second one is why reddit appeared broken. That is the whole
+argument for `sites.ts` being one table to edit rather than a rule spread through
+the code.
 
 `strict` off means the message has to be **nothing but the link**, so a link
 mentioned in passing does not drag a video into the channel. `prefix` on means

@@ -58,11 +58,12 @@ export const SITES: Site[] = [
     path: /^\/[\w-]{6,}$/,
   },
   {
-    // Reddit demands an account from the downloader, so this one really does
-    // depend on the rewrite host to play at all.
+    // Reddit answers this address with 403 whatever the extractor does, so this
+    // one depends entirely on the rewrite host. rxddit.com started returning 502
+    // and had to be swapped out, which is the whole argument for this table.
     name: "reddit",
     hosts: ["reddit.com", "www.reddit.com", "old.reddit.com", "new.reddit.com", "np.reddit.com"],
-    through: "rxddit.com",
+    through: "vxreddit.com",
     path: /^\/r\/[^/]+\/(?:comments|s)\//,
   },
   {

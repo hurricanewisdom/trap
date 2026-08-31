@@ -18,7 +18,24 @@ const AT_ONCE = 2;
 
 // Merging separate video and audio needs ffmpeg, which youtube now requires: it
 // serves no combined format at all any more.
-const FORMAT = "bv*[height<=720]+ba/b[height<=720]/b";
+//
+// The ladder is built around the server's upload limit so a small server gets a
+// lower resolution rather than nothing. `<?` means "smaller than, or unknown",
+// which matters because plenty of sites report no size at all.
+function formatFor(maxBytes: number): string {
+  return [
+    `bv*[height<=720][filesize_approx<?${maxBytes}]+ba`,
+    `bv*[height<=480][filesize_approx<?${maxBytes}]+ba`,
+    `bv*[height<=360]+ba`,
+    `b[filesize_approx<?${maxBytes}]`,
+    "b",
+  ].join("/");
+}
+
+// yt-dlp leaves its per-stream downloads next to the merged file as video.f251.webm
+// and the like. Reading the directory blindly can hand back one of those, which is
+// how an audio-only fragment ends up posted as a video when a merge fails.
+const MERGED = /^video\.[^.]+$/;
 
 let running = 0;
 
@@ -137,7 +154,7 @@ export async function grab(url: string, maxBytes: number): Promise<Grabbed | nul
         "--max-filesize",
         String(maxBytes),
         "-f",
-        FORMAT,
+        formatFor(maxBytes),
         "--merge-output-format",
         "mp4",
         "-o",
@@ -149,7 +166,7 @@ export async function grab(url: string, maxBytes: number): Promise<Grabbed | nul
     if (!got.ok) return null;
 
     const files = await readdir(dir);
-    const name = files[0];
+    const name = files.find((one) => MERGED.test(one));
     if (!name) return null;
 
     const raw = await readFile(join(dir, name));

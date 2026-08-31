@@ -519,6 +519,15 @@ around it tints.
   the file is too large, or the tool is missing. Extractors against tiktok and
   youtube break by design of the other side; a feature built on one of them
   needs somewhere to land.
+- **A reported size is not the size you will fetch.** The reposter does not check
+  a probe's `filesize` against the upload limit, because it describes the best
+  format available rather than the one requested — youtube reports 232MB for a
+  20MB download, which silently rejected every youtube link. Limits are enforced
+  where the work happens, not from a number that answers a different question.
+- **Read back the artefact you asked for.** A tool that writes intermediates into
+  the same directory will hand you one if you take the first file you find; the
+  reposter accepts only a single-extension name, so a failed merge fails instead
+  of posting an audio fragment as a video.
 - **Ask the tool what it can do, once, and reuse the answer.** yt-dlp is asked
   to impersonate a browser only after checking that impersonation is installed,
   because requesting it when the library is absent fails every download rather

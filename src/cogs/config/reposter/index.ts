@@ -76,7 +76,11 @@ async function deliver(
 
   const facts = await probe(found.original);
   const tooLong = facts !== null && facts.duration !== null && facts.duration > MAX_SECONDS;
-  if (facts && !tooLong && (facts.bytes === null || facts.bytes <= cap)) {
+  // Deliberately not checked against `facts.bytes`: that is the size of the best
+  // format on offer, not of the one actually requested. Youtube reports 243MB for
+  // a video this downloads at 20MB, which rejected every youtube link before it
+  // was ever tried. The real ceiling is enforced during the download instead.
+  if (facts && !tooLong) {
     const file = await grab(found.original, cap);
     if (file) {
       const line = stats(facts);
