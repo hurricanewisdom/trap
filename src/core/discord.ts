@@ -502,6 +502,33 @@ export async function sendFile(
   }
 }
 
+// A custom emoji reacts as name:id, a unicode one as itself, and either way the
+// endpoint wants it percent-encoded.
+export function reactionKey(emoji: string): string {
+  const custom = /^<a?:([\w~]+):(\d{15,25})>$/.exec(emoji.trim());
+  return custom ? `${custom[1]}:${custom[2]}` : emoji.trim();
+}
+
+export function addReaction(
+  channelId: string,
+  messageId: string,
+  emoji: string,
+): Promise<Wrote<void>> {
+  const key = encodeURIComponent(reactionKey(emoji));
+  return write<void>("PUT", `/channels/${channelId}/messages/${messageId}/reactions/${key}/@me`);
+}
+
+export function startThread(
+  channelId: string,
+  messageId: string,
+  name: string,
+): Promise<Wrote<{ id: string }>> {
+  return write<{ id: string }>("POST", `/channels/${channelId}/messages/${messageId}/threads`, {
+    name: name.slice(0, 100) || "Suggestion",
+    auto_archive_duration: 1440,
+  });
+}
+
 export function deleteMessage(channelId: string, messageId: string): Promise<Wrote<void>> {
   forgetSnipe(channelId, messageId);
   return write<void>("DELETE", `/channels/${channelId}/messages/${messageId}`);

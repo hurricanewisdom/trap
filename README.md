@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 300 commands across five cogs,
+(TypeScript strict, Node 22), run bare with pm2. 317 commands across five cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -38,6 +38,7 @@ rather than turning it into a three-word path with named fields.
 - `,fakepermissions` — let a role use the bot without the real permission
 - `,extractemotes`, `,extractstickers` — the server's emojis or stickers as a zip
 - `,reposter` — download and repost videos from 12 social sites, with their stats
+- `,suggest` — members suggest ideas, staff move them through statuses
 - `,filter` — ten chat filters, five of them enforced by Discord's AutoMod
 - `,snipe` — what was deleted, edited or unreacted in this channel
 - `,lf link` DMs an authorisation link; after that `,fm` works
@@ -300,6 +301,66 @@ than with the pin archive: nothing about them is configured per server.
 
 `pin` checks Discord's 50-pin cap before trying, so a full channel gets a
 sentence about `,pins archive` rather than an API error.
+
+## Suggestions
+
+```
+,suggest <your idea>              anyone
+,suggest set #channel             where suggestions go
+,suggest config                   the whole setup
+,suggest reactions 👍 👎          the two vote reactions
+,suggest threads on               a thread per suggestion
+,suggest review on                hold suggestions for approval
+,suggest review channel #channel  where they wait
+,suggest ignore @someone          keep a member or role out
+,suggest ignore list              who is kept out
+,suggest lock / unlock            close and open submissions
+,suggest approve <id>             Approved
+,suggest deny <id>                Denied
+,suggest consider <id>            In Consideration
+,suggest progress <id>            In Progress
+,suggest reset <id>               back to Pending
+,suggest reply <id> <comment>     a staff reply on the card
+```
+
+**Anyone can suggest.** It is posted to the suggestion channel as a numbered card
+with an upvote and a downvote already on it:
+
+```
+### Suggestion #1 · Pending
+a dark mode please
+-# from @someone
+```
+
+Staff move it between the five statuses, and can attach a reply which appears on
+the card as a quote. **Setting up needs Manage Channels; moving a suggestion needs
+Manage Messages** — the spec called that "staff only", and Manage Messages is the
+permission a server already gives the people who handle this sort of thing.
+
+⚠️ **The card is edited, never reposted.** A status change rewrites the message in
+place, so the votes cast on it and the thread hanging off it both survive. A
+reposted card would reset the count to zero every time somebody changed its state.
+
+⚠️ **Numbers come from the database, not from counting rows.** Two people
+suggesting in the same moment would otherwise be handed the same number, and the
+number is how every other command finds a suggestion. The id and the increment
+happen in one statement.
+
+### Review
+
+With `review on` a new suggestion waits in the review channel instead of going
+straight up, and **it is `approve` that publishes it** — moving it into the public
+channel, adding the votes and the thread there. Denying it leaves it where it is.
+That way approval means something rather than relabelling a card nobody can see.
+
+Review with no review channel set is refused with a sentence saying so, rather
+than silently swallowing every suggestion.
+
+### Ignoring
+
+`suggest ignore` takes a member or a role and is a **toggle** — there is no
+unignore command in the set, so naming somebody already ignored puts them back.
+`suggest ignore list` shows who is on it.
 
 ## Reposter
 
@@ -1057,12 +1118,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 263 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 279 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 416 views** and asserts unique
+The check that keeps this honest renders **all 439 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

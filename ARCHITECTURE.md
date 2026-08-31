@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 144 source files, no comments — the names and the
+the read path and the cache. 148 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -92,6 +92,9 @@ src/
       webhook/          posting as a named identity; ids in the database, the
                         token fetched when needed and never kept
       fakeperms/        letting a role use the bot without the real permission
+      suggest/          member suggestions and the statuses staff move them
+                        through; store.ts holds config, suggestions and the
+                        ignore list, post.ts renders a card and edits it in place
       reposter/         social links downloaded and reposted as video, with
                         stats; download.ts wraps yt-dlp, ffmpeg and curl_cffi,
                         sites.ts is the 12-site host table, opengraph.ts follows
@@ -212,7 +215,7 @@ is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 263 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 279 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.
@@ -531,6 +534,13 @@ around it tints.
   images from the fixer and its counts from yt-dlp, which refuses the photo url but
   answers for the same id in its video form. Fetching twice and joining the halves
   beats showing a post with no numbers on it because one source was incomplete.
+- **A shared counter belongs to the database.** Suggestion numbers are handed out
+  by one INSERT ... ON CONFLICT DO UPDATE ... RETURNING, not by counting rows and
+  adding one: two people suggesting in the same moment would otherwise be given
+  the same number, and the number is the only handle every other command has.
+- **Edit the artefact, do not replace it.** A status change rewrites the
+  suggestion message in place, because the votes and the thread are attached to
+  that message id. Reposting would look identical and quietly discard both.
 - **A short link is a question, not an answer.** It is followed before anything is
   decided about it, because the same tiktok short link lands on either a video or a
   photo post and the two share no handling at all. Guessing from the shape of the

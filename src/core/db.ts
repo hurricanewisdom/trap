@@ -434,6 +434,48 @@ export async function migrate(): Promise<void> {
 
   await sql`ALTER TABLE reposter ADD COLUMN IF NOT EXISTS container BOOLEAN NOT NULL DEFAULT true`;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS suggest_config (
+      guild_id   TEXT NOT NULL,
+      channel_id TEXT,
+      review_id  TEXT,
+      locked     BOOLEAN NOT NULL DEFAULT false,
+      threads    BOOLEAN NOT NULL DEFAULT false,
+      review     BOOLEAN NOT NULL DEFAULT false,
+      upvote     TEXT NOT NULL DEFAULT '👍',
+      downvote   TEXT NOT NULL DEFAULT '👎',
+      next_id    INTEGER NOT NULL DEFAULT 1,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS suggestions (
+      guild_id   TEXT NOT NULL,
+      id         INTEGER NOT NULL,
+      author_id  TEXT NOT NULL,
+      body       TEXT NOT NULL,
+      status     TEXT NOT NULL DEFAULT 'pending',
+      channel_id TEXT,
+      message_id TEXT,
+      thread_id  TEXT,
+      reply      TEXT,
+      replied_by TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS suggest_ignores (
+      guild_id  TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      is_role   BOOLEAN NOT NULL DEFAULT false,
+      PRIMARY KEY (guild_id, target_id)
+    )
+  `;
+
   console.log("db: schema ready");
 }
 
