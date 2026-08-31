@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 125 source files, no comments — the names and the
+the read path and the cache. 128 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -32,6 +32,7 @@ src/
     sniping.ts          the two-way link between the snipe store and its filter
     availability.ts     what is switched off where, and what can never be
     edits.ts            whether an edited message should run its command again
+    ignores.ts          members and channels the bot reads nothing from
     env.ts              typed configuration access
 
   helpers/              feature-agnostic utilities. No I/O of their own except
@@ -83,6 +84,7 @@ src/
                         on the message path), roles.ts, exclusive.ts, gate.ts
                         (the role hierarchy check), shared.ts
       availability/     turning commands, modules and events off per channel
+      ignore/           members and channels skipped before anything runs
       pagination/       several embeds behind one message, turned with buttons:
                         embedcode.ts parses the page code, store.ts holds pages
                         by stable id
@@ -120,12 +122,13 @@ The dependency rule is one-way: **cogs may import from `core`, `helpers`,
 import from a sibling cog.** If core needs to reach into a feature, that is a
 missing hook.
 
-Six things follow that shape rather than importing across it — a provider is
+Seven things follow that shape rather than importing across it — a provider is
 registered at setup and core asks for it: `core/listening.ts` (who is playing
 what), `core/runner.ts` (run a command from a click), `core/expiry.ts` (edit a
-message later), `core/accent.ts` (this viewer's colour), `core/sniping.ts` and
-`core/availability.ts` (what is switched off where). Each still works when
-nothing registers, and each fails open: no provider means no restriction.
+message later), `core/accent.ts` (this viewer's colour), `core/sniping.ts`,
+`core/availability.ts` (what is switched off where) and `core/ignores.ts` (who
+is not read at all). Each still works when nothing registers, and each fails
+open: no provider means no restriction.
 
 `sniping.ts` is the one that goes both ways, and it exists because `,filter
 snipe` lives in the config cog while the store lives in the utility cog. The
@@ -435,6 +438,11 @@ around it tints.
 - **One dispatch path, called from two events.** `runPrefixCommand` in
   `index.ts` serves both `messageCreate` and `messageUpdate`, so prefixes, the
   availability gate, group routing and accent cannot drift between them.
+- **A silencing switch needs a way back in.** Ignoring a channel skips every
+  message in it, so the `ignore` commands are the one thing dispatch still
+  answers there. Otherwise the only undo is a database edit. Same shape as the
+  availability `PROTECTED` list: whatever turns a thing off must not be able to
+  turn off its own reverse.
 - **Anything on the message path must not do I/O.** `messageCreate` runs for
   every message in every channel: prefix resolution, the sticky check and the
   alias fallback all read an in-process cache invalidated on write, never the

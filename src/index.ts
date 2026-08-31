@@ -23,6 +23,7 @@ import { registerPagerInteractions } from "./core/pager.js";
 import { lookup, split, type PrefixContext, type ReplyPayload, type SentMessage } from "./core/prefix.js";
 import { commandBlocked, eventBlocked } from "./core/availability.js";
 import { editedInto, forgetMessage, noteMessage } from "./core/edits.js";
+import { ALWAYS_ANSWERS, isIgnored } from "./core/ignores.js";
 import {
   argumentFrom,
   buildAllSlashCommands,
@@ -256,7 +257,13 @@ const bot = createBot({
 
         if (message.author?.bot) return;
 
-        if (message.guildId) {
+        const muted = await isIgnored(
+          message.guildId ? String(message.guildId) : undefined,
+          String(message.channelId ?? ""),
+          String(message.author?.id ?? ""),
+        );
+
+        if (message.guildId && !muted) {
           await emitMessage({
             guildId: String(message.guildId),
             channelId: String(message.channelId ?? ""),
@@ -271,7 +278,7 @@ const bot = createBot({
         }
 
         noteMessage(String(message.id ?? ""), message.content ?? "");
-        await runPrefixCommand(message);
+        await runPrefixCommand(message, muted);
       } catch (err) {
         console.error("prefix command failed:", err);
       }
@@ -303,7 +310,7 @@ const bot = createBot({
   },
 });
 
-async function runPrefixCommand(message: any): Promise<void> {
+async function runPrefixCommand(message: any, muted?: boolean): Promise<void> {
   const content = message.content ?? "";
   if (!content) return;
 
@@ -317,8 +324,12 @@ async function runPrefixCommand(message: any): Promise<void> {
   const { name, argument } = split(content.slice(used.length));
   const context = buildContext(message, authorId);
 
+  const ignored =
+    muted ?? (await isIgnored(guildId, String(message.channelId ?? ""), authorId));
+
   const command = lookup(name);
   if (command) {
+    if (ignored && !ALWAYS_ANSWERS.has(command.name)) return;
     if (
       await commandBlocked(
         guildId,
@@ -340,6 +351,8 @@ async function runPrefixCommand(message: any): Promise<void> {
     await withAccent(accent, () => command.handler({ ...context, argument }));
     return;
   }
+
+  if (ignored) return;
 
   const fallback = await resolveFallback(name, context);
   if (!fallback) return;

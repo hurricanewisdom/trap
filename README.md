@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 261 commands across five cogs,
+(TypeScript strict, Node 22), run bare with pm2. 265 commands across five cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -31,6 +31,7 @@ rather than turning it into a three-word path with named fields.
 - `,autoresponder` — automatic replies when a message matches a trigger
 - `,pagination` — several pages behind one message, turned with arrows
 - `,disablecommand` — turn commands, modules and events off per channel
+- `,ignore` — members and channels the bot reads nothing from
 - `,filter` — ten chat filters, five of them enforced by Discord's AutoMod
 - `,snipe` — what was deleted, edited or unreacted in this channel
 - `,lf link` DMs an authorisation link; after that `,fm` works
@@ -252,6 +253,32 @@ gate, group routing and card colour all behave identically. A second dispatch
 path would drift from the first.
 
 `,disableevent #channel editrerun` switches it off.
+
+## Ignore
+
+```
+,ignore @someone           switch a member on or off
+,ignore add #spam          ignore a channel
+,ignore remove @someone    stop ignoring
+,ignore list               everything ignored here
+```
+
+**Administrator**, because unlike `,disablecommand` this silences the bot rather
+than narrowing it. Up to 200 per server.
+
+An ignored member or channel is skipped **entirely**, not just for commands:
+none of the things that happen without being asked run either, so no
+autoresponder, no bot-side filters, no sticky repost, and nothing recorded for
+`,snipe`. The check sits in front of `emitMessage`, so a feature added later is
+covered without knowing this exists.
+
+⚠️ **Ignoring the channel you are standing in must not be a dead end.** The
+`ignore` commands keep answering inside an ignored channel — they are the one
+exception the dispatch makes — so the way out is always where you are. Every
+other command stays silent there.
+
+Running it bare on a member or channel toggles, which is the common case; `add`
+and `remove` are there for when you want to say exactly what you mean.
 
 ## Availability
 
@@ -621,7 +648,7 @@ each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 364 views** and asserts unique
+The check that keeps this honest renders **all 369 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

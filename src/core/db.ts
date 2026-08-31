@@ -376,6 +376,15 @@ export async function migrate(): Promise<void> {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS ignores (
+      guild_id  TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      kind      TEXT NOT NULL,
+      PRIMARY KEY (guild_id, target_id)
+    )
+  `;
+
   console.log("db: schema ready");
 }
 

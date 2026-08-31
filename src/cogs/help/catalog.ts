@@ -134,6 +134,12 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Automatic replies when a message matches a trigger",
   },
   {
+    slug: "ignore",
+    label: "Ignore",
+    emoji: "",
+    blurb: "Members and channels the bot reads nothing from",
+  },
+  {
     slug: "availability",
     label: "Availability",
     emoji: "",
@@ -315,6 +321,22 @@ export const DOCS: CommandDoc[] = [
       { name: "role", usage: ",autoresponder role", summary: "Give or take roles when a trigger fires", permission: "Manage Channels" },
       { name: "exclusive", usage: ",autoresponder exclusive <role or #channel> <trigger>", summary: "Limit a trigger to some roles or channels", permission: "Manage Channels" },
       { name: "reset", usage: ",autoresponder reset", summary: "Remove every auto response", permission: "Manage Channels" },
+    ],
+  },
+  {
+    name: "ignore",
+    category: "ignore",
+    usage: ",ignore <member or #channel>",
+    summary: "Stop reading a member or a channel",
+    details:
+      "An ignored member or channel is skipped entirely: no commands, and none of the things that happen without being asked either, so no autoresponder, no filters, no sticky repost, nothing recorded for snipe. Running it bare on a member or channel switches it on or off, and add and remove are there when you want to be explicit. The ignore commands themselves keep answering inside an ignored channel, so ignoring the channel you are standing in is never a dead end. Administrator only, because it silences the bot rather than narrowing it.",
+    examples: [",ignore @someone", ",ignore add #spam", ",ignore list"],
+    permission: "Administrator",
+    guildOnly: true,
+    subcommands: [
+      { name: "add", usage: ",ignore add <member or #channel>", summary: "Ignore a member or a channel", permission: "Administrator" },
+      { name: "remove", usage: ",ignore remove <member or #channel>", summary: "Stop ignoring a member or a channel", permission: "Administrator" },
+      { name: "list", usage: ",ignore list", summary: "Every ignored member and channel", permission: "Administrator" },
     ],
   },
   {
