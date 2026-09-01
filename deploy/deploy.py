@@ -4,6 +4,7 @@
     python deploy/deploy.py --dry-run    say what would go, change nothing
     python deploy/deploy.py --status     what pm2 thinks is running
     python deploy/deploy.py --logs 40    tail the bot log
+    python deploy/deploy.py --skip-audit  deploy even if the docs disagree
     python deploy/deploy.py --no-restart upload and build, leave the process
     python deploy/deploy.py --force      send every file, not just changed ones
 
@@ -63,7 +64,6 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 PAYLOAD = [
     "src",
     "deploy",
-    "tools",
     "package.json",
     "package-lock.json",
     "tsconfig.json",
@@ -185,7 +185,7 @@ def configured(client) -> bool:
     return True
 
 
-def deploy(client, build, restart, install):
+def deploy(client, build, restart, install, audit):
     steps = [
         "mkdir -p " + REMOTE,
         "rm -rf " + REMOTE + "/src",
@@ -209,6 +209,30 @@ def deploy(client, build, restart, install):
             print(body.strip()[:2000])
             return code
         print("  ok  " + label)
+
+    if audit:
+        # After the build, because it loads dist/, and before the restart, so a
+        # failure leaves the running process alone. The new code is on disk but
+        # nothing is serving it, which is the safe half of a half-done deploy.
+        code, body = run(client, "cd " + REMOTE + " && node --env-file=.env deploy/docaudit.mjs")
+        if code != 0:
+            print("  FAILED: docaudit")
+            # Only the failures. Every section header ends in "checked", so
+            # matching that prints the whole run and buries the line that
+            # matters.
+            lines = body.strip().split("\n")
+            for line in lines:
+                if "WRONG" in line:
+                    print("    " + line.strip())
+            tally = [one for one in lines if one.strip().startswith("checked")]
+            if tally:
+                print("    " + tally[-1].strip())
+            print()
+            print("  The docs disagree with the code, so the running bot was left alone.")
+            print("  Fix them, or deploy with --skip-audit if this is deliberate.")
+            return code
+        summary = [one for one in body.strip().split("\n") if one.strip().startswith("checked")]
+        print("  ok  docaudit" + (" (" + summary[-1].strip() + ")" if summary else ""))
 
     if not restart:
         print("  built, process left alone")
@@ -289,6 +313,7 @@ def main() -> int:
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--no-build", action="store_true")
     parser.add_argument("--no-restart", action="store_true")
+    parser.add_argument("--skip-audit", action="store_true")
     parser.add_argument("--status", action="store_true")
     parser.add_argument("--logs", nargs="?", const=40, type=int)
     args = parser.parse_args()
@@ -333,6 +358,10 @@ def main() -> int:
             build=not args.no_build,
             restart=not args.no_restart,
             install="package.json" in fresh or args.force,
+            # The audit reads dist/, so it only means anything when the build
+            # ran. Skipping the build skips it too rather than checking stale
+            # output and passing for the wrong reason.
+            audit=not args.skip_audit and not args.no_build,
         )
     finally:
         client.close()

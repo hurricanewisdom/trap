@@ -1183,11 +1183,26 @@ snap — it looks like a package and is not one.
 ## Deploy
 
 ```
-python deploy/deploy.py              upload what changed, build, restart
+python deploy/deploy.py              upload what changed, build, audit, restart
 python deploy/deploy.py --dry-run    say what would go, change nothing
 python deploy/deploy.py --status     what pm2 thinks is running
 python deploy/deploy.py --logs 40    tail the bot log
+python deploy/deploy.py --skip-audit deploy even though the docs disagree
 ```
+
+**A deploy fails if `docaudit` does.** It runs after the build and before the
+restart, so a failure leaves the running bot alone: the new code is on disk and
+nothing is serving it, which is the safe half of a half-done deploy. The exit
+code is 1, so a script calling this notices too.
+
+⚠️ **The upload happens first, so the server already has the new files.** Only
+the restart is withheld. A second attempt will say "nothing to send" because the
+payload already matches — use `--force` to make it re-run the build and the
+audit.
+
+`--skip-audit` deploys anyway, for when the docs are mid-rewrite and the code
+needs to go now. `--no-build` skips the audit too, because it reads `dist/` and
+checking a stale build would pass for the wrong reason.
 
 ```
 node --env-file=.env deploy/docaudit.mjs    check the docs against the registry
