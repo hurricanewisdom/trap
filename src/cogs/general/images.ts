@@ -314,7 +314,10 @@ async function screenshot(ctx: PrefixContext): Promise<void> {
 }
 
 export function registerImages(): void {
-  register({ name: "screenshot", aliases: ["ss"], description: "Get an image of a website", handler: screenshot });
+  // Switched off for now. The command, its browser and its guards are all still
+  // here; uncommenting this one line is the whole of turning it back on.
+  // register({ name: "screenshot", aliases: ["ss"], description: "Get an image of a website", handler: screenshot });
+  void screenshot;
   register({ name: "rotate", description: "Rotate an image by a provided degree", handler: filterCommand("rotate") });
   register({ name: "invert", description: "Invert an image's colours", handler: filterCommand("invert") });
   register({ name: "compress", description: "Compress an image to lower quality", handler: filterCommand("compress") });

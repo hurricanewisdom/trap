@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 558 commands across six cogs,
+(TypeScript strict, Node 22), run bare with pm2. 557 commands across six cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -321,7 +321,7 @@ has asked to be told about.
 serverinfo / userinfo / roleinfo / channelinfo / membercount / inviteinfo
 avatar / banner / serveravatar / serverbanner / guildicon / guildbanner / splash
 roles / emotes / bots / members / boosters            emoji (8) / sticker (5)
-rotate / invert / compress / hex / screenshot         highlight / birthday / timezone / seen
+rotate / invert / compress / hex                      highlight / birthday / timezone / seen
 define / urbandictionary / minecraft / github / steam / telegram / snapchat / roblox (8)
 ```
 
@@ -393,6 +393,12 @@ private, link-local or carrier NAT, and a redirect is refused rather than
 followed somewhere the check already rejected.
 
 ### `screenshot` runs a real browser, as somebody else
+
+⚠️ **Switched off.** The command, the browser and the guards are all still here,
+just not registered, so it has no name and no help entry. One commented line in
+`cogs/general/images.ts` brings it back. The rest of this section still describes
+it, and the two things worth knowing before picking it up again are which user
+Chrome runs as and why the private-address guard is load-bearing.
 
 `screenshot <url>` hands the page to headless Chrome and posts the 1280×800 PNG.
 A hosted screenshot API would have wanted a key and a monthly bill; Chrome on the
@@ -1493,7 +1499,7 @@ each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 751 views** and asserts unique
+The check that keeps this honest renders **all 750 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

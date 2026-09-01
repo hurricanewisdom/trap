@@ -73,7 +73,9 @@ src/
                         channels, invites, avatars and banners
       expressions.ts    emotes and stickers: adding, removing, renaming, tidying
       images.ts         rotate, invert, compress and dominant colour, via ffmpeg;
-                        screenshot, which is headless Chrome as its own user
+                        also screenshot -- headless Chrome as its own unprivileged
+                        user -- which is NOT REGISTERED at the moment, switched
+                        off at the bottom of the same file
       lookups.ts        other people's services, the key-free ones
       services.ts       the ones that need a key, and what they say without it
       personal.ts       highlights, birthdays, timezones and last seen
