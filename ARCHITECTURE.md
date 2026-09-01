@@ -103,7 +103,9 @@ src/
                         spam.ts is the one message-path watch, for webhook
                         mass-mentions, which deletes the webhook rather than
                         punishing a member because there is no member, and
-                        skips channels on the per-channel exemption list
+                        skips channels on the per-channel exemption list. Every
+                        response is timed into core/protection.ts, which
+                        ,antinuke log reads back
       boosterrole/      personal colour roles for boosters: store.ts,
                         shared.ts (gates, colour parsing), member.ts,
                         admin.ts, share.ts

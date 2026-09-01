@@ -346,11 +346,18 @@ than silently taking it.
 
 ### Every list pages, and nothing is cut off
 
-`roles`, `members`, `bots`, `emotes`, `boosters`, `sticker`, `birthday list` and
-`timezone list` all return pages with **Back / Next / Page / Close** underneath,
-through the same pager the Last.fm cards use. Before this they each stopped at a
-hardcoded cap — 60 roles, 50 bots, 25 boosters — and said "and 14 more", which on
-a real server meant the command could not answer the question it was for.
+**Anything list-shaped pages**, with **Back / Next / Page / Close** underneath,
+through the same pager the Last.fm cards have always used. In this cog that is
+`roles`, `members`, `bots`, `emotes`, `boosters`, `sticker`, `emoji stats`,
+`birthday list`, `timezone list` and `urbandictionary`; elsewhere it is the
+scoreboards, the invite list, `names`, `topcommands`, `afk mentions` and
+`antinuke log`.
+
+Before this they each stopped at a hardcoded cap — 60 roles, 50 bots, 25
+boosters, 1 of 10 Urban Dictionary definitions — and said "and 14 more", which on
+a real server meant the command could not answer the question it was for. **A new
+list command should page by default**; reaching for a cap is the thing that needs
+a reason.
 
 Each row now carries what you would otherwise have run a second command to get:
 a role shows its member count, colour and whether it is hoisted or managed; a
