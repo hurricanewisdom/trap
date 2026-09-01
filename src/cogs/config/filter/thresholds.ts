@@ -1,4 +1,5 @@
 import { PERMISSION, deleteMessage, hasPermission, memberOf } from "../../../core/discord.js";
+import { recordProtection } from "../../../core/protection.js";
 import { onMessage, type MessageEvent } from "../../../core/hooks.js";
 import { requireManageChannels } from "../../../core/permissions.js";
 import {
@@ -218,6 +219,8 @@ export async function reset(guildId: string, kind: string): Promise<void> {
 }
 
 async function police(event: MessageEvent): Promise<void> {
+  const began = Date.now();
+
   if (!event.content) return;
 
   const settings = await allSettings(event.guildId);
@@ -237,7 +240,15 @@ async function police(event: MessageEvent): Promise<void> {
     }
     if (await hasPermission(event.guildId, event.authorId, PERMISSION.manageGuild)) continue;
 
-    await deleteMessage(event.channelId, event.messageId);
+    const done = await deleteMessage(event.channelId, event.messageId);
+    recordProtection({
+      guildId: event.guildId,
+      source: `filter:${spec.command}`,
+      actor: event.authorId,
+      detail: `${measured} ${spec.label.toLowerCase()}, over ${held.threshold ?? spec.fallback}`,
+      outcome: done.ok ? "message deleted" : "could not delete it",
+      tookMs: Date.now() - began,
+    });
     return;
   }
 }

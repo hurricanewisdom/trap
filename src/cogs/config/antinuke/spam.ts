@@ -1,6 +1,6 @@
-import { sql } from "../../../core/db.js";
 import { deleteMessage, deleteWebhook, dmUser, getGuild } from "../../../core/discord.js";
 import { onMessage, type MessageEvent } from "../../../core/hooks.js";
+import { recordProtection, took } from "../../../core/protection.js";
 import { settingsFor } from "./store.js";
 
 /**
@@ -25,6 +25,8 @@ const handled = new Set<string>();
 async function police(event: MessageEvent): Promise<void> {
   // Cheapest possible check first: this runs on every message in every server.
   if (!event.webhookId || !event.guildId) return;
+
+  const began = Date.now();
 
   const settings = await settingsFor(event.guildId);
   const watch = settings.modules.webhookspam;
@@ -64,6 +66,7 @@ async function police(event: MessageEvent): Promise<void> {
     ? "webhook deleted"
     : `could not delete the webhook (${gone.message.slice(0, 60)})`;
 
+  const spent = took(began);
   const guild = await getGuild(event.guildId);
   if (guild?.owner_id) {
     await dmUser(guild.owner_id, {
@@ -78,7 +81,7 @@ async function police(event: MessageEvent): Promise<void> {
                 "### Antinuke tripped",
                 `-# webhook \`${event.webhookId}\` in **${guild.name ?? event.guildId}**`,
                 `-# ${detail} in <#${event.channelId}>`,
-                `-# ${outcome}`,
+                `-# ${outcome} — **acted in ${spent}**`,
                 "-# No member was punished: a webhook has none behind it.",
               ].join("\n"),
             },
@@ -88,10 +91,14 @@ async function police(event: MessageEvent): Promise<void> {
     }).catch(() => undefined);
   }
 
-  await sql`
-    INSERT INTO antinuke_events (guild_id, user_id, module, detail, outcome)
-    VALUES (${event.guildId}, ${event.webhookId}, 'webhookspam', ${detail}, ${outcome})
-  `.catch(() => {});
+  recordProtection({
+    guildId: event.guildId,
+    source: "antinuke:webhookspam",
+    actor: event.webhookId,
+    detail,
+    outcome,
+    tookMs: Date.now() - began,
+  });
 }
 
 export function registerSpam(): void {

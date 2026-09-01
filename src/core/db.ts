@@ -536,17 +536,21 @@ export async function migrate(): Promise<void> {
   `;
 
   await sql`
-    CREATE TABLE IF NOT EXISTS antinuke_events (
+    CREATE TABLE IF NOT EXISTS protection_events (
       guild_id TEXT NOT NULL,
-      user_id  TEXT NOT NULL,
-      module   TEXT NOT NULL,
+      source   TEXT NOT NULL,
+      actor    TEXT NOT NULL,
       detail   TEXT NOT NULL,
       outcome  TEXT NOT NULL,
+      took_ms  INTEGER NOT NULL DEFAULT 0,
       at       TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `;
 
-  await sql`CREATE INDEX IF NOT EXISTS antinuke_events_guild ON antinuke_events (guild_id, at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS protection_events_guild ON protection_events (guild_id, at DESC)`;
+
+  // Replaced by protection_events, which the filters write to as well.
+  await sql`DROP TABLE IF EXISTS antinuke_events`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS embeds (

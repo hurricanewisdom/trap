@@ -1,4 +1,5 @@
 import { PERMISSION, deleteMessage, hasPermission, memberOf } from "../../../core/discord.js";
+import { recordProtection } from "../../../core/protection.js";
 import { onMessage, type MessageEvent } from "../../../core/hooks.js";
 import { requireManageChannels } from "../../../core/permissions.js";
 import {
@@ -58,10 +59,23 @@ async function police(event: MessageEvent): Promise<void> {
   const settings = await allSettings(event.guildId);
   if (settings.size === 0) return;
 
+  // These delete and say nothing, which is right in the channel and useless
+  // afterwards: without a record there was no way to see whether the filters
+  // were working, or how quickly.
+  const began = Date.now();
+
   const music = settings.get(MUSIC);
   if (music?.enabled && !music.exemptChannels.includes(event.channelId) && isMusic(event)) {
     if (!(await exemptHere(event, music.exemptRoles))) {
-      await deleteMessage(event.channelId, event.messageId);
+      const done = await deleteMessage(event.channelId, event.messageId);
+      recordProtection({
+        guildId: event.guildId,
+        source: "filter:musicfiles",
+        actor: event.authorId,
+        detail: "posted a music file",
+        outcome: done.ok ? "message deleted" : "could not delete it",
+        tookMs: Date.now() - began,
+      });
       return;
     }
   }
@@ -71,7 +85,15 @@ async function police(event: MessageEvent): Promise<void> {
   if (!tooFast(event.guildId, event.channelId, event.authorId, spam.threshold ?? SPAM_FALLBACK)) return;
   if (await exemptHere(event, spam.exemptRoles)) return;
 
-  await deleteMessage(event.channelId, event.messageId);
+  const done = await deleteMessage(event.channelId, event.messageId);
+  recordProtection({
+    guildId: event.guildId,
+    source: "filter:spam",
+    actor: event.authorId,
+    detail: "sent messages too fast",
+    outcome: done.ok ? "message deleted" : "could not delete it",
+    tookMs: Date.now() - began,
+  });
 }
 
 interface Simple {

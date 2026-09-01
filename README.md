@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 683 commands across eight cogs,
+(TypeScript strict, Node 22), run bare with pm2. 684 commands across eight cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -539,7 +539,7 @@ at all, which is the number worth having before a cleanup.
 
 ## Antinuke
 
-**19 commands** watching for a server being taken apart, and stopping whoever
+**20 commands** watching for a server being taken apart, and stopping whoever
 is doing it. **Server owner only** — every one of them, including reading the
 settings. This is the thing that survives a moderator going bad, so it cannot be
 configured by the people it exists to stop; `antinuke trust` is how the owner
@@ -552,6 +552,7 @@ delegates it deliberately.
 ,antinuke punishment <ban|kick|stripstaff|jail>
 ,antinuke trust <member>        may change these, and is never punished
 ,antinuke whitelist <user>      never punished, cannot change anything
+,antinuke log                    what fired, and how long it took
 ,antinuke trust|whitelist list|clear
 ,antinuke webhookspam exempt [#channel|clear]
 ```
@@ -642,6 +643,32 @@ nothing else.
 
 The message is removed even when the webhook cannot be, since the mentions have
 already fired and leaving the post up only keeps the damage on screen.
+
+### How long it took
+
+Every protective action is timed, and the number is the whole response — reading
+the settings, reverting a permission grant, carrying out the punishment — not
+just the last call. The owner's DM ends with **acted in 318ms**, and
+`,antinuke log` lists what fired with the time each took, fastest and slowest in
+the footer.
+
+The filters are in there too. They delete a message and say nothing, which is
+right in the channel and useless afterwards: there was no way to tell a filter
+that is working from one that is switched off, which is the first thing somebody
+asks after setting one up.
+
+⚠️ **The AutoMod-backed filters cannot be timed, because the bot never acts.**
+Words, patterns, invites and links are enforced by Discord itself — the message
+is gone before anything here hears about it, which is the point of using AutoMod
+and the reason those five keep working while the bot is offline. Only the four
+the bot enforces itself — caps, emoji, spoilers, music files and rate — appear in
+the log.
+
+⚠️ **The log is written in batches, not per action.** A filter fires on ordinary
+messages, so a round trip per deleted message would be a round trip per message
+during exactly the flood it exists to stop. Entries buffer for twenty seconds;
+reading `,antinuke log` flushes first so it never contradicts something you just
+watched disappear.
 
 ### When it trips
 
@@ -1745,12 +1772,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 442 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 443 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 920 views** and asserts unique
+The check that keeps this honest renders **all 921 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

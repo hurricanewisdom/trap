@@ -37,6 +37,7 @@ import {
 } from "./core/slash.js";
 import { closeRedis, redis } from "./core/redis.js";
 import { cogs } from "./cogs/index.js";
+import { startProtectionLog } from "./core/protection.js";
 import { notedGuildName } from "./cogs/misc/names.js";
 import { router, startWebServer } from "./web/server.js";
 import { provideRunner } from "./core/runner.js";
@@ -170,6 +171,7 @@ const bot = createBot({
   },
   events: {
     ready({ shardId }) {
+      startProtectionLog();
       console.log(`Trap is ready (shard ${shardId}).`);
     },
     raw(data, shardId) {

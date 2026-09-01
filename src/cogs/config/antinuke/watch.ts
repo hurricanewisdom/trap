@@ -11,6 +11,7 @@ import {
   write,
 } from "../../../core/discord.js";
 import { onAuditAction, type AuditActionEvent } from "../../../core/hooks.js";
+import { recordProtection, took } from "../../../core/protection.js";
 import { settingsFor, type Module, type Punishment } from "./store.js";
 
 // Discord's audit log action numbers. Named because `32` at a call site is
@@ -162,6 +163,10 @@ function me(): string {
 }
 
 async function react(event: AuditActionEvent): Promise<void> {
+  // Started before anything is read, so the number covers the whole response:
+  // reading the settings, reverting a grant, and carrying out the punishment.
+  const began = Date.now();
+
   const watched = ACTION[event.actionType];
   if (!watched) return;
 
@@ -207,17 +212,23 @@ async function react(event: AuditActionEvent): Promise<void> {
   seen.delete(`${event.guildId}:${event.actorId}:${watched.module}`);
   const outcome = await punish(event.guildId, event.actorId, settings.punishment, detail);
 
+  const spent = took(began);
+
   await tellOwner(event.guildId, [
     "### Antinuke tripped",
     `-# <@${event.actorId}> (${event.actorId}) in **${guild?.name ?? event.guildId}**`,
     `-# ${detail} · ${count} in ${Math.round(watch.windowMs / 1000)}s`,
-    `-# ${outcome}`,
+    `-# ${outcome} — **acted in ${spent}**`,
   ]);
 
-  await sql`
-    INSERT INTO antinuke_events (guild_id, user_id, module, detail, outcome)
-    VALUES (${event.guildId}, ${event.actorId}, ${watched.module}, ${detail}, ${outcome})
-  `.catch(() => {});
+  recordProtection({
+    guildId: event.guildId,
+    source: `antinuke:${watched.module}`,
+    actor: event.actorId,
+    detail,
+    outcome,
+    tookMs: Date.now() - began,
+  });
 }
 
 export function registerWatch(): void {

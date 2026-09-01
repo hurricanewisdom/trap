@@ -1,4 +1,6 @@
+import { sql } from "../../../core/db.js";
 import { getGuild } from "../../../core/discord.js";
+import { flushProtection } from "../../../core/protection.js";
 import { paginate } from "../../../core/pager.js";
 import { requireOwner } from "../../../core/permissions.js";
 import { groupUnder, lookupIn, register, type PrefixContext } from "../../../core/prefix.js";
@@ -367,6 +369,55 @@ async function spamExempt(ctx: PrefixContext): Promise<void> {
   ]);
 }
 
+/**
+ * What the protective features have actually done, and how quickly.
+ *
+ * The antinuke tells the owner as it happens; the filters delete a message and
+ * say nothing at all. Without this there was no way to tell a filter that is
+ * working from one that is switched off, which is the question somebody asks
+ * right after they set one up.
+ */
+async function log(ctx: PrefixContext): Promise<void> {
+  const guildId = await requireOwner(ctx, "see what the protections have done");
+  if (!guildId) return;
+
+  // Anything still buffered belongs in the answer, or the log contradicts the
+  // message somebody just watched disappear.
+  await flushProtection();
+
+  const rows = await sql<
+    { source: string; actor: string; detail: string; outcome: string; took_ms: number; at: Date }[]
+  >`
+    SELECT source, actor, detail, outcome, took_ms, at FROM protection_events
+    WHERE guild_id = ${guildId} ORDER BY at DESC LIMIT 200
+  `;
+
+  const lines = rows.map((row) => {
+    const when = `<t:${Math.floor(row.at.getTime() / 1000)}:R>`;
+    const who = /^\d{15,25}$/.test(row.actor) ? `<@${row.actor}>` : `\`${plain(row.actor, 30)}\``;
+    return (
+      `\`${plain(row.source, 24)}\` ${who} — ${plain(row.detail, 60)}` +
+      `\n-# ${plain(row.outcome, 60)} · **${row.took_ms}ms** · ${when}`
+    );
+  });
+
+  const quickest = rows.length ? Math.min(...rows.map((one) => one.took_ms)) : 0;
+  const slowest = rows.length ? Math.max(...rows.map((one) => one.took_ms)) : 0;
+
+  await paginate(
+    ctx,
+    pagesOf(
+      `${rows.length} protection action${rows.length === 1 ? "" : "s"}`,
+      lines,
+      6,
+      rows.length
+        ? `newest first · ${quickest}ms fastest, ${slowest}ms slowest`
+        : "nothing yet — the antinuke and the filters both record here",
+    ),
+    null,
+  );
+}
+
 async function root(ctx: PrefixContext): Promise<void> {
   const sub = words(ctx.argument)[0]?.toLowerCase() ?? "";
   const found = sub ? lookupIn("antinuke", sub) : undefined;
@@ -397,6 +448,12 @@ export function registerAntinuke(): void {
     register({ name: "permissions", aliases: ["permission", "perms"], description: "Revert and punish dangerous permission grants", handler: moduleCommand("permissions") });
     register({ name: "punishment", aliases: ["action"], description: "Set the punishment for a tripped threshold", handler: punishment });
     register({ name: "role", aliases: ["roles"], description: "Prevent roles being created or deleted", handler: moduleCommand("role"), flags: COUNTING_FLAGS });
+    register({
+      name: "log",
+      aliases: ["logs", "recent", "actions"],
+      description: "What the protections have done, and how long each took",
+      handler: log,
+    });
     register({
       name: "settings",
       aliases: ["config", "cfg", "configuration", "overview", "view", "ov"],
