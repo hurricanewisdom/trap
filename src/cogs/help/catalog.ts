@@ -146,12 +146,6 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Flushing a channel's pins into an archive channel",
   },
   {
-    slug: "reposter",
-    label: "Reposter",
-    emoji: "",
-    blurb: "Reposting social links so the video plays inline",
-  },
-  {
     slug: "expressions",
     label: "Emotes and stickers",
     emoji: "",
@@ -579,25 +573,6 @@ export const DOCS: CommandDoc[] = [
     examples: [",seticon https://i.imgur.com/abc.png"],
     permission: "Manage Server",
     guildOnly: true,
-  },
-  {
-    name: "reposter",
-    category: "reposter",
-    usage: ",reposter <on or off>",
-    summary: "Repost social media links so the video plays",
-    details:
-      "When somebody posts a link from one of twelve sites, the bot downloads the video and posts the file, captioned with the title, the uploader and the engagement counts. A tiktok photo post is paged through instead, with buttons. When a site refuses, the link is rewritten so Discord plays it inline rather than the repost going silent. Six switches sit under it: embed names who posted, strict matches a link anywhere in a message rather than only a message that is nothing else, suppress hides the original preview, delete removes the original message, prefix requires a server prefix before the link, and container draws the whole repost in a box. Alias: ,repost.",
-    examples: [",reposter on", ",reposter strict on", ",reposter delete on"],
-    permission: "Manage Server",
-    guildOnly: true,
-    subcommands: [
-      { name: "embed", usage: ",reposter embed <on or off>", summary: "Name who posted the link", permission: "Manage Server" },
-      { name: "strict", usage: ",reposter strict <on or off>", summary: "Match a link anywhere in a message", permission: "Manage Server" },
-      { name: "suppress", usage: ",reposter suppress <on or off>", summary: "Hide the original preview", permission: "Manage Server" },
-      { name: "delete", usage: ",reposter delete <on or off>", summary: "Delete the original message", permission: "Manage Server" },
-      { name: "prefix", usage: ",reposter prefix <on or off>", summary: "Require a prefix before the link", permission: "Manage Server" },
-      { name: "container", usage: ",reposter container <on or off>", summary: "Draw the repost inside a container", permission: "Manage Server" },
-    ],
   },
   {
     name: "ban",

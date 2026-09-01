@@ -8,8 +8,8 @@ import {
   type PrefixContext,
   type PrefixHandler,
 } from "../../../core/prefix.js";
-import { flagNumber, parseFlags, switchWord } from "../../../helpers/flags.js";
-import { card, channelId, findRole, roleList, words, registerExempt } from "./shared.js";
+import { numberFor, parseFlags, switchWord } from "../../../helpers/flags.js";
+import { card, channelId, findRole, roleList, words, registerExempt, THRESHOLD } from "./shared.js";
 import { allSettings, setChannel, setEnabled, setThreshold, toggleRole } from "./store.js";
 
 const MUSIC = "musicfiles";
@@ -134,9 +134,10 @@ function build(spec: Simple): void {
     const guildId = await requireManageChannels(ctx, `change the ${spec.label.toLowerCase()}`);
     if (!guildId) return;
 
-    const { rest, flags } = parseFlags(ctx.argument);
+    const parsed = parseFlags(ctx.argument);
+    const { rest } = parsed;
     const parts = words(rest);
-    const threshold = flagNumber(flags, "threshold", "limit", "t");
+    const threshold = numberFor(parsed, THRESHOLD);
 
     if (parts.length === 0 && threshold === null) {
       await status(ctx, guildId, spec);
@@ -227,6 +228,7 @@ function build(spec: Simple): void {
     aliases: spec.aliases,
     description: `Delete ${spec.what}`,
     handler,
+    flags: [THRESHOLD],
   });
 
   groupUnder(`filter ${spec.command}`, () => {

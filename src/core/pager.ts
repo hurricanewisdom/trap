@@ -82,7 +82,7 @@ export type PagerSend = (body: {
   components: unknown[];
 }) => Promise<{ id?: string | number | bigint } | null | undefined>;
 
-// Not everything that pages is a reply to a command. The reposter pages a photo
+// Not everything that pages is a reply to a command: some callers post a card
 // post nobody asked for by name, so the send is passed in rather than taken from
 // a command context. Returns the message id, or null if nothing was posted.
 export async function paginateWith(

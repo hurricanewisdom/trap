@@ -164,12 +164,28 @@ for (const [name, body] of docs) {
   }
 }
 
-console.log("\nevery event named in the README:");
-for (const event of EVENTS) {
+console.log("\nevery event, named in the README and nowhere else:");
+{
+  for (const event of EVENTS) {
+    checked += 1;
+    if (!readme.includes(`\`${event.name}\``)) say(false, `${event.name} is never named`);
+  }
+
+  // And the other way round. Checking only that every real event is documented
+  // lets a removed one linger in the prose forever: taking the reposter out left
+  // it listed as an event and nothing noticed.
+  const known = new Set(EVENTS.map((event) => event.name));
+  const listed = /\*\*An event is something the bot does that nobody typed\*\*:([^.]+)\./s.exec(readme);
   checked += 1;
-  if (!readme.includes(`\`${event.name}\``)) say(false, `${event.name} is never named`);
+  if (!listed) {
+    say(false, "the README no longer lists the events");
+  } else {
+    const named = [...listed[1].matchAll(/`(\w+)`/g)].map((hit) => hit[1]);
+    const gone = named.filter((name) => !known.has(name));
+    if (gone.length) say(false, `README lists events that no longer exist: ${gone.join(", ")}`);
+  }
 }
-console.log(`  ${EVENTS.length} events checked`);
+console.log(`  ${EVENTS.length} events checked, both directions`);
 
 console.log("\nevery permission gate named in ARCHITECTURE:");
 {

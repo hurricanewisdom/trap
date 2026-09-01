@@ -1,3 +1,5 @@
+import type { CommandFlag } from "../../../helpers/flags.js";
+
 import { guildRoles, type Role } from "../../../core/discord.js";
 import { notice } from "../../../core/permissions.js";
 import {
@@ -56,3 +58,16 @@ export function registerExempt(path: string, describe: string, handler: PrefixHa
     });
   });
 }
+
+/**
+ * The one flag every counting filter takes.
+ *
+ * Declared here rather than in each of the three files that read it, so the
+ * help card and all three parsers cannot disagree about what it is called.
+ */
+export const THRESHOLD: CommandFlag = {
+  name: "threshold",
+  description: "How many it takes before the message is deleted.",
+  aliases: ["limit", "t"],
+  takes: "<number>",
+};

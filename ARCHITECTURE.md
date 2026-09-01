@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 208 source files, no comments — the names and the
+the read path and the cache. 203 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -140,12 +140,6 @@ src/
       suggest/          member suggestions and the statuses staff move them
                         through; store.ts holds config, suggestions and the
                         ignore list, post.ts renders a card and edits it in place
-      reposter/         NOT REGISTERED at the moment, switched off in the cog's
-                        index; social links downloaded and reposted as video, with
-                        stats; download.ts wraps yt-dlp, ffmpeg and curl_cffi,
-                        sites.ts is the 12-site host table, opengraph.ts follows
-                        short links and reads the counts, and the photos, that a
-                        rewrite host publishes when the site will not answer
       pins/             the pin archive: where a channel's pins are flushed to,
                         and the channelPinsUpdate hook that does it at 45
       pagination/       several embeds behind one message, turned with buttons:
@@ -641,13 +635,11 @@ around it tints.
   than with the writer that produced it — a hand-rolled format has to be checked
   by something that did not write it.
 - **A slow handler must not be awaited on a shared event.** `emitMessage` runs
-  its handlers in order, so the reposter kicks its download off and returns
-  rather than holding the filter up for seconds on every link.
-- **Two paths, so one breaking is not silence.** The reposter downloads the
-  video with yt-dlp and falls back to rewriting the link when a site refuses,
-  the file is too large, or the tool is missing. Extractors against tiktok and
-  youtube break by design of the other side; a feature built on one of them
-  needs somewhere to land.
+  its handlers in order, so anything that does real work has to start it and
+  return rather than holding every later hook up on every message.
+- **Two paths, so one breaking is not silence.** Extractors break by design of
+  the other side, so anything built on one needs somewhere to land — a
+  degraded answer beats an error. (Learned from the reposter, since removed.)
 - **Bytes do not fit through a JSON body.** `write()` encodes its body as JSON, so
   uploading goes through `sendFile` and `multipart/form-data` instead, with the
   message in a `payload_json` part. The same call carries `components` and `flags`,
@@ -700,22 +692,21 @@ around it tints.
   tags to crawlers and redirects browsers back to the origin. A downloader that
   impersonates a browser therefore walks back into the block it was sent to avoid,
   so the media url from the tags is fetched directly instead.
-- **When the front door is shut, ask the same question of the side door.** Reddit
-  returns 403 to this address for everything, so the reposter asks its rewrite host
-  instead — and gets the video *and* the counts from it. `opengraph.ts` returns the
-  same shape as a yt-dlp probe, so nothing downstream knows or cares which source
-  answered, and the caption is built once for both.
+- **When the front door is shut, ask the same question of the side door.** A
+  service that refuses this address often has a mirror that does not, and giving
+  both sources the same return shape means nothing downstream knows or cares
+  which answered.
 - **A site that cannot be made to work is removed, not matched.** A link that is
   recognised and then does nothing is worse than one that was never claimed, so a
   site that cannot be served leaves the table rather than sitting in it failing.
-- **A reported size is not the size you will fetch.** The reposter does not check
+- **A reported size is not the size you will fetch.** Nothing here checks
   a probe's `filesize` against the upload limit, because it describes the best
   format available rather than the one requested — youtube reports 232MB for a
   20MB download, which silently rejected every youtube link. Limits are enforced
   where the work happens, not from a number that answers a different question.
 - **Read back the artefact you asked for.** A tool that writes intermediates into
   the same directory will hand you one if you take the first file you find; the
-  reposter accepts only a single-extension name, so a failed merge fails instead
+  a single-extension name is the only one accepted, so a failed merge fails instead
   of posting an audio fragment as a video.
 - **Ask the tool what it can do, once, and reuse the answer.** yt-dlp is asked
   to impersonate a browser only after checking that impersonation is installed,
@@ -749,8 +740,8 @@ around it tints.
   reason, rather than stored and left to behave strangely.
 - **A limit on commands is not a limit on the bot.** The throttle sits in the
   command dispatch path, so the features that fire on an ordinary message — the
-  reposter on a link, the autoresponder on a word, the filter on anything — never
-  reach it and keep their own per-trigger cooldowns. Two layers guarding two
+  autoresponder on a word, the antinuke's webhook watch on a mass-mention, the
+  filter on anything — never reach it and keep their own per-trigger cooldowns. Two layers guarding two
   doors, not one job done twice.
 - **A refusal must be quieter than the thing it refuses.** The command limit tells
   somebody once and then drops them in silence, because answering every command in

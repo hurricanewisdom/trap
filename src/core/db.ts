@@ -419,22 +419,6 @@ export async function migrate(): Promise<void> {
   `;
 
   await sql`
-    CREATE TABLE IF NOT EXISTS reposter (
-      guild_id   TEXT NOT NULL,
-      enabled    BOOLEAN NOT NULL DEFAULT false,
-      embed      BOOLEAN NOT NULL DEFAULT true,
-      strict     BOOLEAN NOT NULL DEFAULT false,
-      suppress   BOOLEAN NOT NULL DEFAULT true,
-      wipe       BOOLEAN NOT NULL DEFAULT false,
-      prefixed   BOOLEAN NOT NULL DEFAULT false,
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      PRIMARY KEY (guild_id)
-    )
-  `;
-
-  await sql`ALTER TABLE reposter ADD COLUMN IF NOT EXISTS container BOOLEAN NOT NULL DEFAULT true`;
-
-  await sql`
     CREATE TABLE IF NOT EXISTS highlights (
       guild_id TEXT NOT NULL,
       user_id  TEXT NOT NULL,

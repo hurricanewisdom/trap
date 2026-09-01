@@ -15,8 +15,8 @@ import {
   type PrefixContext,
   type PrefixHandler,
 } from "../../../core/prefix.js";
-import { flagNumber, parseFlags, switchWord } from "../../../helpers/flags.js";
-import { HEADING, card, channelId, findRole, roleList, words, registerExempt } from "./shared.js";
+import { numberFor, parseFlags, switchWord } from "../../../helpers/flags.js";
+import { HEADING, card, channelId, findRole, roleList, words, registerExempt, THRESHOLD } from "./shared.js";
 
 const LABEL = "Mass mention filter";
 
@@ -78,9 +78,10 @@ async function main(ctx: PrefixContext): Promise<void> {
   const guildId = await requireManageChannels(ctx, "change the mass mention filter");
   if (!guildId) return;
 
-  const { rest, flags } = parseFlags(ctx.argument);
+  const parsed = parseFlags(ctx.argument);
+    const { rest } = parsed;
   const parts = words(rest);
-  const threshold = flagNumber(flags, "threshold", "limit", "t");
+  const threshold = numberFor(parsed, THRESHOLD);
 
   if (parts.length === 0 && threshold === null) {
     await status(ctx, guildId);
@@ -212,6 +213,7 @@ export function registerMentions(): void {
     aliases: ["mentions", "mentionspam"],
     description: "Delete messages with too many mentions",
     handler,
+    flags: [THRESHOLD],
   });
 
   groupUnder("filter massmention", () => {

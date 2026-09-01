@@ -37,7 +37,6 @@ rather than turning it into a three-word path with named fields.
 - `,webhook` — post as a named identity in a channel
 - `,fakepermissions` — let a role use the bot without the real permission
 - `,extractemotes`, `,extractstickers` — the server's emojis or stickers as a zip
-- ~~`,reposter`~~ — **switched off for now**, see below
 - `,badge` — reward members who wear the server tag on their profile
 - `,suggest` — members suggest ideas, staff move them through statuses
 - `,customize` — the bot's own avatar, banner and bio in one server
@@ -935,7 +934,7 @@ checked against it and returns a gif from its own category.
 
 ⚠️ **nekos.best cannot be used from this box.** It sits behind a Cloudflare
 challenge that answers a plain request with an interstitial page rather than
-json, the same wall the reposter hits on TikTok. It is not a rate limit and
+json, the same wall TikTok puts up against this box. It is not a rate limit and
 waiting does not fix it.
 
 ⚠️ **A dead cdn must not eat the command.** If the gif service does not answer,
@@ -1036,221 +1035,6 @@ than silently swallowing every suggestion.
 `suggest ignore` takes a member or a role and is a **toggle** — there is no
 unignore command in the set, so naming somebody already ignored puts them back.
 `suggest ignore list` shows who is on it.
-
-## Reposter
-
-⚠️ **Switched off.** The cog is untouched but not registered, so it has no
-commands, no help entry and no message hook. One commented line in
-`cogs/config/index.ts` brings it back. Everything below still describes it, and
-the parts worth knowing before picking it up again are the CAPTCHA and the
-rewrite hosts.
-
-```
-,reposter on / off
-,reposter embed on      name who posted the link
-,reposter strict on     match a link anywhere in a message
-,reposter suppress on   hide the original preview
-,reposter delete on     remove the original message
-,reposter prefix on     only repost after a server prefix
-,reposter container on  draw the repost inside a container
-```
-
-**Manage Server.** When somebody posts a link from one of the sites below, the
-bot **downloads the video and posts the file**, captioned with the title, the
-uploader, and whichever engagement counts that site reports. Every count is
-labelled with its own icon, and one the site does not report is left out rather
-than shown as zero — tiktok gives shares, youtube does not:
-
-```
-**what started on TikTok grew into a special…**
--# tiktok · 👁️views: 195.7K · ❤️likes: 3.8K · 💬comments: 1.2K · 🔁shares: 418
--# posted by @someone
-[video.mp4 — 10MB]
-```
-
-That runs on **yt-dlp**, installed at `/usr/local/bin/yt-dlp`, with **ffmpeg** and
-**curl_cffi** alongside it. All three are runtime dependencies of this feature and
-nothing else; without yt-dlp the reposter still works, it just falls back to links.
-
-### What each site actually does
-
-Measured from this box rather than assumed, because the answers were not the ones
-expected:
-
-| | sites |
-| --- | --- |
-| **Downloads the video** | youtube, tiktok, instagram, x, snapchat, tumblr, pinterest, twitch, streamable, medal |
-| **Downloads the audio** | soundcloud, as an `.m4a` |
-| **Downloads through a fixer** | reddit via `vxreddit.com`, tiktok via `tnktok.com` |
-| **Pages the photos instead** | tiktok photo posts, via `tnktok.com` |
-
-⚠️ **ffmpeg is required, not a quality nicety.** Youtube no longer serves a
-combined video-and-audio format at all — every format is one or the other — so
-without ffmpeg to join them every youtube download fails outright with
-`Requested format is not available`. That is why youtube looked broken while
-tiktok worked.
-
-⚠️ **Impersonation is what makes tumblr answer.** Without `curl_cffi` installed,
-tumblr closes the connection on this address. yt-dlp is asked to impersonate
-Chrome, but only after checking that impersonation is actually available —
-requesting it when the library is missing fails *every* download, so the check
-happens once and the answer is reused.
-
-**Reddit answers this address with `403`**, and **tiktok now answers it with a
-CAPTCHA** — 398KB of challenge page, on every video, with or without browser
-impersonation, on both the stable and nightly yt-dlp. Neither is an extractor
-problem and neither is fixable from here: the address is the thing being refused.
-
-When a site refuses like that, the rewrite hosts are asked instead, and they
-answer from their own addresses. Two details make that work:
-
-- ⚠️ **Download the file the fixer advertises, not the fixer's page.** These hosts
-  serve OpenGraph tags to a crawler and redirect anything that looks like a
-  browser back to the original site — which is where the block is. yt-dlp
-  impersonates a browser, so pointing it at the page walks it straight into the
-  CAPTCHA. The `og:video` url is a plain mp4 and downloads fine.
-- ⚠️ **No single host has both halves.** `tnktok.com` serves the file but publishes
-  no counts; `tiktxk.com` publishes `❤️ 186.4k 💬 1.1k` but its video url answers
-  `403` here. So the file comes from one and the numbers from the other, and only
-  in this path, which is already the slow one.
-
-Those numbers come from the OpenGraph tags the fixers publish for Discord's own
-crawler — `⬆️ 14493 | 💬 448` and the like — read back into the same shape a
-yt-dlp probe returns, so the rest of the code cannot tell which one answered.
-
-Setting `YTDLP_COOKIES` to a Netscape cookie file makes private instagram posts
-work too. Nothing else needs it.
-
-⚠️ **The size a probe reports is not the size you are about to download.** Youtube
-says `232MB` for a video this downloads at `20MB`, because that figure describes
-the best format on offer and not the 720p one actually requested. Checking it
-against the upload limit rejected every youtube link before it was ever tried.
-The ceiling is enforced during the download instead, where it means something.
-
-⚠️ **Read back the file you asked for, not whatever is in the directory.** yt-dlp
-leaves each stream beside the merged result as `video.f251.webm` and the like, so
-taking the first file in the folder posts an **audio-only fragment as a video**
-whenever a merge fails. Only a name with a single extension is accepted.
-
-The format ladder is built from the server's own upload limit, so a small server
-gets 480p or 360p rather than nothing. If even the smallest will not fit, nothing
-is posted — which is the honest outcome, and better than a soundtrack.
-
-**Gofile is absent on purpose.** yt-dlp has no extractor for it, and its own API
-needs a scraped website-token on top of a guest token. Matching the link and then
-doing nothing would be worse than leaving it alone.
-
-### The container
-
-```
-,reposter container on    the whole repost is drawn inside a container
-,reposter container off   no container, no box, just the video or the photos
-```
-
-On by default. With it on, a video goes out as a Components V2 container holding
-the caption and the video, and a photo post is boxed the same way, so reposts
-match the rest of the bot. With it off, a video is a plain message with an
-attachment exactly as before, and a photo post keeps its pages and buttons but
-loses the box around them.
-
-⚠️ **The link fallback is always plain, whatever this is set to.** A Components V2
-message has no `content` for Discord to unfurl, and the entire point of falling
-back to a link is that Discord turns it into a player. Boxing that would produce a
-tidy container with a dead link in it.
-
-⚠️ **With the container on there is no attachment to right-click.** The file is
-consumed by the media gallery, so `message.attachments` comes back empty and the
-video is a component instead. It plays the same; it is worth knowing if something
-downstream reads attachments.
-
-### Short links
-
-`tiktok.com/t/ZP8vEyVef`, `vm.tiktok.com/…` and the rest are followed before
-anything is decided, because a short link says nothing about what it points at.
-The same tiktok short link can land on a video or on a photo post, and those need
-completely different handling — one is downloaded, the other is paged. Everything
-after the redirect works on where it landed, including which rewrite host applies.
-
-### Photo posts
-
-A photo post is not a video, and yt-dlp answers `Unsupported URL` for one. The
-images are reachable only as the repeated `og:image` tags a fixer publishes, so
-for tiktok they come from `tnktok.com` — the one place measured to list them.
-
-They are posted as **pages with Back / Next / Page / Close**, reusing the same
-pager the rest of the bot uses, so a twelve-photo post is one message rather than
-twelve. Nothing is downloaded and nothing is attached: the images stay public URLs
-that Discord fetches itself, which is also why an album costs no upload quota.
-
-⚠️ **Only the person who posted the link can turn the page.** That is the pager's
-own rule everywhere in the bot, and it applies here too — a stranger clicking Next
-is told the menu belongs to someone else, rather than changing what everyone is
-looking at.
-
-**Photo posts carry the same counts as videos**, but the photos and the numbers
-come from different places. The fixer lists the images and publishes no numbers
-at all; yt-dlp refuses a photo post outright — yet it answers happily for **the
-same id asked for as a video**, which is where the counts turn out to live. The
-post is fetched twice, once for each half.
-
-Tiktok is the only site with a photo route today. Instagram's fixer published no
-`og:image` for any carousel tried against it, so its photo posts are not claimed
-rather than claimed and left blank.
-
-**When the download cannot happen, it falls back to posting the rewritten link**
-so Discord plays it inline instead — with the same counts on it, so a repost reads
-the same whether the file made it through or not. That happens when a site refuses the extractor,
-the video is over the upload limit, or yt-dlp is missing. A reposter that goes
-silent whenever an extractor breaks is worse than one that posts a link that
-plays, and extractors do break — these sites change deliberately to stop them.
-
-⚠️ **A video over the upload limit is re-encoded to fit, not abandoned.** The
-limit is per server — 10MB unboosted, 50MB at level 2, 100MB at level 3, and the
-bot takes 90% of whichever applies. On an unboosted server almost everything is
-over it: a tiktok two percent above the line used to be thrown away and replaced
-with a link. Now ffmpeg squeezes it to fit, which takes about ten seconds for a
-two-minute clip and a minute for a four-minute one. Anything longer than **ten
-minutes** is left alone, because the bitrate it would need looks like a slideshow,
-and anything over **45 minutes** is never fetched at all.
-
-⚠️ **`--max-filesize` does not mean what it looks like.** It is checked per stream
-and not on the merged result, and a `filesize_approx<?` format filter admits
-formats whose size is unknown. Between them, an attempt that asked for nine
-megabytes hands back twenty-one. The file that arrives is measured on disk rather
-than trusted, whichever attempt produced it.
-
-Two costs worth stating plainly. **yt-dlp needs updating** — when tiktok or
-youtube changes something, extraction breaks until it is updated, and that is a
-standing maintenance task, not a one-off. And the fallback sends the link through
-a **third-party host**, and those die constantly: `ddinstagram.com` stopped
-resolving, `rxddit.com` began answering `502`, `vxtiktok.com` was taken down by a
-legal request, and `kkinstagram.com` stopped serving video tags — all within a
-week. That is the whole argument for `sites.ts` being one table to edit rather
-than a rule spread through the code, and the reason a repost now squeezes a file
-to fit before it ever considers posting a link.
-
-**Instagram has no working rewrite host at all**, so a failed instagram download
-leaves the poster's own link alone rather than replacing it with a dead one.
-
-`strict` off means the message has to be **nothing but the link**, so a link
-mentioned in passing does not drag a video into the channel. `prefix` on means
-only `,<link>` is reposted, for servers that want it opt-in per message. There
-is a three second cooldown per person per channel.
-
-⚠️ **A profile link is not a video.** Short-link hosts get their own entry in the
-table for exactly this reason: `clips.twitch.tv/abc` is a clip but
-`twitch.tv/somestreamer` is a channel, and one greedy pattern covering both would
-have the bot download strangers' profiles. Tumblr needs the opposite treatment — every blog is its own
-subdomain, so no list of exact hosts can cover it and it matches on a suffix.
-
-Downloading takes seconds, so the handler is **not awaited**: `emitMessage` runs
-handlers in order, and waiting would hold up the filter and everything after it
-for every link somebody posts. At most two downloads run at once, each into a
-temp directory that is removed whether or not it succeeded. Progress output is
-switched off — a long download otherwise writes thousands of progress lines, and
-enough of them overruns the read buffer and kills the process.
-
-`,disableevent #channel reposter` switches it off in one channel.
 
 ## Fake permissions
 
@@ -1414,8 +1198,8 @@ carry their own `list`. Sixteen commands, all **Manage Channels**.
 `help` — so switching one off takes every command in it with it.
 
 **An event is something the bot does that nobody typed**: `autoresponder`,
-`filter`, `gallery`, `snipe`, `sticky`, `reactions`, `reposter`, `editrerun`,
-`welcome`, `goodbye` and `boost`. Eleven of them.
+`filter`, `gallery`, `snipe`, `sticky`, `reactions`, `editrerun`, `welcome`,
+`goodbye` and `boost`. Ten of them.
 
 Ten are enforced in `core/hooks.ts` rather than in each feature: a handler
 registers with a name (`onMessage(police, "filter")`), and the emitter skips a
@@ -1764,14 +1548,13 @@ an unreachable database is a reason to keep the guard, not to drop it. Custom co
 through the same limit, and so does a command re-run by editing a message, since
 both take the same dispatch path. `/help`, the one slash command, does not.
 
-⚠️ **This covers commands, and several features are not commands.** The reposter
-fires on somebody posting a link, the autoresponder on somebody saying a word, and
-the filter, sticky, gallery and snipe hooks on any message at all. None of those
-begin with a prefix, so none of them reach this limit — which is why they keep
-their own cooldowns: **four seconds** per trigger per channel for the
-autoresponder, **three** per person per channel for the reposter, **1.2** for a
-re-run edit. The two layers guard different doors rather than doing the same job
-twice.
+⚠️ **This covers commands, and several features are not commands.** The
+autoresponder fires on somebody saying a word, the antinuke on an audit log entry,
+and the filter, sticky, gallery and snipe hooks on any message at all. None of
+those begin with a prefix, so none of them reach this limit — which is why they
+keep their own cooldowns: **four seconds** per trigger per channel for the
+autoresponder, **1.2** for a re-run edit. The two layers guard different doors
+rather than doing the same job twice.
 
 ## Run
 
@@ -1779,7 +1562,7 @@ twice.
 2. `npm install && npm run build`
 3. `pm2 start ecosystem.config.cjs && pm2 save`
 
-### Seven things npm will not install
+### Six things npm will not install
 
 Some commands shell out to programs that are not node packages, so `npm install`
 does not bring them and a fresh box does not have them. The bot starts either
@@ -1788,9 +1571,8 @@ to know about, because none of them announce themselves.
 
 | | what it is for | missing it costs |
 | --- | --- | --- |
-| **yt-dlp** | fetching video and audio | reposts degrade to links; `makemp3`, `transcribe` and `shazam` stop |
-| **ffmpeg** | joining video and audio, and the image filters | youtube, twitch and reddit fail outright; `rotate`, `invert`, `compress` and `hex` stop working |
-| **curl_cffi** | letting yt-dlp impersonate a browser | tumblr refuses the connection |
+| **yt-dlp** | fetching video and audio | `makemp3`, `transcribe` and `shazam` stop working |
+| **ffmpeg** | joining video and audio, and the image filters | `makemp3` and `transcribe` fail; `rotate`, `invert`, `compress` and `hex` stop working |
 | **Chrome** | rendering a page for `screenshot` | `screenshot` alone; nothing else notices |
 | **Piston** (docker) | running code in a sandbox | `run` says the runner did not answer |
 | **/opt/trap-py** | faster-whisper and shazamio | `transcribe` and `shazam` |
@@ -1800,7 +1582,6 @@ to know about, because none of them announce themselves.
 curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
 chmod +x /usr/local/bin/yt-dlp
 apt-get install -y ffmpeg
-pip3 install --break-system-packages curl_cffi
 
 curl -L https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o /tmp/chrome.deb
 apt-get install -y /tmp/chrome.deb
@@ -1834,18 +1615,7 @@ snap, which does not run headless under this setup, so Chrome's own deb is what
 is installed. `chromium-browser` in the archive is only a shim pointing at that
 snap — it looks like a package and is not one.
 
-⚠️ **ffmpeg is not optional for youtube.** Youtube serves no combined
-video-and-audio format any more, so without something to merge the two streams
-every youtube download fails on `Requested format is not available` — while the
-metadata still comes back perfectly, which makes it look like a network problem
-rather than a missing program.
-
-⚠️ **yt-dlp goes stale.** Sites change specifically to break extractors, and when
-one does, that site quietly falls back to links until `yt-dlp -U` is run. It is a
-standing task, not a one-off.
-
-`YTDLP_PATH` overrides where the binary is looked for. `YTDLP_COOKIES` points at a
-Netscape cookie file, which is what private instagram posts need.
+`YTDLP_PATH` overrides where the binary is looked for.
 
 ## Deploy
 
@@ -1919,8 +1689,8 @@ Two consequences of having no `content`, both found by building on it:
 
 - ⚠️ **A V2 message does not unfurl links.** There is no `content` for Discord to
   read, so a link inside a text component stays text. Anything that depends on
-  Discord turning a link into a player — the reposter's fallback — has to be sent
-  as a plain message, whatever the surrounding feature is set to.
+  Discord turning a link into a player has to be sent as a plain message,
+  whatever the surrounding feature is set to.
 - ⚠️ **A file shown by a component is not an attachment.** Upload a file and point
   a media gallery at `attachment://name`, and Discord moves it into the component:
   `message.attachments` comes back **empty** and the media carries a CDN url
