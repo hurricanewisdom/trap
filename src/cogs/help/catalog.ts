@@ -373,6 +373,42 @@ export const CATEGORIES: CategoryDoc[] = [
     emoji: "",
     blurb: "Friends, sharing and what other people are playing",
   },
+  {
+    slug: "roleplay",
+    label: "Roleplay setting",
+    emoji: "",
+    blurb: "Turning the reaction commands on for a server, or off again",
+  },
+  {
+    slug: "affection",
+    label: "Affection",
+    emoji: "",
+    blurb: "Hugs, kisses, hand-holding and the rest of the warm ones",
+  },
+  {
+    slug: "playful",
+    label: "Playful",
+    emoji: "",
+    blurb: "Biting, poking, licking and other mischief",
+  },
+  {
+    slug: "rough",
+    label: "Rough",
+    emoji: "",
+    blurb: "Slapping, punching, shouting and glaring",
+  },
+  {
+    slug: "feelings",
+    label: "Feelings",
+    emoji: "",
+    blurb: "Crying, sighing, blushing and every other mood",
+  },
+  {
+    slug: "gestures",
+    label: "Gestures",
+    emoji: "",
+    blurb: "Clapping, waving, dancing and drinking together",
+  },
 ];
 
 export const DOCS: CommandDoc[] = [

@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 180 source files, no comments — the names and the
+the read path and the cache. 185 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -160,6 +160,13 @@ src/
                         message, with nothing configured per server
       extract/          the emojis or stickers as a zip; zip.ts is a stored-only
                         archive writer, so no dependency for one command
+    roleplay/           reaction commands, off until a server enables them
+      actions.ts        the sixty-two, as one table of name, section, blurb and
+                        the line it prints; one handler factory behind all of them
+      config.ts         ,roleplay enable/disable, Administrator only
+      store.ts          the per-guild switch, cached, failing closed
+      gifs.ts           otakugifs.xyz, pooled so a run of one command is not a
+                        run of requests, and null rather than throwing when down
     help/               the command browser
       model.ts          one indexed view of the registry + catalog
       search.ts         ranking, for /help autocomplete and ,help <query>

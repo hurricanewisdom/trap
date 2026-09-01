@@ -510,6 +510,13 @@ export async function migrate(): Promise<void> {
   await sql`CREATE INDEX IF NOT EXISTS emote_uses_guild ON emote_uses (guild_id, emote)`;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS roleplay (
+      guild_id TEXT PRIMARY KEY,
+      enabled  BOOLEAN NOT NULL DEFAULT false
+    )
+  `;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS mod_config (
       guild_id     TEXT NOT NULL,
       jail_role    TEXT,

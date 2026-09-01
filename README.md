@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 557 commands across six cogs,
+(TypeScript strict, Node 22), run bare with pm2. 620 commands across seven cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -581,6 +581,67 @@ The reply says how many were skipped rather than quietly returning a short count
 
 ⚠️ **`restrictcommand` fails open.** A database that cannot be reached should not
 lock a server out of its own bot, so an unanswerable restriction is no restriction.
+
+## Roleplay
+
+A cog of its own, and **off in every server until an administrator turns it on**.
+Sixty-two reaction commands plus the setting that gates them.
+
+```
+,roleplay              where the server stands
+,roleplay enable       all sixty-two, for everybody here
+,roleplay disable      they stay registered and decline
+```
+
+```
+affection  airkiss celebrate cuddle handhold happy hug kiss love nuzzle pat
+           smile wave wink yay
+playful    bite bleh drool lick nom nyah peek pinch poke smug tickle woah
+rough      angrystare evillaugh headbang mad punch shout slap smack
+feelings   confused cry facepalm nervous pout sad scared shrug shy sigh sleep
+           sneeze sorry surprised sweat tired yawn
+gestures   brofist cheers clap cool dance laugh sip slowclap stare thumbsup yes
+```
+
+Each takes a member and posts a line and a gif — `,hug @someone` reads
+"**you** hugs **them**" with a hug gif under it.
+
+⚠️ **Off is the default, and a database that will not answer keeps it off.** A
+server that has never heard of these should not suddenly grow sixty-two
+commands, so the setting fails closed rather than open: a failed lookup returns
+the last known answer or `false`, never `true`. The state is cached for a minute
+because it is read before every one of these commands.
+
+⚠️ **Only the target is pinged.** Both names are written as mentions so they
+render as names, but `allowed_mentions` names only the target — the sender does
+not get pinged for their own command, and aiming one at yourself pings nobody at
+all. Rendering and notifying are separate things in Discord, which is what makes
+this work.
+
+⚠️ **Two of these names already belonged to a subcommand** — `celebrate` to
+`birthday` and `love` to `lastfm`. The same rule as the information cog applies:
+`lookup` checks the top-level registry before the group namespaces, so `,love` is
+now the roleplay command while `,lastfm love` still loves the playing track. That
+is a real change for anybody who typed `,love` bare to scrobble a love.
+
+### Where the gifs come from
+
+[otakugifs.xyz](https://api.otakugifs.xyz), which needs no key and whose reaction
+list happens to be a superset of this one — every one of the sixty-two was
+checked against it and returns a gif from its own category.
+
+⚠️ **nekos.best cannot be used from this box.** It sits behind a Cloudflare
+challenge that answers a plain request with an interstitial page rather than
+json, the same wall the reposter hits on TikTok. It is not a rate limit and
+waiting does not fix it.
+
+⚠️ **A dead cdn must not eat the command.** If the gif service does not answer,
+the line still posts without a picture. A reaction command that says nothing
+because somebody else's cdn is down is worse than one without a gif.
+
+Requests are pooled rather than made one per invocation: four are fetched at
+once, one is used and the rest answer the next few calls, which is also what
+stops the same picture coming back twice in a row.
 
 ## Bot appearance
 
@@ -1590,7 +1651,7 @@ each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 750 views** and asserts unique
+The check that keeps this honest renders **all 833 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.
