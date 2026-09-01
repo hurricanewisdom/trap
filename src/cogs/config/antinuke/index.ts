@@ -10,10 +10,12 @@ import {
   PUNISHMENTS,
   clearList,
   listOf,
+  clearSpamExempt,
   setModule,
   setPunishment,
   settingsFor,
   toggleOn,
+  toggleSpamExempt,
   type Module,
   type Punishment,
 } from "./store.js";
@@ -21,6 +23,15 @@ import { registerSpam } from "./spam.js";
 import { registerWatch } from "./watch.js";
 
 const USER = /^<@!?(\d{15,25})>$/;
+
+const CHANNEL = /^<#(\d{15,25})>$/;
+
+function channelId(token: string | undefined): string | null {
+  if (!token) return null;
+  const mention = CHANNEL.exec(token);
+  if (mention?.[1]) return mention[1];
+  return /^\d{15,25}$/.test(token) ? token : null;
+}
 
 function userId(token: string | undefined): string | null {
   if (!token) return null;
@@ -273,6 +284,56 @@ const trust = listCommand("antinuke_trust", "trust", "can manage the antinuke");
 
 const whitelist = listCommand("antinuke_whitelist", "whitelist", "is excluded from the antinuke");
 
+/**
+ * Channels where a webhook may mass-mention.
+ *
+ * One command rather than three, because an exemption list is read far more
+ * often than it is edited: no argument shows it, a channel toggles it, and
+ * `clear` empties it.
+ */
+async function spamExempt(ctx: PrefixContext): Promise<void> {
+  const guildId = await requireOwner(ctx, "change the webhook spam exemptions");
+  if (!guildId) return;
+
+  const said = words(ctx.argument)[0] ?? "";
+  const settings = await settingsFor(guildId);
+
+  if (!said) {
+    const held = [...settings.spamExempt];
+    await card(ctx, [
+      `### ${held.length} exempt channel${held.length === 1 ? "" : "s"}`,
+      ...(held.length
+        ? held.map((one) => `<#${one}> — \`${one}\``)
+        : ["-# None. A webhook mass-mentioning anywhere is treated as an attack."]),
+      "",
+      "-# `antinuke webhookspam exempt #channel` · `… exempt clear`",
+    ]);
+    return;
+  }
+
+  if (/^(clear|reset|purge)$/i.test(said)) {
+    const gone = await clearSpamExempt(guildId);
+    await card(ctx, ["### Cleared", `-# ${gone} channel${gone === 1 ? "" : "s"} no longer exempt.`]);
+    return;
+  }
+
+  const channel = channelId(said);
+  if (!channel) {
+    await card(ctx, ["Which channel?", "", "-# `antinuke webhookspam exempt #announcements`"]);
+    return;
+  }
+
+  const added = await toggleSpamExempt(guildId, channel);
+  await card(ctx, [
+    added
+      ? `Webhooks may mass-mention in <#${channel}>.`
+      : `<#${channel}> is no longer exempt.`,
+    ...(added
+      ? ["-# Nothing posted there by a webhook will be removed, whatever it mentions."]
+      : []),
+  ]);
+}
+
 async function root(ctx: PrefixContext): Promise<void> {
   const sub = words(ctx.argument)[0]?.toLowerCase() ?? "";
   const found = sub ? lookupIn("antinuke", sub) : undefined;
@@ -314,7 +375,15 @@ export function registerAntinuke(): void {
       name: "webhookspam",
       aliases: ["wspam", "hookspam", "whspam", "mentionspam", "whook", "wh", "spam"],
       description: "Detect mass-mention spam sent through webhooks",
-      handler: moduleCommand("webhookspam"),
+      handler: async (ctx) => {
+        const sub = words(ctx.argument)[0]?.toLowerCase() ?? "";
+        const nested = sub ? lookupIn("antinuke webhookspam", sub) : undefined;
+        if (nested) {
+          await nested.handler({ ...ctx, argument: ctx.argument.replace(/^\s*\S+\s*/, "") });
+          return;
+        }
+        await moduleCommand("webhookspam")(ctx);
+      },
     });
 
     register({
@@ -345,6 +414,15 @@ export function registerAntinuke(): void {
         }
         await whitelist.toggle(ctx);
       },
+    });
+  });
+
+  groupUnder("antinuke webhookspam", () => {
+    register({
+      name: "exempt",
+      aliases: ["allow", "ignore", "channel", "channels"],
+      description: "Channels where a webhook may mass-mention",
+      handler: spamExempt,
     });
   });
 

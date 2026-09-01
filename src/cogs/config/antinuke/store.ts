@@ -29,6 +29,10 @@ export interface Settings {
   punishment: Punishment;
   trusted: Set<string>;
   whitelisted: Set<string>;
+  // Channels where webhook mass-mentions are somebody's announcement rather
+  // than an attack. Only webhookspam reads this; the other modules act on the
+  // server, not in a channel.
+  spamExempt: Set<string>;
 }
 
 // A threshold of one means the first one is punished, which is what `bot` and
@@ -70,6 +74,7 @@ function fresh(): Settings {
     punishment: "ban",
     trusted: new Set(),
     whitelisted: new Set(),
+    spamExempt: new Set(),
   };
 }
 
@@ -79,7 +84,7 @@ export async function settingsFor(guildId: string): Promise<Settings> {
 
   const settings = fresh();
   try {
-    const [modules, config, trusted, whitelisted] = await Promise.all([
+    const [modules, config, trusted, whitelisted, exempt] = await Promise.all([
       sql<{ module: string; enabled: boolean; threshold: number; window_ms: number }[]>`
         SELECT module, enabled, threshold, window_ms FROM antinuke WHERE guild_id = ${guildId}
       `,
@@ -88,6 +93,9 @@ export async function settingsFor(guildId: string): Promise<Settings> {
       `,
       sql<{ user_id: string }[]>`SELECT user_id FROM antinuke_trust WHERE guild_id = ${guildId}`,
       sql<{ user_id: string }[]>`SELECT user_id FROM antinuke_whitelist WHERE guild_id = ${guildId}`,
+      sql<{ channel_id: string }[]>`
+        SELECT channel_id FROM antinuke_spam_exempt WHERE guild_id = ${guildId}
+      `,
     ]);
 
     for (const row of modules) {
@@ -104,6 +112,7 @@ export async function settingsFor(guildId: string): Promise<Settings> {
     }
     settings.trusted = new Set(trusted.map((row) => row.user_id));
     settings.whitelisted = new Set(whitelisted.map((row) => row.user_id));
+    settings.spamExempt = new Set(exempt.map((row) => row.channel_id));
   } catch {
     // A database that will not answer must not switch protection on for a
     // server that never asked for it, nor off for one relying on it. The last
@@ -173,4 +182,29 @@ export async function listOf(roll: Roll, guildId: string): Promise<string[]> {
     [guildId],
   );
   return (rows as unknown as { user_id: string }[]).map((row) => row.user_id);
+}
+
+/** A channel where webhook mass-mentions are allowed. Adding twice removes it. */
+export async function toggleSpamExempt(guildId: string, channelId: string): Promise<boolean> {
+  const gone = await sql<{ channel_id: string }[]>`
+    DELETE FROM antinuke_spam_exempt WHERE guild_id = ${guildId} AND channel_id = ${channelId}
+    RETURNING channel_id
+  `;
+  if (gone.length > 0) {
+    forget(guildId);
+    return false;
+  }
+  await sql`
+    INSERT INTO antinuke_spam_exempt (guild_id, channel_id) VALUES (${guildId}, ${channelId})
+  `;
+  forget(guildId);
+  return true;
+}
+
+export async function clearSpamExempt(guildId: string): Promise<number> {
+  const gone = await sql<{ channel_id: string }[]>`
+    DELETE FROM antinuke_spam_exempt WHERE guild_id = ${guildId} RETURNING channel_id
+  `;
+  forget(guildId);
+  return gone.length;
 }

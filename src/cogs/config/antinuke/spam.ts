@@ -30,6 +30,10 @@ async function police(event: MessageEvent): Promise<void> {
   const watch = settings.modules.webhookspam;
   if (!watch.on) return;
 
+  // An announcement channel is the one place a webhook mass-mention is somebody
+  // doing their job, so it is checked before anything is deleted.
+  if (settings.spamExempt.has(event.channelId)) return;
+
   const weight = weightOf(event, watch.threshold);
   if (weight < watch.threshold) return;
 

@@ -97,7 +97,8 @@ src/
                         whitelist, cached and failing to the last known answer;
                         spam.ts is the one message-path watch, for webhook
                         mass-mentions, which deletes the webhook rather than
-                        punishing a member because there is no member
+                        punishing a member because there is no member, and
+                        skips channels on the per-channel exemption list
       boosterrole/      personal colour roles for boosters: store.ts,
                         shared.ts (gates, colour parsing), member.ts,
                         admin.ts, share.ts
@@ -301,7 +302,7 @@ is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 441 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 442 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.

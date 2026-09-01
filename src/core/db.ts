@@ -544,6 +544,14 @@ export async function migrate(): Promise<void> {
   `;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS antinuke_spam_exempt (
+      guild_id   TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      PRIMARY KEY (guild_id, channel_id)
+    )
+  `;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS antinuke_events (
       guild_id TEXT NOT NULL,
       user_id  TEXT NOT NULL,

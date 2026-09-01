@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 682 commands across eight cogs,
+(TypeScript strict, Node 22), run bare with pm2. 683 commands across eight cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -612,11 +612,24 @@ A webhook message trips it when its mentions reach the threshold, with an
 Mentions are counted by Discord rather than by reading the text, so one inside a
 code block does not count and one in an embed does.
 
-⚠️ **An announcement webhook that uses `@everyone` will be deleted.** That is the
-module working, not a bug, and it is the reason this is off by default like the
-rest. If a server has a legitimate webhook that mass-mentions, leave this one
-off — there is no per-webhook exemption, because the whitelist holds users and a
-webhook is not one.
+**Announcement channels are exempted per channel**, which is what makes this
+usable on a server that has a webhook posting `@everyone` on purpose:
+
+```
+,antinuke webhookspam exempt              list them
+,antinuke webhookspam exempt #announcements   toggle one
+,antinuke webhookspam exempt clear        empty the list
+```
+
+Nothing a webhook posts in an exempt channel is touched, whatever it mentions.
+One command rather than three, because an exemption list is read far more often
+than it is edited. Aliases: `allow`, `ignore`, `channel`.
+
+⚠️ **The exemption is per channel, not per webhook.** A leaked webhook token for
+an exempt channel can still mass-mention there — Discord gives a webhook message
+no identity beyond the webhook itself, so "this webhook is allowed" is not a
+thing that can be checked. Exempt the channel your announcements go to and
+nothing else.
 
 The message is removed even when the webhook cannot be, since the mentions have
 already fired and leaving the post up only keeps the damage on screen.
@@ -1925,12 +1938,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 441 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 442 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 919 views** and asserts unique
+The check that keeps this honest renders **all 920 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.
