@@ -1,17 +1,25 @@
-Take the spec-only commands back out of automod
+Point the help browser at automod, and unstick the doc it orphaned
 
-Following the supplied command list literally grew the group by eight commands
-the bot had never had: mentions raid, an allow list for invites and its view,
-per-filter reset on music and spam, and the bare `ignore view` / `whitelist
-view` / `links ignore view`. None of them answered a need anyone had; they were
-there because a list said so. Out.
+The catalog matches entries to commands by name, so renaming ,filter left a doc
+called `filter` behind -- and because exactly one command still answered to that
+name it was adopted unconditionally. ,boosterrole filter has been wearing the
+word filter's documentation and sitting in the Filters section of ,help. Nothing
+errored and every total stayed right, because the doc was still attached to
+something.
 
-What the list was worth was the vocabulary, and that stays: automod, ignore,
-whitelist, mentions, music, clear. The group is 35 commands again, the same 35
-it has always been, under better names. Counts back to 498 / 406 / 672.
+The entry is now `automod` in a section called AutoMod, its subcommand list
+rewritten from the six it used to claim to the seventeen there actually are, and
+the description says which of ignore and whitelist takes text. inCategory() was
+renamed to match. ,boosterrole filter is back under Booster roles with no doc of
+its own, which is what it always should have had.
 
-The allow list is gated on a spec flag again, so only the link filter has one --
-which is how it was before, and the reason `automod invites` never took a
-domain.
+The stale `snipe` doc and its empty section went too; the command left with the
+utility cog and the doc had been describing `,filter snipe` ever since.
+
+docaudit now checks every doc entry and every section individually, 268 checks
+up from 94: a doc no command answers to, and a section nothing files under.
+That catches the orphan, not the adoption -- the sharper test, a command's own
+inCategory() slug disagreeing with its doc's, already has three deliberate
+exceptions and would cry wolf every run.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>

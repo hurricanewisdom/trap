@@ -609,12 +609,31 @@ around it tints.
   the way out when the docs are mid-rewrite; `--no-build` skips the audit too,
   because it reads `dist/` and checking a stale build would pass for the wrong
   reason.
+- ⚠️ **A renamed command does not take its documentation with it.**
+  `documented()` matches catalog entries to commands **by name**. Renaming
+  `,filter` to `,automod` left a doc called `filter` behind, and because exactly
+  one command still answered to that name it was adopted unconditionally: for a
+  while `,boosterrole filter` wore the word filter's documentation and sat in
+  the Filters section of `,help`. Nothing errored, and the totals stayed right,
+  because the doc was still attached to *something*. Rename the catalog entry
+  and the `inCategory()` slug in the same commit as the command.
 - **Every kind of drift found once becomes a check.** The suite grew from 86 to
-  94 that way: per-cog counts, the settings table against `.env.example`, events
+  268 that way — every doc entry and every catalog section is now checked
+  individually: per-cog counts, the settings table against `.env.example`, events
   in *both* directions, duplicate help slugs, select menus rendered rather than
   counted, and `plain()` call sites asking for more than the escaper gives.
   Each one was a real mistake first. Counting the whole bot never caught any of
   them, because the whole-bot totals were right while the parts were wrong.
+
+  ⚠️ The doc checks catch an **orphan** — a catalog entry no command answers to,
+  which is how the dead `snipe` doc was found after the utility cog went. They
+  do **not** catch a **misattribution**, where the orphan is adopted by a
+  same-named subcommand, because the entry is still attached to a live command
+  and nothing about it looks wrong. The obvious test — the command's own
+  `inCategory()` slug disagreeing with the doc's — has three deliberate
+  exceptions already (`unpin`, `lfurl`, `vote` are filed by hand under a
+  different section than their registrar declares), so it would report those
+  three every run and teach everyone to ignore it.
 - **Never store a credential you can fetch.** A webhook URL is a password that
   needs no account behind it, so `webhooks` has no token column: the token is
   read from Discord at the moment of a send and dropped. The row is worthless on

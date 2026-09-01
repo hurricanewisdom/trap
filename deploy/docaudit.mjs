@@ -27,7 +27,7 @@ const { allCommands } = await import(dist("core/prefix.js"));
 const model = await import(dist("cogs/help/model.js"));
 const render = await import(dist("cogs/help/render.js"));
 const { EVENTS } = await import(dist("core/availability.js"));
-const { CATEGORIES } = await import(dist("cogs/help/catalog.js"));
+const { CATEGORIES, DOCS } = await import(dist("cogs/help/catalog.js"));
 
 const noop = () => {};
 await loadCogs(cogs, {
@@ -309,6 +309,31 @@ console.log("\nevery help section slug is its own:");
   checked += 1;
   if (repeats.length) say(false, `catalog slug used twice: ${repeats.join(", ")}`);
   else console.log(`  ${CATEGORIES.length} slugs checked`);
+}
+
+console.log("\nevery doc entry still has a command, and every category an entry:");
+{
+  const live = new Set();
+  for (const command of all) {
+    live.add(command.name);
+    for (const alias of command.aliases ?? []) live.add(alias);
+  }
+
+  // A doc whose command was renamed does not go quiet: `documented()` matches
+  // docs to commands by name, so the orphan attaches itself to whatever else
+  // answers to that name. Renaming `filter` to `automod` handed the word
+  // filter's documentation to `,boosterrole filter`.
+  for (const doc of DOCS) {
+    checked += 1;
+    if (!live.has(doc.name)) say(false, `catalog documents \`${doc.name}\`, which no command answers to`);
+  }
+
+  const filed = new Set(model.entries().map((entry) => entry.section));
+  for (const category of CATEGORIES) {
+    checked += 1;
+    if (!filed.has(category.slug)) say(false, `catalog section "${category.label}" has nothing in it`);
+  }
+  console.log(`  ${DOCS.length} docs and ${CATEGORIES.length} sections checked`);
 }
 
 console.log("\nevery select menu on every help view:");

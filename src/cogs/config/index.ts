@@ -40,7 +40,7 @@ export const configCog: Cog = {
     inCategory("alias", registerAlias);
     inCategory("sticky", registerSticky);
     inCategory("gallery", registerGallery);
-    inCategory("filter", registerFilter);
+    inCategory("automod", registerFilter);
     inCategory("autoresponder", registerAutoresponder);
     inCategory("pagination", registerPagination);
     inCategory("availability", registerAvailability);

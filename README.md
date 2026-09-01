@@ -38,7 +38,7 @@ rather than turning it into a three-word path with named fields.
 - `,badge` — reward members who wear the server tag on their profile
 - `,suggest` — members suggest ideas, staff move them through statuses
 - `,customize` — the bot's own avatar, banner and bio in one server
-- `,automod` — ten chat filters, five of them enforced by Discord's AutoMod
+- `,automod` — ten chat filters, five of them enforced by Discord's AutoMod (was `,filter`)
 - `,ban`, `,tempban`, `,softban`, `,hardban`, `,warn`, `,timeout` — punishments, each writing a case
 - `,history`, `,caselog`, `,reason`, `,proof`, `,notes` — the case log and what is on it
 - `,jail`, `,mute`, `,imute`, `,rmute` — holding somebody's roles, and three kinds of mute
