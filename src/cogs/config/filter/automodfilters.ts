@@ -20,7 +20,7 @@ import {
   type PrefixHandler,
 } from "../../../core/prefix.js";
 import { parseFlags, switchWord } from "../../../helpers/flags.js";
-import { card, channelId, findRole, roleList, words, registerExempt } from "./shared.js";
+import { card, channelId, findRole, roleList, words, registerExempt, isListWord } from "./shared.js";
 
 export interface Guarded {
   kind: string;
@@ -30,7 +30,6 @@ export interface Guarded {
   what: string;
   patterns: string[];
   blocked: string;
-  whitelist?: boolean;
 }
 
 const BS = String.fromCharCode(92);
@@ -58,7 +57,6 @@ export const LINKS: Guarded = {
   what: "messages containing a link",
   blocked: "Links are not allowed here.",
   patterns: [`https?://[${BS}S]+`, `www${BS}.[${BS}S]+${BS}.[a-z]{2,}`],
-  whitelist: true,
 };
 
 export const GUARDED = [INVITES, LINKS];
@@ -84,12 +82,12 @@ async function status(ctx: PrefixContext, guildId: string, spec: Guarded): Promi
         ? `Skipped in ${rule.exempt_channels.map((id) => `<#${id}>`).join(" · ")}.`
         : "",
       rule?.exempt_roles?.length ? `Exempt: ${roleList(rule.exempt_roles)}` : "",
-      spec.whitelist && allowed.length ? `Allowed: ${allowed.map((e) => `\`${e}\``).join(" · ")}` : "",
+      allowed.length ? `Allowed: ${allowed.map((e) => `\`${e}\``).join(" · ")}` : "",
       "",
-      `\`filter ${spec.command} on\` or \`off\` switches it`,
-      `\`filter ${spec.command} #channel off\` skips one channel`,
-      `\`filter ${spec.command} exempt <role>\` exempts a role`,
-      spec.whitelist ? `\`filter ${spec.command} whitelist <text>\` lets a link through` : "",
+      `\`automod ${spec.command} on\` or \`off\` switches it`,
+      `\`automod ${spec.command} #channel off\` skips one channel`,
+      `\`automod ${spec.command} whitelist <role>\` exempts a role`,
+      `\`automod ${spec.command} ignore <text>\` lets one through`,
       "",
       "-# Enforced by Discord itself, so a blocked message never posts.",
     ]
@@ -117,11 +115,11 @@ function build(spec: Guarded): void {
 
     if (channel) {
       if (!rule) {
-        await card(ctx, [`### ${spec.label}`, `Switch it on first with \`filter ${spec.command} on\`.`].join("\n"));
+        await card(ctx, [`### ${spec.label}`, `Switch it on first with \`automod ${spec.command} on\`.`].join("\n"));
         return;
       }
       if (state === null) {
-        await card(ctx, [`### ${spec.label}`, `Use \`filter ${spec.command} #channel on\` or \`off\`.`].join("\n"));
+        await card(ctx, [`### ${spec.label}`, `Use \`automod ${spec.command} #channel on\` or \`off\`.`].join("\n"));
         return;
       }
 
@@ -199,21 +197,21 @@ function build(spec: Guarded): void {
     const current = rule?.exempt_roles ?? [];
     const token = ctx.argument.trim();
 
-    if (!token || token.toLowerCase() === "list") {
+    if (!token || isListWord(token)) {
       await card(
         ctx,
         [
           `### ${spec.label}`,
           current.length ? roleList(current) : "No role is exempt.",
           "",
-          `-# ${current.length} of ${MAX_EXEMPT_ROLES} · \`filter ${spec.command} exempt <role>\` adds or removes one.`,
+          `-# ${current.length} of ${MAX_EXEMPT_ROLES} · \`automod ${spec.command} whitelist <role>\` adds or removes one.`,
         ].join("\n"),
       );
       return;
     }
 
     if (!rule) {
-      await card(ctx, [`### ${spec.label}`, `Switch it on first with \`filter ${spec.command} on\`.`].join("\n"));
+      await card(ctx, [`### ${spec.label}`, `Switch it on first with \`automod ${spec.command} on\`.`].join("\n"));
       return;
     }
 
@@ -239,13 +237,14 @@ function build(spec: Guarded): void {
     );
   };
 
-  const whitelist = async (ctx: PrefixContext): Promise<void> => {
-    const guildId = await requireManageChannels(ctx, `whitelist a link`);
+  const ignore = async (ctx: PrefixContext): Promise<void> => {
+    const guildId = await requireManageChannels(ctx, `let something through the ${spec.label.toLowerCase()}`);
     if (!guildId) return;
 
     const rule = await held(guildId, spec);
     const allowed = rule?.trigger_metadata?.allow_list ?? [];
-    const token = words(ctx.argument).filter((word) => !channelId(word)).join(" ").trim();
+    const first = words(ctx.argument).filter((word) => !channelId(word)).join(" ").trim();
+    const token = isListWord(first) ? "" : first;
 
     if (!token) {
       await card(
@@ -254,7 +253,7 @@ function build(spec: Guarded): void {
           `### ${spec.label}`,
           allowed.length ? allowed.map((e) => `\`${e}\``).join(" · ") : "Nothing is allowed through.",
           "",
-          `-# ${allowed.length} of ${MAX_ALLOW} · \`filter ${spec.command} whitelist <text>\` adds or removes one.`,
+          `-# ${allowed.length} of ${MAX_ALLOW} · \`automod ${spec.command} ignore <text>\` adds or removes one.`,
           "-# Discord applies an allow list to the whole server, not one channel.",
         ].join("\n"),
       );
@@ -262,7 +261,7 @@ function build(spec: Guarded): void {
     }
 
     if (!rule) {
-      await card(ctx, [`### ${spec.label}`, `Switch it on first with \`filter ${spec.command} on\`.`].join("\n"));
+      await card(ctx, [`### ${spec.label}`, `Switch it on first with \`automod ${spec.command} on\`.`].join("\n"));
       return;
     }
 
@@ -289,7 +288,7 @@ function build(spec: Guarded): void {
 
   const handler: PrefixHandler = async (ctx) => {
     const sub = words(ctx.argument)[0]?.toLowerCase() ?? "";
-    const found = sub ? lookupIn(`filter ${spec.command}`, sub) : undefined;
+    const found = sub ? lookupIn(`automod ${spec.command}`, sub) : undefined;
 
     if (found) {
       await found.handler({ ...ctx, argument: ctx.argument.replace(/^\S+\s*/, "") });
@@ -305,17 +304,24 @@ function build(spec: Guarded): void {
     handler,
   });
 
-  groupUnder(`filter ${spec.command}`, () => {
-    registerExempt(`filter ${spec.command}`, spec.label.toLowerCase(), exempt);
+  groupUnder(`automod ${spec.command} ignore`, () => {
+    register({
+      name: "view",
+      aliases: ["list"],
+      description: `Everything the ${spec.label.toLowerCase()} lets through`,
+      handler: ignore,
+    });
+  });
 
-    if (spec.whitelist) {
-      register({
-        name: "whitelist",
-        aliases: ["allow"],
-        description: "Let a link through the filter",
-        handler: whitelist,
-      });
-    }
+  groupUnder(`automod ${spec.command}`, () => {
+    registerExempt(`automod ${spec.command}`, spec.label.toLowerCase(), exempt);
+
+    register({
+      name: "ignore",
+      aliases: ["allow", "exclude"],
+      description: `Let a ${spec.kind === "invites" ? "server" : "domain"} through the filter`,
+      handler: ignore,
+    });
   });
 }
 

@@ -98,13 +98,11 @@ src/
                         ,boosts: messages.ts is the store and the command
                         factory, variables.ts the token table. Three registrars,
                         three categories, three hooks — one per event
-      filter/           ten chat filters: words.ts, thresholds.ts (caps, emoji,
-                        spoilers), mentions.ts, automodfilters.ts (invites,
-                        links), content.ts (music files, rate), patterns.ts,
-                        store.ts for the bot-side settings, shared.ts for the
-                        role and channel parsing they all do, and snipe.ts,
-                        which switches sniping off for a server and registers
-                        the gate the utility cog asks through
+      filter/           `,automod`: ten chat filters, words.ts, thresholds.ts
+                        (caps, emoji, spoilers), mentions.ts, automodfilters.ts
+                        (invites, links), content.ts (music files, rate),
+                        patterns.ts, store.ts for the bot-side settings, and
+                        shared.ts for the role and channel parsing they all do
       alias/            per-server shortcuts, resolved through
                         onUnmatchedCommand so they can never shadow a command
       sticky/           a message kept at the bottom of a channel, reposted
@@ -183,16 +181,14 @@ missing hook.
 Seven things follow that shape rather than importing across it — a provider is
 registered at setup and core asks for it: `core/listening.ts` (who is playing
 what), `core/runner.ts` (run a command from a click), `core/expiry.ts` (edit a
-message later), `core/accent.ts` (this viewer's colour), `core/sniping.ts`,
-`core/availability.ts` (what is switched off where) and `core/ignores.ts` (who
-is not read at all). Each still works when nothing registers, and each fails
-open: no provider means no restriction.
+message later), `core/accent.ts` (this viewer's colour), `core/availability.ts`
+(what is switched off where) and `core/ignores.ts` (who is not read at all).
+Each still works when nothing registers, and each fails open: no provider means
+no restriction.
 
-`sniping.ts` is the one that goes both ways, and it exists because `,filter
-snipe` lives in the config cog while the store lives in the utility cog. The
-utility cog provides the store, the config cog provides the gate, and each side
-asks core rather than importing the other. A missing gate means sniping is
-allowed, so the feature degrades open rather than silently blocking.
+That is what makes a cog removable. When the general, utility, roleplay and
+misc cogs were deleted, nothing in the four that remain had to change, because
+none of them had ever imported anything from the four that went.
 
 ## Cogs
 
@@ -247,12 +243,12 @@ inCategory("charts", registerCharts);
 
 **Names are namespaced by group.** `lookup(name)` prefers a top-level command
 and falls back to scanning groups; `lookupIn(group, name)` stays inside one, and
-`lookupPath("filter caps exempt")` walks a whole path down to the command. That
+`lookupPath("automod caps whitelist")` walks a whole path down to the command. That
 is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 406 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 414 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.
@@ -375,7 +371,7 @@ measuring nothing.
 
 Named arguments are **flags**, parsed by `helpers/flags.ts` and never by
 position. `parseFlags()` returns the leftover words plus a map, so
-`,filter caps on --threshold 60` and `,filter caps --threshold 60 on` are the
+`,automod caps on --threshold 60` and `,automod caps --threshold 60 on` are the
 same command.
 
 A command **declares** the flags it takes, and the declaration is used twice:
@@ -443,7 +439,7 @@ around it tints.
   will not catch either. Help shipped three times with a duplicate: every select
   sharing an id; then **Next** (`page + 1`) and **»** (`count - 1`) computing
   the same id on a two-page list; then selects keyed by bare command name, where
-  the repeated `exempt` and `list` subcommands under `,filter` collided and
+  the repeated `exempt` and `list` subcommands under `,automod` collided and
   killed 18 views at once. Nav buttons carry distinct *actions* and compute the
   page at handle time; selects carry paths.
 - **Verify component payloads against the real API.** Structure checks passed
@@ -459,9 +455,9 @@ around it tints.
   Rust, so no backreferences and no lookaround.
 - **AutoMod cannot see attachments, only text.** Anything that depends on what
   was uploaded rather than what was typed has to be bot-side, which is the whole
-  reason `,filter musicfiles` runs on `onMessage`.
+  reason `,automod music` runs on `onMessage`.
 - **`MENTION_SPAM` is a singleton per guild, and undeletable in a Community
-  server.** `,filter massmention` edits whatever rule already exists and names
+  server.** `,automod mentions` edits whatever rule already exists and names
   it when it is not Trap's. Creating one blindly overwrites the server's own
   mention protection, which has happened. Read a rule before writing it.
 - **Two escapers, and the wrong one breaks the card.** `label()` is for text
@@ -483,7 +479,7 @@ around it tints.
 - **A catalog entry documents one command, not every command with that name.**
   `help/model.ts` gives a doc to the command whose ambient category matches it,
   falling back to the top-level one. Keyed by name alone,
-  `,boosterrole filter` wore `,filter`'s documentation and filed itself under
+  `,boosterrole filter` wore `,automod`'s documentation and filed itself under
   Filters.
 - **Let `counted()` agree the noun with the number.** Call sites label lists
   inconsistently ("albums" here, "album" there), which produced both
@@ -577,6 +573,22 @@ around it tints.
   refuses loopback, private and link-local ranges, bare hostnames and embedded
   credentials before anything is sent. Postgres, Redis and the callback listener
   all sit on interfaces that gate would otherwise reach.
+- ⚠️ **Renaming a command is cheap; renaming a *word* is not.** `,filter`
+  became `,automod` by adding an alias, and nobody has to relearn anything. But
+  the same pass swapped what two words mean: `whitelist` used to take a word to
+  let through and now takes a role to exempt, and the old `exempt` became
+  `whitelist`. Aliases cannot save that — `,automod whitelist badword` still
+  parses, it just quietly does something else. The only honest fix is to notice
+  the shape of the argument: a role that cannot be found, whose name looks like
+  a bare word, gets told about `,automod ignore` instead of a flat "I cannot
+  find that role."
+- ⚠️ **A subcommand under a command that does not dispatch is decoration.**
+  `whitelist` and `ignore` call their handler directly, so `automod music
+  whitelist view` arrives at the handler as the argument `view` — which was then
+  looked up as a role name and failed. Registering the subcommand made it
+  appear in `,help` without making it work. The handlers now share one
+  `isListWord()`, so every spelling of "show me the list" lands in the same
+  branch, whether it came through the registry or as a bare word.
 - **A doc check must read the docs.** `deploy/docaudit.mjs` pulls the numbers
   out of README.md and ARCHITECTURE.md and compares them to the registry. The
   earlier version hard-coded what it expected, so it reported success twice

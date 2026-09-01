@@ -39,21 +39,37 @@ export async function findRole(guildId: string, token: string): Promise<Role | n
   return roles.find((role) => role.name.toLowerCase() === needle) ?? null;
 }
 
+/**
+ * The words that mean "show me the list" rather than "toggle this one".
+ *
+ * The subcommands registered under `whitelist` and `ignore` exist for the help
+ * card, but the parent commands take their handler directly rather than
+ * dispatching, so the word arrives as an ordinary argument. Without this it is
+ * looked up as a role name and the reply is "I cannot find that role."
+ */
+const LIST_WORDS = new Set(["list", "view", "show", "all", "exemptions", "exempted"]);
+
+export function isListWord(token: string): boolean {
+  return LIST_WORDS.has(token.trim().toLowerCase());
+}
+
 export function roleList(ids: string[]): string {
   return ids.map((id) => `<@&${id}>`).join(" · ");
 }
 
 export function registerExempt(path: string, describe: string, handler: PrefixHandler): void {
   register({
-    name: "exempt",
-    description: `Exempt a role from the ${describe}`,
+    name: "whitelist",
+    aliases: ["exempt", "wl", "exemptions"],
+    description: `Exempt a role or channel from the ${describe}`,
     handler,
   });
 
-  groupUnder(`${path} exempt`, () => {
+  groupUnder(`${path} whitelist`, () => {
     register({
-      name: "list",
-      description: `Roles exempt from the ${describe}`,
+      name: "view",
+      aliases: ["list"],
+      description: `Roles and channels exempt from the ${describe}`,
       handler,
     });
   });

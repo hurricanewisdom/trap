@@ -37,7 +37,7 @@ export async function regex(ctx: PrefixContext): Promise<void> {
           ? current.map((entry) => `\`${entry.replace(/`/g, "'")}\``).join("\n")
           : "No patterns are set.",
         "",
-        `-# ${current.length} of ${MAX_REGEX} · \`filter regex <pattern>\` adds or removes one.`,
+        `-# ${current.length} of ${MAX_REGEX} · \`automod regex <pattern>\` adds or removes one.`,
         "-# Discord's engine has no backreferences or lookaround.",
       ].join("\n"),
     );
@@ -114,7 +114,7 @@ export async function wordmigrate(ctx: PrefixContext): Promise<void> {
         `### ${HEADING}`,
         "Nothing to migrate.",
         "",
-        "-# Filtered words already live in Discord's AutoMod, so `filter add` writes straight there.",
+        "-# Filtered words already live in Discord's AutoMod, so `automod add` writes straight there.",
         "-# This only picks up words from keyword rules made by hand or another bot.",
       ].join("\n"),
     );

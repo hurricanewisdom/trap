@@ -13,7 +13,7 @@ import {
 } from "../../../core/automod.js";
 import type { PrefixContext } from "../../../core/prefix.js";
 import { requireManageChannels, requireManageGuild } from "../../../core/permissions.js";
-import { HEADING, card, findRole, roleList, words } from "./shared.js";
+import { HEADING, card, findRole, roleList, words, isListWord } from "./shared.js";
 
 const WORDS = "words";
 
@@ -68,7 +68,7 @@ export async function add(ctx: PrefixContext): Promise<void> {
 
   const word = ctx.argument.trim().toLowerCase();
   if (!word) {
-    await card(ctx, [`### ${HEADING}`, "Use `filter add <word>`."].join("\n"));
+    await card(ctx, [`### ${HEADING}`, "Use `automod add <word>`."].join("\n"));
     return;
   }
   if (word.length > MAX_WORD) {
@@ -106,7 +106,7 @@ export async function remove(ctx: PrefixContext): Promise<void> {
 
   const word = ctx.argument.trim().toLowerCase();
   if (!word) {
-    await card(ctx, [`### ${HEADING}`, "Use `filter remove <word>`."].join("\n"));
+    await card(ctx, [`### ${HEADING}`, "Use `automod remove <word>`."].join("\n"));
     return;
   }
 
@@ -138,10 +138,11 @@ export async function remove(ctx: PrefixContext): Promise<void> {
 }
 
 export async function whitelist(ctx: PrefixContext): Promise<void> {
-  const guildId = await requireManageChannels(ctx, "whitelist a word");
+  const guildId = await requireManageChannels(ctx, "let a word through the filter");
   if (!guildId) return;
 
-  const word = ctx.argument.trim().toLowerCase();
+  const first = ctx.argument.trim().toLowerCase();
+  const word = isListWord(first) ? "" : first;
   const held = await rule(guildId);
   const allowed = listOf(held, "allow_list");
 
@@ -150,9 +151,9 @@ export async function whitelist(ctx: PrefixContext): Promise<void> {
       ctx,
       [
         `### ${HEADING}`,
-        allowed.length ? allowed.map((entry) => `\`${entry}\``).join(" · ") : "Nothing is whitelisted.",
+        allowed.length ? allowed.map((entry) => `\`${entry}\``).join(" · ") : "Nothing is ignored.",
         "",
-        `-# ${allowed.length} whitelisted · \`filter whitelist <word>\` adds or removes one.`,
+        `-# ${allowed.length} ignored · \`automod ignore <word>\` adds or removes one.`,
       ].join("\n"),
     );
     return;
@@ -165,7 +166,7 @@ export async function whitelist(ctx: PrefixContext): Promise<void> {
 
   const has = allowed.includes(word);
   if (!has && allowed.length >= MAX_ALLOW) {
-    await card(ctx, [`### ${HEADING}`, `Discord allows ${MAX_ALLOW} whitelisted words at most.`].join("\n"));
+    await card(ctx, [`### ${HEADING}`, `Discord allows ${MAX_ALLOW} ignored words at most.`].join("\n"));
     return;
   }
 
@@ -177,7 +178,7 @@ export async function whitelist(ctx: PrefixContext): Promise<void> {
     saved.ok
       ? [
           `### ${HEADING}`,
-          has ? `\`${word}\` is no longer whitelisted.` : `\`${word}\` is allowed through the filter.`,
+          has ? `\`${word}\` is filtered again.` : `\`${word}\` is allowed through the filter.`,
         ].join("\n")
       : [`### ${HEADING}`, "That could not be saved.", `-# ${saved.why}`].join("\n"),
   );
@@ -238,27 +239,44 @@ export async function exempt(ctx: PrefixContext): Promise<void> {
   const current = held?.exempt_roles ?? [];
   const token = ctx.argument.trim();
 
-  if (!token || token.toLowerCase() === "list") {
+  if (!token || isListWord(token)) {
     await card(
       ctx,
       [
         `### ${HEADING}`,
         current.length ? roleList(current) : "No role is exempt from the word filter.",
         "",
-        `-# ${current.length} of ${MAX_EXEMPT_ROLES} · \`filter exempt <role>\` adds or removes one.`,
+        `-# ${current.length} of ${MAX_EXEMPT_ROLES} · \`automod whitelist <role>\` adds or removes one.`,
       ].join("\n"),
+    );
+    return;
+  }
+
+  // The role is resolved before the rule is checked. Someone typing the old
+  // `whitelist <word>` on a server with no rule yet would otherwise be told
+  // about exempting, which is not the thing they were trying to do.
+  const role = await findRole(guildId, token);
+  if (!role) {
+    // `whitelist` used to mean "let this word through" and now means "exempt
+    // this role", so the old habit arrives here with a word in hand. Saying
+    // only "I cannot find that role" would leave someone re-typing the word.
+    await card(
+      ctx,
+      [
+        `### ${HEADING}`,
+        "I cannot find that role.",
+        /^[\w'*-]+$/.test(token)
+          ? `-# If you meant the word \`${token}\`, \`automod ignore ${token}\` lets it through.`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
     );
     return;
   }
 
   if (!held) {
     await card(ctx, [`### ${HEADING}`, "There is no word filter to exempt anyone from yet."].join("\n"));
-    return;
-  }
-
-  const role = await findRole(guildId, token);
-  if (!role) {
-    await card(ctx, [`### ${HEADING}`, "I cannot find that role."].join("\n"));
     return;
   }
 

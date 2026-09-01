@@ -10,7 +10,7 @@ import {
   type PrefixHandler,
 } from "../../../core/prefix.js";
 import { numberFor, parseFlags, switchWord } from "../../../helpers/flags.js";
-import { HEADING, card, channelId, findRole, roleList, words, registerExempt, THRESHOLD } from "./shared.js";
+import { HEADING, card, channelId, findRole, roleList, words, registerExempt, THRESHOLD, isListWord } from "./shared.js";
 import { allSettings, clearKind, setChannel, setEnabled, setThreshold, toggleRole } from "./store.js";
 
 const CUSTOM_EMOJI = /<a?:\w+:\d+>/g;
@@ -91,10 +91,10 @@ async function status(ctx: PrefixContext, guildId: string, spec: Threshold): Pro
       held?.exemptChannels?.length ? `Skipped in ${held.exemptChannels.map((id) => `<#${id}>`).join(" · ")}.` : "",
       held?.exemptRoles?.length ? `Exempt: ${roleList(held.exemptRoles)}` : "",
       "",
-      `\`filter ${spec.command} on\` or \`off\` switches it`,
-      `\`filter ${spec.command} on --threshold <n>\` sets the limit`,
-      `\`filter ${spec.command} #channel off\` skips one channel`,
-      `\`filter ${spec.command} exempt <role>\` exempts a role`,
+      `\`automod ${spec.command} on\` or \`off\` switches it`,
+      `\`automod ${spec.command} on --threshold <n>\` sets the limit`,
+      `\`automod ${spec.command} #channel off\` skips one channel`,
+      `\`automod ${spec.command} whitelist <role>\` exempts a role`,
       "",
       "-# Members with Manage Server are never filtered.",
     ]
@@ -134,7 +134,7 @@ function build(spec: Threshold): void {
       if (state === null) {
         await card(
           ctx,
-          [`### ${spec.label}`, `Use \`filter ${spec.command} #channel on\` or \`off\`.`].join("\n"),
+          [`### ${spec.label}`, `Use \`automod ${spec.command} #channel on\` or \`off\`.`].join("\n"),
         );
         return;
       }
@@ -161,14 +161,14 @@ function build(spec: Threshold): void {
     const held = (await allSettings(guildId)).get(spec.kind);
     const current = held?.exemptRoles ?? [];
 
-    if (!token || token.toLowerCase() === "list") {
+    if (!token || isListWord(token)) {
       await card(
         ctx,
         [
           `### ${spec.label}`,
           current.length ? roleList(current) : "No role is exempt.",
           "",
-          `-# ${current.length} exempt · \`filter ${spec.command} exempt <role>\` adds or removes one.`,
+          `-# ${current.length} exempt · \`automod ${spec.command} whitelist <role>\` adds or removes one.`,
         ].join("\n"),
       );
       return;
@@ -192,7 +192,7 @@ function build(spec: Threshold): void {
 
   const handler: PrefixHandler = async (ctx) => {
     const sub = words(ctx.argument)[0]?.toLowerCase() ?? "";
-    const found = sub ? lookupIn(`filter ${spec.command}`, sub) : undefined;
+    const found = sub ? lookupIn(`automod ${spec.command}`, sub) : undefined;
 
     if (found) {
       await found.handler({ ...ctx, argument: ctx.argument.replace(/^\S+\s*/, "") });
@@ -209,8 +209,8 @@ function build(spec: Threshold): void {
     flags: [THRESHOLD],
   });
 
-  groupUnder(`filter ${spec.command}`, () => {
-    registerExempt(`filter ${spec.command}`, spec.label.toLowerCase(), exempt);
+  groupUnder(`automod ${spec.command}`, () => {
+    registerExempt(`automod ${spec.command}`, spec.label.toLowerCase(), exempt);
   });
 }
 

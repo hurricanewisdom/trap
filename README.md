@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 498 commands across four cogs,
+(TypeScript strict, Node 22), run bare with pm2. 506 commands across four cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -38,7 +38,7 @@ rather than turning it into a three-word path with named fields.
 - `,badge` — reward members who wear the server tag on their profile
 - `,suggest` — members suggest ideas, staff move them through statuses
 - `,customize` — the bot's own avatar, banner and bio in one server
-- `,filter` — ten chat filters, five of them enforced by Discord's AutoMod
+- `,automod` — ten chat filters, five of them enforced by Discord's AutoMod
 - `,ban`, `,tempban`, `,softban`, `,hardban`, `,warn`, `,timeout` — punishments, each writing a case
 - `,history`, `,caselog`, `,reason`, `,proof`, `,notes` — the case log and what is on it
 - `,jail`, `,mute`, `,imute`, `,rmute` — holding somebody's roles, and three kinds of mute
@@ -812,8 +812,8 @@ short of a database edit. `PROTECTED` in `core/availability.ts` holds them, and
 the gate ignores a rule naming one even if a row somehow exists — so a stale row
 cannot lock anyone out either.
 
-Only whole commands can be disabled, not their subcommands: `,filter caps` says
-so and points at `,filter`. The gate runs at dispatch, where only top-level
+Only whole commands can be disabled, not their subcommands: `,automod caps` says
+so and points at `,automod`. The gate runs at dispatch, where only top-level
 commands arrive, so a promise to disable a subcommand would be one the
 enforcement could not keep.
 
@@ -886,28 +886,38 @@ leaves the rest of it behind.** `channels/…/…/…` matched inside
 now. `add` never showed it, because it scans for `{…}` blocks and ignores the
 leftovers.
 
-## Filters
+## AutoMod
 
-`,filter` is ten filters behind one command, 35 commands in all.
+`,automod` is ten filters behind one command, 42 commands in all. It answers
+to `,filter` too, which is what it was called for most of its life.
 
 ```
-,filter add <word>                filter a word, * wildcards allowed
-,filter whitelist <word>          let one through
-,filter caps on --threshold 60    percent uppercase, default 70
-,filter emoji on --threshold 3    emoji per message, default 10
-,filter spoilers on               spoilers per message, default 5
-,filter massmention on -t 5       mentions per message
-,filter invites on                server invites
-,filter links on                  any link
-,filter links whitelist github.com
-,filter musicfiles on             audio attachments
-,filter spam on --threshold 5     messages per five seconds
-,filter regex <pattern>           filter by pattern
+,automod add <word>               filter a word, * wildcards allowed
+,automod ignore <word>            let one substring through
+,automod whitelist @mods          exempt a role or channel from all of it
+,automod caps on --threshold 60   percent uppercase, default 70
+,automod emoji on --threshold 3   emoji per message, default 10
+,automod spoilers on              spoilers per message, default 5
+,automod mentions on -t 5         mentions per message
+,automod mentions raid on         Discord's own mention-raid guard
+,automod invites on               server invites
+,automod links on                 any link
+,automod links ignore github.com  one domain through the link filter
+,automod music on                 audio attachments
+,automod spam on --threshold 5    messages per five seconds
+,automod regex <pattern>          filter by pattern
 ```
 
-`,filter` on its own reports what is set and how much AutoMod budget is left.
-Every filter takes `exempt <role>` and `<#channel> off`, and each reads back its
-own state when run bare. Arguments are **flags** (`helpers/flags.ts`), so
+⚠️ **`ignore` and `whitelist` mean opposite things, and they used to be
+swapped.** `ignore` takes *text*: a substring the filter lets past. `whitelist`
+takes a *role or channel*: someone the filter never looks at. The word one was
+called `whitelist` before, and the role one `exempt`. Both old spellings still
+resolve to the same handlers, and `,automod whitelist somephrase` says which
+command was meant rather than only failing to find a role by that name.
+
+`,automod` on its own reports what is set and how much AutoMod budget is left.
+Every filter takes `whitelist <role>` and `<#channel> off`, and each reads back
+its own state when run bare. Arguments are **flags** (`helpers/flags.ts`), so
 `--threshold`, `--limit` and `-t` are the same thing and order does not matter.
 
 **Five of the ten are enforced by Discord, not by the bot.** Words, invites,
@@ -920,7 +930,7 @@ The other five — caps, emoji, spoilers, music files and rate — are deleted b
 the bot from `onMessage`, because AutoMod cannot express them.
 
 ⚠️ **AutoMod only ever sees message text.** It cannot read attachments at all,
-which is why `,filter musicfiles` has to be bot-side: an `.mp3` is matched on
+which is why `,automod music` has to be bot-side: an `.mp3` is matched on
 its content type and its extension, after the message exists. Anything that
 depends on what was uploaded rather than what was typed lands on the same side
 of that line.
@@ -936,14 +946,14 @@ What Discord allows, all discovered by asking it rather than from the docs:
 | mass-mention rules | **one per server, and undeletable in a Community server** |
 
 Two of those shape the commands. The 6-rule cap is a server-wide budget shared
-with every other bot, so `,filter` prints what is left rather than letting rule
+with every other bot, so `,automod` prints what is left rather than letting rule
 7 fail with a bare 400. And because `MENTION_SPAM` is a singleton,
-`,filter massmention` **edits whatever mention rule already exists** rather than
+`,automod mentions` **edits whatever mention rule already exists** rather than
 making its own, and the card names the rule it is touching when that rule is not
 one of Trap's.
 
 AutoMod's regex is the Rust engine, which has **no backreferences and no
-lookaround**. `,filter regex (a)\1` is rejected by Discord, and the card says
+lookaround**. `,automod regex (a)\1` is rejected by Discord, and the card says
 which feature is missing instead of showing a raw 400.
 
 Everything here needs **Manage Channels**, except `reset`, `regex` and
@@ -1260,7 +1270,7 @@ The last two have no local symptom. Either duplicate is a 400 from Discord, the
 edit never lands, and the user sees "Trap didn't respond in time" — so component
 payloads are checked by posting one to a channel and reading the status, not
 only by inspecting the structure. Both have shipped: first as selects sharing a
-custom id, then as the repeated `exempt` and `list` subcommands under `,filter`
+custom id, then as the repeated `exempt` and `list` subcommands under `,automod`
 colliding on option value, which killed 18 of the browser's views at once.
 
 Two consequences of having no `content`, both found by building on it:
@@ -1323,12 +1333,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 406 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 414 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
-full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
-a path too, so `,help filter links whitelist` opens that exact command.
+full path (`automod caps whitelist view`), resolved by `lookupPath()`. `,help` takes
+a path too, so `,help automod links ignore` opens that exact command.
 
-The check that keeps this honest renders **all 672 views** and asserts unique
+The check that keeps this honest renders **all 682 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

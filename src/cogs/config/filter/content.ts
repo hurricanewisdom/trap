@@ -10,8 +10,8 @@ import {
   type PrefixHandler,
 } from "../../../core/prefix.js";
 import { numberFor, parseFlags, switchWord } from "../../../helpers/flags.js";
-import { card, channelId, findRole, roleList, words, registerExempt, THRESHOLD } from "./shared.js";
-import { allSettings, setChannel, setEnabled, setThreshold, toggleRole } from "./store.js";
+import { card, channelId, findRole, roleList, words, registerExempt, THRESHOLD, isListWord } from "./shared.js";
+import { allSettings, clearKind, setChannel, setEnabled, setThreshold, toggleRole } from "./store.js";
 
 const MUSIC = "musicfiles";
 
@@ -108,15 +108,15 @@ interface Simple {
 const SPECS: Simple[] = [
   {
     kind: MUSIC,
-    command: "musicfiles",
-    aliases: ["music"],
+    command: "music",
+    aliases: ["musicfiles", "mp3", "audio", "files"],
     label: "Music file filter",
     what: "messages carrying a music file",
   },
   {
     kind: SPAM,
     command: "spam",
-    aliases: ["antispam"],
+    aliases: ["suspected", "sus", "antispam"],
     label: "Spam filter",
     what: "messages sent too fast",
     threshold: { unit: "messages per five seconds", fallback: SPAM_FALLBACK },
@@ -139,10 +139,10 @@ async function status(ctx: PrefixContext, guildId: string, spec: Simple): Promis
         : "",
       held?.exemptRoles?.length ? `Exempt: ${roleList(held.exemptRoles)}` : "",
       "",
-      `\`filter ${spec.command} on\` or \`off\` switches it`,
-      spec.threshold ? `\`filter ${spec.command} on --threshold <n>\` sets the rate` : "",
-      `\`filter ${spec.command} #channel off\` skips one channel`,
-      `\`filter ${spec.command} exempt <role>\` exempts a role`,
+      `\`automod ${spec.command} on\` or \`off\` switches it`,
+      spec.threshold ? `\`automod ${spec.command} on --threshold <n>\` sets the rate` : "",
+      `\`automod ${spec.command} #channel off\` skips one channel`,
+      `\`automod ${spec.command} whitelist <role>\` exempts a role`,
       "",
       "-# Members with Manage Server are never filtered.",
     ]
@@ -183,7 +183,7 @@ function build(spec: Simple): void {
 
     if (channel) {
       if (state === null) {
-        await card(ctx, [`### ${spec.label}`, `Use \`filter ${spec.command} #channel on\` or \`off\`.`].join("\n"));
+        await card(ctx, [`### ${spec.label}`, `Use \`automod ${spec.command} #channel on\` or \`off\`.`].join("\n"));
         return;
       }
       await setChannel(guildId, spec.kind, channel, !state);
@@ -205,14 +205,14 @@ function build(spec: Simple): void {
     const token = ctx.argument.trim();
     const current = (await allSettings(guildId)).get(spec.kind)?.exemptRoles ?? [];
 
-    if (!token || token.toLowerCase() === "list") {
+    if (!token || isListWord(token)) {
       await card(
         ctx,
         [
           `### ${spec.label}`,
           current.length ? roleList(current) : "No role is exempt.",
           "",
-          `-# ${current.length} exempt · \`filter ${spec.command} exempt <role>\` adds or removes one.`,
+          `-# ${current.length} exempt · \`automod ${spec.command} whitelist <role>\` adds or removes one.`,
         ].join("\n"),
       );
       return;
@@ -234,9 +234,23 @@ function build(spec: Simple): void {
     );
   };
 
+  const wipe = async (ctx: PrefixContext): Promise<void> => {
+    const guildId = await requireManageChannels(ctx, `reset the ${spec.label.toLowerCase()}`);
+    if (!guildId) return;
+
+    await clearKind(guildId, spec.kind);
+    await card(
+      ctx,
+      [
+        `### ${spec.label}`,
+        "Off, with no exempt roles or skipped channels left.",
+      ].join("\n"),
+    );
+  };
+
   const handler: PrefixHandler = async (ctx) => {
     const sub = words(ctx.argument)[0]?.toLowerCase() ?? "";
-    const found = sub ? lookupIn(`filter ${spec.command}`, sub) : undefined;
+    const found = sub ? lookupIn(`automod ${spec.command}`, sub) : undefined;
 
     if (found) {
       await found.handler({ ...ctx, argument: ctx.argument.replace(/^\S+\s*/, "") });
@@ -253,8 +267,15 @@ function build(spec: Simple): void {
     flags: [THRESHOLD],
   });
 
-  groupUnder(`filter ${spec.command}`, () => {
-    registerExempt(`filter ${spec.command}`, spec.label.toLowerCase(), exempt);
+  groupUnder(`automod ${spec.command}`, () => {
+    registerExempt(`automod ${spec.command}`, spec.label.toLowerCase(), exempt);
+
+    register({
+      name: "reset",
+      aliases: ["clear", "off"],
+      description: `Switch the ${spec.label.toLowerCase()} off and forget its settings`,
+      handler: wipe,
+    });
   });
 }
 
