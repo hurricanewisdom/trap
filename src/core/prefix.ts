@@ -20,6 +20,10 @@ export interface ReplyPayload {
   flags?: number;
   embeds?: unknown[];
   files?: { name: string; blob: Blob }[];
+  // Absent means "ping nobody", which is the right default for a bot that
+  // echoes user input. A command that genuinely wants somebody notified says so
+  // here, and the send path respects it rather than overwriting it.
+  allowed_mentions?: unknown;
 }
 
 export type PrefixHandler = (ctx: PrefixContext) => Promise<void>;

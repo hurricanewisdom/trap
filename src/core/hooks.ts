@@ -156,6 +156,26 @@ export function emitMemberUpdate(event: MemberEvent): Promise<void> {
   return fire(memberChanges, event);
 }
 
+// A command that actually ran, after every gate: ignored, rate limited and
+// restricted invocations never reach here, because they did not run.
+export type CommandRanHandler = (guildId: string, command: string, userId: string) => void;
+
+const commandRuns: CommandRanHandler[] = [];
+
+export function onCommandRan(handler: CommandRanHandler): void {
+  commandRuns.push(handler);
+}
+
+export function emitCommandRan(guildId: string, command: string, userId: string): void {
+  for (const handler of commandRuns) {
+    try {
+      handler(guildId, command, userId);
+    } catch (err) {
+      console.error("command-ran handler failed:", err);
+    }
+  }
+}
+
 export interface BoostEvent {
   guildId: string;
   channelId: string;

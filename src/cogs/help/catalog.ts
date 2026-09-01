@@ -409,6 +409,54 @@ export const CATEGORIES: CategoryDoc[] = [
     emoji: "",
     blurb: "Clapping, waving, dancing and drinking together",
   },
+  {
+    slug: "embeds",
+    label: "Embeds",
+    emoji: "",
+    blurb: "Writing, saving, copying and editing rich messages",
+  },
+  {
+    slug: "games",
+    label: "Games and polls",
+    emoji: "",
+    blurb: "Picking, throwing, asking and voting",
+  },
+  {
+    slug: "textplay",
+    label: "Text and colour",
+    emoji: "",
+    blurb: "Mangling text, reading characters and looking at colours",
+  },
+  {
+    slug: "scores",
+    label: "Scores",
+    emoji: "",
+    blurb: "Today's games across six leagues",
+  },
+  {
+    slug: "away",
+    label: "Away",
+    emoji: "",
+    blurb: "Telling people you are gone, and what you missed",
+  },
+  {
+    slug: "history",
+    label: "History",
+    emoji: "",
+    blurb: "Names people used to have, and which commands get used",
+  },
+  {
+    slug: "elsewhere",
+    label: "Other services",
+    emoji: "",
+    blurb: "Discogs, wikiHow and turning a video into audio",
+  },
+  {
+    slug: "tools",
+    label: "Odds and ends",
+    emoji: "",
+    blurb: "Invites, id arithmetic and adding an emote",
+  },
 ];
 
 export const DOCS: CommandDoc[] = [

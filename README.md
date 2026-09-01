@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 620 commands across seven cogs,
+(TypeScript strict, Node 22), run bare with pm2. 660 commands across eight cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -581,6 +581,106 @@ The reply says how many were skipped rather than quietly returning a short count
 
 ⚠️ **`restrictcommand` fails open.** A database that cannot be reached should not
 lock a server out of its own bot, so an unanswerable restriction is no restriction.
+
+## Miscellaneous
+
+Forty commands that did not belong to any of the other cogs.
+
+```
+embeds     embed (5) · createembed · editembed · embedcode
+games      rps · choose · wouldyourather · quickpoll · poll
+text       uwu · freaky · color · randomhex · charinfo
+scores     nba · nfl · mlb · nhl · soccer · futbol
+away       afk · afk mentions
+history    names · clearnames · gnames · cleargnames · topcommands
+elsewhere  discog (2) · wikihow · makemp3
+tools      invites · timediff · addemote
+```
+
+### Embeds are written as a code
+
+`{title: Hello}$v{description: World}$v{color: #1db954}` — blocks separated by
+`$v`, a few keys taking several values separated by `&&`. It is the format the
+bots people are coming from already use, so a code pasted from one of those
+works here. `embed create <name> <code>` saves one, `embed preview` posts it,
+`embedcode <link>` reads a code back **out** of a posted message, and
+`editembed <link> <code>` rewrites one already sent.
+
+⚠️ **An unreadable key is reported, not dropped.** Somebody who typed
+`{colour: red}` is told the key is wrong rather than handed a colourless embed
+and left guessing — but only after the rest of their embed has posted, because
+the message they asked for matters more than the note about it.
+
+⚠️ **There is no interactive builder.** `embed create` takes a code rather than
+walking through a wizard of buttons and modals. Everything the wizard would set
+is reachable from the code, and `embedcode` on an embed you like is the fastest
+way to get one.
+
+### Scores come from ESPN
+
+Six commands over one public endpoint that needs no key. `futbol` and `soccer`
+are the same board.
+
+⚠️ **ESPN 403s a polite user-agent.** Sending `trap-bot/1.x` — or a full browser
+one — is refused; sending **no** user-agent header at all is answered. This is
+backwards from every other service here, and the header being *present* is the
+failure, so the fetch deliberately sets none.
+
+### Names and command counts start now
+
+`names`, `gnames` and `topcommands` are histories nobody was recording, so all
+three begin empty and say so. Names are read back on a member update and written
+only when they differ, because Discord fires that event for roles, timeouts and
+boosts as well — without the comparison the table would fill with the same name
+forever. Command counts buffer in memory and go out in one batched statement
+every thirty seconds, the same trade the emote counter makes.
+
+⚠️ **A member update says who changed, never what to.** The event carries an id
+and nothing else, so the member and the user both have to be read back and
+compared against the last row.
+
+⚠️ **`gnames` needed a gateway event that was not wired.** A server rename only
+shows up on `guildUpdate`, which nothing had subscribed to.
+
+### afk
+
+`afk <status>` marks you away, and the next person to mention you is told. Coming
+back clears it and says how many mentions you missed; `afk mentions` lists them
+with jump links.
+
+⚠️ **Returning is checked before the mentions in the same message.** Saying "back,
+and hi @someone-else-who-is-afk" has to both clear yours and answer for them, and
+doing it the other way round means somebody who is back is still reported away.
+
+The away list is held in memory because this runs on the message path, and a
+failed refresh keeps whatever is cached rather than emptying the map — an empty
+map would switch the feature off silently instead of degrading it.
+
+### Discogs, and what it will not do without an account
+
+`discog search` and `discog profile` need no key at all: the release database and
+public profiles are both open. `login`, `logout`, `collections` and `wantlist` are
+per-person and need OAuth against a registered Discogs app plus somewhere public
+to send people back to, so they are **not registered** — asking for one says why
+rather than failing.
+
+### wikiHow has no search left
+
+Every `api.php` action — `opensearch`, `query/search` — now answers with a block
+page instead of json, and the search page itself comes back as a stub with no
+results in the html. What still works is that **a wikiHow title is its url**:
+"Tie a Tie" lives at `/Tie-a-Tie`. So the article is guessed from the words, with
+their small-word casing rule and a couple of fallbacks, and `wikihow` with no
+question returns a random article.
+
+⚠️ **A wrong guess is not a 404.** wikiHow serves a bot-challenge page with a
+**200** for a title that does not exist, so a miss is identified by what the page
+calls itself rather than by its status code. Checking the status would treat
+every miss as a hit.
+
+⚠️ **Meta tags are not written in a fixed attribute order.** Some of their pages
+put `content` before `property` and some after; matching only one way round
+returns nothing and every article ends up titled "wikiHow".
 
 ## Roleplay
 
@@ -1646,12 +1746,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 416 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 424 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 833 views** and asserts unique
+The check that keeps this honest renders **all 896 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

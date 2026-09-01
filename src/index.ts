@@ -11,6 +11,7 @@ import {
   emitBoost,
   emitMemberJoin,
   emitMemberLeave,
+  emitCommandRan,
   emitMemberUpdate,
   emitMessage,
   emitChannelPins,
@@ -35,6 +36,7 @@ import {
 } from "./core/slash.js";
 import { closeRedis, redis } from "./core/redis.js";
 import { cogs } from "./cogs/index.js";
+import { notedGuildName } from "./cogs/misc/names.js";
 import { router, startWebServer } from "./web/server.js";
 import { provideRunner } from "./core/runner.js";
 import { accentFor, withAccent } from "./core/accent.js";
@@ -225,6 +227,10 @@ const bot = createBot({
         console.error("edited command failed:", err);
       }
     },
+    async guildUpdate(guild: any) {
+      // The only place a server rename shows up. Recorded rather than announced.
+      await notedGuildName(String(guild?.id ?? ""), String(guild?.name ?? ""));
+    },
     async guildMemberAdd(member: any) {
       await emitMemberJoin({
         guildId: String(member?.guildId ?? ""),
@@ -365,6 +371,7 @@ async function runPrefixCommand(message: any, muted?: boolean): Promise<void> {
       });
       return;
     }
+    emitCommandRan(guildId ?? "", command.name, authorId);
     const accent = command.cog === LASTFM_COG ? await accentFor(authorId) : null;
     await withAccent(accent, () => command.handler({ ...context, argument }));
     return;
@@ -508,7 +515,7 @@ async function runInteraction(
 
   let answered = false;
   const reply = async (payload: ReplyPayload): Promise<SentMessage> => {
-    const body = { ...payload, allowed_mentions: { parse: [] } };
+    const body = { allowed_mentions: { parse: [] }, ...payload };
     if (!answered) {
       answered = true;
 
@@ -560,8 +567,11 @@ async function send(
   return await bot.helpers.sendMessage(
     channelId,
     {
-      ...payload,
+      // The default goes first so a payload that names who to ping wins. The
+      // other way round -- which this was -- silently threw away every
+      // allowed_mentions a command set, so nothing could ever be pinged.
       allowed_mentions: { parse: [] },
+      ...payload,
       ...(replyTo ? { message_reference: { message_id: replyTo, fail_if_not_exists: false } } : {}),
     } as any,
   );

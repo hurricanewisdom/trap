@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 185 source files, no comments — the names and the
+the read path and the cache. 201 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -51,6 +51,8 @@ src/
     duration.ts         reading 10m or 2h30m, telling one from a reason, and
                         saying it back in words
     imageurl.ts         is this URL safe to show to everyone else
+    net.ts              does this hostname resolve somewhere private -- the one
+                        guard every command that fetches a given address shares
     sysinfo.ts          host, process and codebase statistics for ,botinfo
     components.ts       Components V2 primitives and builders
     flags.ts            --flag parsing, shared by every command that takes one
@@ -160,6 +162,22 @@ src/
                         message, with nothing configured per server
       extract/          the emojis or stickers as a zip; zip.ts is a stored-only
                         archive writer, so no dependency for one command
+    misc/               everything that belonged nowhere else
+      embeds/           code.ts parses and re-serialises the {key: value}$v
+                        embed format; index.ts is the eight commands over it
+      afk.ts            away statuses, held in memory for the message path
+      names.ts          username, nickname and server-name history, written on
+                        member and guild updates and only when the name differs
+      topcommands.ts    command counts, buffered and batch-inserted
+      sports.ts         six ESPN scoreboards over one endpoint
+      discogs.ts        keyless search and public profiles
+      wikihow.ts        title-guessing, because their search API is gone
+      text.ts           uwu, freaky, colour swatches and charinfo
+      fun.ts            rps, choose, would-you-rather and the two polls
+      media.ts          makemp3, over yt-dlp and ffmpeg
+      server.ts         invites, timediff, and addemote handing over to emoji add
+      shared.ts         card, ids, snowflake times and message-link parsing
+      pages.ts          the page shape, so this cog does not reach into another
     roleplay/           reaction commands, off until a server enables them
       actions.ts        the sixty-two, as one table of name, section, blurb and
                         the line it prints; one handler factory behind all of them
@@ -268,7 +286,7 @@ is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 416 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 424 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.

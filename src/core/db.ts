@@ -510,6 +510,73 @@ export async function migrate(): Promise<void> {
   await sql`CREATE INDEX IF NOT EXISTS emote_uses_guild ON emote_uses (guild_id, emote)`;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS embeds (
+      guild_id  TEXT NOT NULL,
+      name      TEXT NOT NULL,
+      code      TEXT NOT NULL,
+      author_id TEXT NOT NULL,
+      at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, name)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS afk (
+      guild_id TEXT NOT NULL,
+      user_id  TEXT NOT NULL,
+      status   TEXT NOT NULL,
+      since    TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, user_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS afk_mentions (
+      guild_id   TEXT NOT NULL,
+      user_id    TEXT NOT NULL,
+      from_id    TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      at         TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`CREATE INDEX IF NOT EXISTS afk_mentions_who ON afk_mentions (guild_id, user_id, at DESC)`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS name_history (
+      user_id  TEXT NOT NULL,
+      guild_id TEXT,
+      kind     TEXT NOT NULL,
+      name     TEXT NOT NULL,
+      at       TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`CREATE INDEX IF NOT EXISTS name_history_who ON name_history (user_id, kind, at DESC)`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS guild_name_history (
+      guild_id TEXT NOT NULL,
+      name     TEXT NOT NULL,
+      at       TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`CREATE INDEX IF NOT EXISTS guild_name_history_who ON guild_name_history (guild_id, at DESC)`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS command_uses (
+      guild_id TEXT NOT NULL,
+      command  TEXT NOT NULL,
+      user_id  TEXT NOT NULL,
+      at       TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`CREATE INDEX IF NOT EXISTS command_uses_guild ON command_uses (guild_id, command)`;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS roleplay (
       guild_id TEXT PRIMARY KEY,
       enabled  BOOLEAN NOT NULL DEFAULT false
