@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 207 source files, no comments — the names and the
+the read path and the cache. 208 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -94,7 +94,10 @@ src/
                         watch.ts listens to GUILD_AUDIT_LOG_ENTRY_CREATE, which
                         names the actor at the moment of the act; store.ts holds
                         the per-module settings, the trust list and the
-                        whitelist, cached and failing to the last known answer
+                        whitelist, cached and failing to the last known answer;
+                        spam.ts is the one message-path watch, for webhook
+                        mass-mentions, which deletes the webhook rather than
+                        punishing a member because there is no member
       boosterrole/      personal colour roles for boosters: store.ts,
                         shared.ts (gates, colour parsing), member.ts,
                         admin.ts, share.ts

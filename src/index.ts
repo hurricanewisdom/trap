@@ -148,6 +148,10 @@ const bot = createBot({
       type: true,
       attachments: true,
       embeds: true,
+      webhookId: true,
+      mentionEveryone: true,
+      mentionedUserIds: true,
+      mentionedRoleIds: true,
     },
     user: {
       id: true,
@@ -317,6 +321,13 @@ const bot = createBot({
               contentType: file?.contentType ?? file?.content_type,
               filename: file?.filename,
             })),
+            ...((message as any).webhookId
+              ? { webhookId: String((message as any).webhookId) }
+              : {}),
+            mentions:
+              ((message as any).mentionedUserIds?.length ?? 0) +
+              ((message as any).mentionedRoleIds?.length ?? 0),
+            mentionsEveryone: Boolean((message as any).mentionEveryone),
           });
         }
 

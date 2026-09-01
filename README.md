@@ -600,6 +600,27 @@ goes through a string rather than through `Number` regardless.
 somebody's count, which is deliberate: a count that could be reset by waiting
 for a row to disappear would not be much of a tripwire.
 
+### `webhookspam` has nobody to punish
+
+The other eight modules find a member and act on them. This one cannot: a
+webhook has no member behind it, its token is a bearer credential, and whoever
+created it is usually the victim of the leak rather than the one using it. So the
+message is deleted and **the webhook is destroyed**, and no user is touched.
+
+A webhook message trips it when its mentions reach the threshold, with an
+**`@everyone` weighing a full threshold on its own** — one is the whole payload.
+Mentions are counted by Discord rather than by reading the text, so one inside a
+code block does not count and one in an embed does.
+
+⚠️ **An announcement webhook that uses `@everyone` will be deleted.** That is the
+module working, not a bug, and it is the reason this is off by default like the
+rest. If a server has a legitimate webhook that mass-mentions, leave this one
+off — there is no per-webhook exemption, because the whitelist holds users and a
+webhook is not one.
+
+The message is removed even when the webhook cannot be, since the mentions have
+already fired and leaving the post up only keeps the damage on screen.
+
 ### When it trips
 
 The punishment runs, the owner gets a DM naming who, what and the outcome, and a

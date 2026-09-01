@@ -17,6 +17,7 @@ import {
   type Module,
   type Punishment,
 } from "./store.js";
+import { registerSpam } from "./spam.js";
 import { registerWatch } from "./watch.js";
 
 const USER = /^<@!?(\d{15,25})>$/;
@@ -284,6 +285,7 @@ async function root(ctx: PrefixContext): Promise<void> {
 
 export function registerAntinuke(): void {
   registerWatch();
+  registerSpam();
 
   register({
     name: "antinuke",

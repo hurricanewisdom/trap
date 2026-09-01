@@ -30,6 +30,14 @@ export interface MessageEvent {
   authorId: string;
   content: string;
   attachments: { contentType?: string; filename?: string }[];
+  // Set only when a webhook posted it, which is the whole signal the antinuke's
+  // webhook-spam watch has: a webhook has no member to look up and no roles to
+  // check, so the message itself is the only evidence there is.
+  webhookId?: string;
+  // Counted by Discord rather than by reading the content, so a mention inside
+  // a code block does not count and one in an embed does.
+  mentions?: number;
+  mentionsEveryone?: boolean;
 }
 
 export type MessageHandler = (event: MessageEvent) => Promise<void>;
