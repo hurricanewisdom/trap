@@ -1,3 +1,4 @@
+import { paginate } from "../../core/pager.js";
 import {
   groupUnder,
   lookupIn,
@@ -73,11 +74,20 @@ async function define(ctx: PrefixContext): Promise<void> {
   for (const meaning of one.meanings.slice(0, 3)) {
     lines.push("", `**${plain(meaning.partOfSpeech)}**`);
     for (const sense of meaning.definitions.slice(0, 2)) {
-      lines.push(`-# ${plain(sense.definition.slice(0, 200))}`);
-      if (sense.example) lines.push(`-# *${plain(sense.example.slice(0, 150))}*`);
+      lines.push(`-# ${plain(sense.definition, 200)}`);
+      if (sense.example) lines.push(`-# *${plain(sense.example, 150)}*`);
     }
   }
   await card(ctx, lines);
+}
+
+interface UrbanEntry {
+  word: string;
+  definition: string;
+  example: string;
+  author?: string;
+  written_on?: string;
+  permalink: string;
 }
 
 async function urban(ctx: PrefixContext): Promise<void> {
@@ -87,23 +97,47 @@ async function urban(ctx: PrefixContext): Promise<void> {
     return;
   }
 
-  const found = await json<{ list: { word: string; definition: string; example: string; thumbs_up: number; permalink: string }[] }>(
+  const found = await json<{ list: UrbanEntry[] }>(
     `https://api.urbandictionary.com/v0/define?term=${encodeURIComponent(word)}`,
   );
-  const one = found?.list?.[0];
-  if (!one) {
+  const list = found?.list ?? [];
+  if (list.length === 0) {
     await card(ctx, [`Nothing found for **${plain(word)}**.`]);
     return;
   }
 
-  const tidy = (text: string) => plain(text.replace(/\[|\]/g, "")).slice(0, 700);
-  await card(ctx, [
-    `### ${plain(one.word)}`,
-    tidy(one.definition),
-    ...(one.example ? ["", `-# ${tidy(one.example).slice(0, 300)}`] : []),
-    "",
-    `-# 👍 ${one.thumbs_up} · [urban dictionary](${one.permalink})`,
-  ]);
+  // Urban Dictionary wraps cross-references in square brackets, which would
+  // otherwise read as a broken markdown link.
+  const tidy = (text: string, most: number) => plain(text.replace(/[[\]]/g, ""), most);
+
+  // Ten definitions come back and only the first was ever shown. They page now,
+  // in the order the site ranks them.
+  const pages = list.map((one, at) => {
+    const when = one.written_on ? Date.parse(one.written_on) : NaN;
+    const by = [
+      one.author ? `by ${plain(one.author, 40)}` : null,
+      Number.isFinite(when) ? `<t:${Math.floor(when / 1000)}:D>` : null,
+      `[urban dictionary](${one.permalink})`,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    return [
+      {
+        type: 10,
+        content: [
+          `### ${plain(one.word, 100)}`,
+          tidy(one.definition, 1400),
+          ...(one.example ? ["", `-# ${tidy(one.example, 700)}`] : []),
+          "",
+          `-# ${by}`,
+          `-# definition ${at + 1} of ${list.length}`,
+        ].join("\n"),
+      },
+    ];
+  });
+
+  await paginate(ctx, pages, null);
 }
 
 async function minecraft(ctx: PrefixContext): Promise<void> {
@@ -157,7 +191,7 @@ async function github(ctx: PrefixContext): Promise<void> {
   await card(ctx, [
     `### ${plain(found.name || found.login)}`,
     found.avatar_url,
-    ...(found.bio ? [`-# ${plain(found.bio.slice(0, 200))}`] : []),
+    ...(found.bio ? [`-# ${plain(found.bio, 200)}`] : []),
     `-# ${found.public_repos} repos · ${found.followers} followers · ${found.following} following`,
     ...(found.location ? [`-# ${plain(found.location)}`] : []),
     `-# joined ${stamp(found.created_at, "D")}`,
@@ -196,7 +230,7 @@ async function steam(ctx: PrefixContext): Promise<void> {
     `-# id64: ${id64 ?? "unknown"}`,
     ...(extra.level !== null ? [`-# level ${extra.level}`] : []),
     ...(extra.games !== null ? [`-# ${extra.games} games`] : []),
-    ...(state ? [`-# ${plain(state.replace(/<[^>]+>/g, " ").slice(0, 120))}`] : []),
+    ...(state ? [`-# ${plain(state.replace(/<[^>]+>/g, " "), 120)}`] : []),
     ...(pick("memberSince") ? [`-# member since ${plain(pick("memberSince") as string)}`] : []),
     ...(pick("location") ? [`-# ${plain(pick("location") as string)}`] : []),
   ]);
@@ -226,7 +260,7 @@ async function telegram(ctx: PrefixContext): Promise<void> {
   await card(ctx, [
     `### ${plain((title ?? name).replace(/^Telegram:\s*/i, ""))}`,
     ...(image ? [image] : []),
-    ...(about ? [`-# ${plain(about.slice(0, 250))}`] : []),
+    ...(about ? [`-# ${plain(about, 250)}`] : []),
     `-# t.me/${plain(name)}`,
   ]);
 }
@@ -255,7 +289,7 @@ function snapchatCommand(stories: boolean): PrefixHandler {
       await card(ctx, [
         `### ${plain(title.replace(/ on Snapchat$/i, ""))}`,
         ...(metaOf(html, "og:image") ? [metaOf(html, "og:image") as string] : []),
-        ...(metaOf(html, "og:description") ? [`-# ${plain((metaOf(html, "og:description") as string).slice(0, 200))}`] : []),
+        ...(metaOf(html, "og:description") ? [`-# ${plain(metaOf(html, "og:description") as string, 200)}`] : []),
         `-# snapchat.com/add/${plain(name)}`,
       ]);
       return;
@@ -291,7 +325,7 @@ async function cashapp(ctx: PrefixContext): Promise<void> {
   await card(ctx, [
     `### $${plain(name)}`,
     ...(metaOf(html, "og:image") ? [metaOf(html, "og:image") as string] : []),
-    ...(title ? [`-# ${plain(title.slice(0, 150))}`] : []),
+    ...(title ? [`-# ${plain(title, 150)}`] : []),
     `-# cash.app/$${plain(name)}`,
   ]);
 }
@@ -335,7 +369,7 @@ async function roblox(ctx: PrefixContext): Promise<void> {
   await card(ctx, [
     `### ${plain(profile?.displayName ?? who.name)} (@${plain(who.name)})`,
     ...(avatar?.data?.[0]?.imageUrl ? [avatar.data[0].imageUrl] : []),
-    ...(profile?.description ? [`-# ${plain(profile.description.slice(0, 200))}`] : []),
+    ...(profile?.description ? [`-# ${plain(profile.description, 200)}`] : []),
     `-# id: ${who.id}`,
     ...(profile?.created ? [`-# joined ${stamp(profile.created, "D")}`] : []),
     ...(friends ? [`-# ${friends.count} friends`] : []),

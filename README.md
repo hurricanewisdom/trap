@@ -448,6 +448,16 @@ games, level, playtime — does need one.
 exists inside Bloxlink or RoVer, and both want an API key, so those two commands
 say so instead of guessing.
 
+⚠️ **Urban Dictionary stopped serving vote counts.** `thumbs_up` and
+`thumbs_down` come back as **0 for every definition of every word** — checked
+across several — while the website still shows them, rendered client-side and
+absent from the html it serves. A permanent "👍 0" is worse than no number at
+all, so the card shows the author and the date instead. Getting the real counts
+would mean driving a browser for a dictionary lookup.
+
+⚠️ **Ten definitions come back and one was ever shown.** They page now, in the
+order the site ranks them.
+
 ### Pictures go through ffmpeg
 
 `rotate`, `invert` and `compress` are ffmpeg filters, and `hex` is a one-pixel
