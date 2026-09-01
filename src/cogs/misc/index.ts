@@ -22,7 +22,7 @@ export const miscCog: Cog = {
     inCategory("textplay", registerText);
     inCategory("scores", registerSports);
     inCategory("away", registerAfk);
-    inCategory("history", () => {
+    inCategory("records", () => {
       registerNames();
       registerTopCommands();
     });

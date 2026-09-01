@@ -1751,11 +1751,22 @@ each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 896 views** and asserts unique
+The check that keeps this honest renders **all 888 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.
 
+
+⚠️ **Two catalog entries must never share a slug.** `sectionsOf` matches by slug,
+so a slug used twice puts the **same value in a select menu twice** — and Discord
+refuses the whole message, which means clicking that cog in the help browser does
+nothing at all. It is silent on the way in: nothing throws, nothing warns, and
+the cog that already owned the slug breaks too. `miscellaneous` reusing
+moderation's `history` broke both of them, and the view count was quietly
+inflated by eight because the shared section was counted once per cog.
+
+`docaudit` now renders every view and fails on a repeated option value, which is
+what the paragraph above always claimed it did and did not.
 ## Last.fm
 
 `,lf link` mints a random single-use state, stores it in Redis for ten minutes,

@@ -440,7 +440,7 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Telling people you are gone, and what you missed",
   },
   {
-    slug: "history",
+    slug: "records",
     label: "History",
     emoji: "",
     blurb: "Names people used to have, and which commands get used",

@@ -27,6 +27,7 @@ const { allCommands } = await import(dist("core/prefix.js"));
 const model = await import(dist("cogs/help/model.js"));
 const render = await import(dist("cogs/help/render.js"));
 const { EVENTS } = await import(dist("core/availability.js"));
+const { CATEGORIES } = await import(dist("cogs/help/catalog.js"));
 
 const noop = () => {};
 await loadCogs(cogs, {
@@ -66,6 +67,56 @@ async function sourceFiles(dir = path.join(ROOT, "src")) {
     else if (entry.name.endsWith(".ts")) found += 1;
   }
   return found;
+}
+
+// Two catalog entries sharing a slug put the same value in a select menu twice,
+// and Discord refuses the whole message -- so the section menu on both cogs stops
+// working. Counting views never caught it because nothing was rendered.
+function duplicateSlugs() {
+  const seen = new Map();
+  for (const category of CATEGORIES) {
+    seen.set(category.slug, (seen.get(category.slug) ?? 0) + 1);
+  }
+  return [...seen].filter(([, count]) => count > 1).map(([slug]) => slug);
+}
+
+function optionsIn(node, found = []) {
+  for (const one of node ?? []) {
+    if (Array.isArray(one.options)) found.push(one.options.map((option) => option.value));
+    if (one.components) optionsIn(one.components, found);
+  }
+  return found;
+}
+
+// Every menu on every view, checked for the thing Discord rejects.
+async function menusWithRepeats() {
+  const broken = [];
+  const views = [{ kind: "home" }, { kind: "cogs", page: 0 }];
+  for (const cog of model.cogSummaries()) {
+    views.push({ kind: "cog", cog: cog.name, page: 0 });
+    views.push({ kind: "all", cog: cog.name, page: 0 });
+    for (const section of model.sectionsOf(cog.name)) {
+      views.push({ kind: "section", slug: section.category.slug, page: 0 });
+    }
+  }
+
+  for (const view of views) {
+    let rendered;
+    try {
+      rendered = await render.renderView(view, "1", ",");
+    } catch (err) {
+      broken.push(`${view.kind} ${view.cog ?? view.slug ?? ""} threw: ${err.message}`);
+      continue;
+    }
+    for (const values of optionsIn(rendered?.components)) {
+      const seen = new Set();
+      const repeats = [...new Set(values.filter((one) => seen.has(one) || (seen.add(one), false)))];
+      if (repeats.length) {
+        broken.push(`${view.kind} ${view.cog ?? view.slug ?? ""} repeats ${repeats.join(", ")}`);
+      }
+    }
+  }
+  return broken;
 }
 
 const totals = [
@@ -129,6 +180,22 @@ console.log("\nevery permission gate named in ARCHITECTURE:");
     if (!arch.includes(gate)) say(false, gate + " is not mentioned");
   }
   console.log("  " + gates.length + " gates checked");
+}
+
+console.log("\nevery help section slug is its own:");
+{
+  const repeats = duplicateSlugs();
+  checked += 1;
+  if (repeats.length) say(false, `catalog slug used twice: ${repeats.join(", ")}`);
+  else console.log(`  ${CATEGORIES.length} slugs checked`);
+}
+
+console.log("\nevery select menu on every help view:");
+{
+  const broken = await menusWithRepeats();
+  checked += 1;
+  for (const one of broken) say(false, one);
+  if (!broken.length) console.log("  rendered, no repeated option values");
 }
 
 console.log("\nevery folder and core file in the layout:");
