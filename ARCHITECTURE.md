@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 204 source files, no comments — the names and the
+the read path and the cache. 164 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -34,7 +34,6 @@ src/
     discord.ts          raw Discord REST for member lists, permissions, roles,
                         uploads, reactions, threads and who wears the server tag
     automod.ts          Discord AutoMod rules, their caps, and error translation
-    sniping.ts          the two-way link between the snipe store and its filter
     availability.ts     what is switched off where, and what can never be
     edits.ts            whether an edited message should run its command again
     ignores.ts          members and channels the bot reads nothing from
@@ -45,9 +44,6 @@ src/
                         filters fire on ordinary messages
     env.ts              typed configuration access
 
-  tools/                what the bot shells out to that is not typescript
-    audio.py            faster-whisper and shazamio, one json object on stdout,
-                        run from the virtualenv at /opt/trap-py
   helpers/              feature-agnostic utilities. No I/O of their own except
                         http.ts and cache.ts, which exist to be the I/O.
     http.ts             fetch with a timeout, a user agent and typed failures
@@ -76,23 +72,6 @@ src/
 
   cogs/                 features. One folder each.
     index.ts            the cog list — add a feature by adding a line here
-    general/            ping and botinfo, and everything informational
-                        (the cog is named "information")
-      shared.ts         parsing a member, role or channel, and CDN asset urls
-      info.ts           what Discord already knows: servers, members, roles,
-                        channels, invites, avatars and banners; the list commands
-                        page through core/pager and the info cards read every
-                        field Discord returns rather than a name and a date
-      expressions.ts    emotes and stickers: adding, removing, renaming, tidying;
-                        also the emote-use recorder, an onMessage hook that
-                        buffers in memory and batch-inserts every 30s
-      images.ts         rotate, invert, compress and dominant colour, via ffmpeg;
-                        also screenshot -- headless Chrome as its own unprivileged
-                        user -- which is NOT REGISTERED at the moment, switched
-                        off at the bottom of the same file
-      lookups.ts        other people's services, the key-free ones
-      services.ts       the ones that need a key, and what they say without it
-      personal.ts       highlights, birthdays, timezones and last seen
     config/             server settings
       prefix.ts         which prefixes the server answers to
       antinuke/         the server's last line of defence, owner only.
@@ -166,42 +145,6 @@ src/
       threads.ts        renaming, locking and membership of one thread
       people.ts         reminders, nicknames, sticky roles, raids, voice moves
       extras.ts         restricted commands, scheduled nukes, unban-all
-    utility/            server tools
-      store.ts          bounded in-memory rings: recent messages, snipes,
-                        removed reactions, per-message reaction logs
-      snipe.ts          ,snipe and its four subcommands, plus the hooks that
-                        feed the store
-      messages/         ,pin, ,unpin and ,firstmessage: things done to one
-                        message, with nothing configured per server
-      extract/          the emojis or stickers as a zip; zip.ts is a stored-only
-                        archive writer, so no dependency for one command
-    misc/               everything that belonged nowhere else
-      embeds/           code.ts parses and re-serialises the {key: value}$v
-                        embed format; index.ts is the eight commands over it
-      afk.ts            away statuses, held in memory for the message path
-      names.ts          username, nickname and server-name history, written on
-                        member and guild updates and only when the name differs
-      topcommands.ts    command counts, buffered and batch-inserted
-      sports.ts         six ESPN scoreboards over one endpoint
-      discogs.ts        keyless search and public profiles
-      wikihow.ts        title-guessing, because their search API is gone
-      text.ts           uwu, freaky, colour swatches and charinfo
-      fun.ts            rps, choose, would-you-rather and the two polls
-      media.ts          makemp3, over yt-dlp and ffmpeg
-      run.ts            a self-hosted Piston on loopback, and the synonym table
-                        for the language names Piston does not register
-      listen.ts         transcribe and shazam, over tools/audio.py
-      ask.ts            a local model through Ollama on loopback, for boosters
-      server.ts         invites, timediff, and addemote handing over to emoji add
-      shared.ts         card, ids, snowflake times and message-link parsing
-      pages.ts          the page shape, so this cog does not reach into another
-    roleplay/           reaction commands, off until a server enables them
-      actions.ts        the sixty-two, as one table of name, section, blurb and
-                        the line it prints; one handler factory behind all of them
-      config.ts         ,roleplay enable/disable, Administrator only
-      store.ts          the per-guild switch, cached, failing closed
-      gifs.ts           otakugifs.xyz, pooled so a run of one command is not a
-                        run of requests, and null rather than throwing when down
     help/               the command browser
       model.ts          one indexed view of the registry + catalog
       search.ts         ranking, for /help autocomplete and ,help <query>
@@ -303,7 +246,7 @@ is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 443 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 391 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.

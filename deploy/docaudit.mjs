@@ -265,10 +265,7 @@ console.log("\nevery setting in .env.example is documented:");
 console.log("\nevery cog's own count, as its section states it:");
 {
   const claims = [
-    ["information", /\*\*(\d+) commands\*\* answering questions/],
     ["moderation", /\*\*(\d+) commands\*\* across punishments/],
-    ["miscellaneous", /\*\*(\d+) commands\*\* that did not belong/],
-    ["roleplay", /\*\*(\d+) commands\*\*: sixty-two reactions/],
     ["lastfm", /one of the (\d+) Last\.fm commands/],
   ];
 
@@ -292,7 +289,7 @@ console.log("\nevery cog's own count, as its section states it:");
   else if (Number(said[1]) !== antinuke) {
     say(false, `README says antinuke has ${said[1]}, actual ${antinuke}`);
   }
-  console.log("  6 cog counts checked");
+  console.log("  3 cog counts checked");
 }
 
 console.log("\nevery help section slug is its own:");

@@ -1,4 +1,3 @@
-import { forgetSnipe } from "./sniping.js";
 import { required } from "./env.js";
 import { redis } from "./redis.js";
 
@@ -837,7 +836,6 @@ export function editMember(
 }
 
 export function deleteMessage(channelId: string, messageId: string): Promise<Wrote<void>> {
-  forgetSnipe(channelId, messageId);
   return write<void>("DELETE", `/channels/${channelId}/messages/${messageId}`);
 }
 

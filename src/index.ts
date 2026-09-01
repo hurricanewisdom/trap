@@ -38,7 +38,6 @@ import {
 import { closeRedis, redis } from "./core/redis.js";
 import { cogs } from "./cogs/index.js";
 import { startProtectionLog } from "./core/protection.js";
-import { notedGuildName } from "./cogs/misc/names.js";
 import { router, startWebServer } from "./web/server.js";
 import { provideRunner } from "./core/runner.js";
 import { accentFor, withAccent } from "./core/accent.js";
@@ -256,10 +255,6 @@ const bot = createBot({
       } catch (err) {
         console.error("edited command failed:", err);
       }
-    },
-    async guildUpdate(guild: any) {
-      // The only place a server rename shows up. Recorded rather than announced.
-      await notedGuildName(String(guild?.id ?? ""), String(guild?.name ?? ""));
     },
     async guildMemberAdd(member: any) {
       await emitMemberJoin({

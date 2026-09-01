@@ -146,36 +146,6 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Flushing a channel's pins into an archive channel",
   },
   {
-    slug: "expressions",
-    label: "Emotes and stickers",
-    emoji: "",
-    blurb: "Adding, removing, renaming and tidying a server's expressions",
-  },
-  {
-    slug: "images",
-    label: "Images",
-    emoji: "",
-    blurb: "Rotating, inverting, compressing and reading a colour out of a picture",
-  },
-  {
-    slug: "lookups",
-    label: "Elsewhere",
-    emoji: "",
-    blurb: "Asking other services: dictionaries, game profiles and social accounts",
-  },
-  {
-    slug: "personal",
-    label: "Yours",
-    emoji: "",
-    blurb: "Keyword alerts, birthdays, timezones and when somebody was last seen",
-  },
-  {
-    slug: "serverinfo",
-    label: "Server and members",
-    emoji: "",
-    blurb: "What Discord already knows: servers, members, roles, channels and invites",
-  },
-  {
     slug: "punish",
     label: "Punishments",
     emoji: "",
@@ -264,12 +234,6 @@ export const CATEGORIES: CategoryDoc[] = [
     label: "Webhooks",
     emoji: "",
     blurb: "Posting as a named identity in a channel",
-  },
-  {
-    slug: "extract",
-    label: "Extract",
-    emoji: "",
-    blurb: "Downloading a server's emojis or stickers in one go",
   },
   {
     slug: "messages",
@@ -368,100 +332,10 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Friends, sharing and what other people are playing",
   },
   {
-    slug: "roleplay",
-    label: "Roleplay setting",
-    emoji: "",
-    blurb: "Turning the reaction commands on for a server, or off again",
-  },
-  {
-    slug: "affection",
-    label: "Affection",
-    emoji: "",
-    blurb: "Hugs, kisses, hand-holding and the rest of the warm ones",
-  },
-  {
-    slug: "playful",
-    label: "Playful",
-    emoji: "",
-    blurb: "Biting, poking, licking and other mischief",
-  },
-  {
-    slug: "rough",
-    label: "Rough",
-    emoji: "",
-    blurb: "Slapping, punching, shouting and glaring",
-  },
-  {
-    slug: "feelings",
-    label: "Feelings",
-    emoji: "",
-    blurb: "Crying, sighing, blushing and every other mood",
-  },
-  {
-    slug: "gestures",
-    label: "Gestures",
-    emoji: "",
-    blurb: "Clapping, waving, dancing and drinking together",
-  },
-  {
-    slug: "embeds",
-    label: "Embeds",
-    emoji: "",
-    blurb: "Writing, saving, copying and editing rich messages",
-  },
-  {
-    slug: "games",
-    label: "Games and polls",
-    emoji: "",
-    blurb: "Picking, throwing, asking and voting",
-  },
-  {
-    slug: "textplay",
-    label: "Text and colour",
-    emoji: "",
-    blurb: "Mangling text, reading characters and looking at colours",
-  },
-  {
-    slug: "scores",
-    label: "Scores",
-    emoji: "",
-    blurb: "Today's games across six leagues",
-  },
-  {
-    slug: "away",
-    label: "Away",
-    emoji: "",
-    blurb: "Telling people you are gone, and what you missed",
-  },
-  {
-    slug: "records",
-    label: "History",
-    emoji: "",
-    blurb: "Names people used to have, and which commands get used",
-  },
-  {
-    slug: "elsewhere",
-    label: "Other services",
-    emoji: "",
-    blurb: "Discogs, wikiHow and turning a video into audio",
-  },
-  {
     slug: "antinuke",
     label: "Antinuke",
     emoji: "",
     blurb: "Watching for a server being taken apart, and stopping whoever is doing it",
-  },
-  {
-    slug: "sandbox",
-    label: "Running code",
-    emoji: "",
-    blurb: "Somebody else's code, in a container that cannot reach anything",
-  },
-  {
-    slug: "tools",
-    label: "Odds and ends",
-    emoji: "",
-    blurb: "Invites, id arithmetic and adding an emote",
   },
 ];
 
@@ -1416,39 +1290,6 @@ export const DOCS: CommandDoc[] = [
     ],
   },
   {
-    name: "extractemotes",
-    category: "extract",
-    usage: ",extractemotes",
-    summary: "Send every emoji in this server as a zip",
-    details:
-      "Downloads every emoji from Discord's CDN and sends them back as one zip, animated ones as .gif and the rest as .png. Names come from the emoji, cleaned of anything a filesystem would object to, and a repeated name gets a number rather than overwriting. Six download at a time, nothing over 8MB each, and the archive stops at 24MB with the card saying how many were left out. Administrator, since it hands somebody the whole set at once. Alias: ,extractemojis.",
-    examples: [",extractemotes"],
-    permission: "Administrator",
-    guildOnly: true,
-  },
-  {
-    name: "extractstickers",
-    category: "extract",
-    usage: ",extractstickers",
-    summary: "Send every sticker in this server as a zip",
-    details:
-      "The same as ,extractemotes for stickers. Discord stores stickers in three formats and the extension follows: PNG and APNG come out as .png, GIF as .gif, and a Lottie sticker as the .json it really is rather than an image that would not open.",
-    examples: [",extractstickers"],
-    permission: "Administrator",
-    guildOnly: true,
-  },
-  {
-    name: "pin",
-    category: "messages",
-    usage: ",pin [link]",
-    summary: "Pin the last message, or one by link",
-    details:
-      "With nothing after it, this pins the most recent message in the channel that is not the command itself. With a message link or id it pins that one. It checks the 50-pin cap first and says so rather than letting Discord refuse.",
-    examples: [",pin", ",pin https://discord.com/channels/1/2/3"],
-    permission: "Manage Messages",
-    guildOnly: true,
-  },
-  {
     name: "unpin",
     category: "messages",
     usage: ",unpin [link]",
@@ -1457,16 +1298,6 @@ export const DOCS: CommandDoc[] = [
       "With nothing after it, this unpins the most recently pinned message. With a message link or id it unpins that one.",
     examples: [",unpin", ",unpin https://discord.com/channels/1/2/3"],
     permission: "Manage Messages",
-    guildOnly: true,
-  },
-  {
-    name: "firstmessage",
-    category: "messages",
-    usage: ",firstmessage [#channel]",
-    summary: "Link the first message in a channel",
-    details:
-      "Reads the oldest message in a channel and gives you a jump link to it, with the author and the opening of what they said. Defaults to the channel you are in. Alias: ,first.",
-    examples: [",firstmessage", ",firstmessage #general"],
     guildOnly: true,
   },
   {
@@ -1671,33 +1502,6 @@ export const DOCS: CommandDoc[] = [
         permission: "Manage Server",
       },
     ],
-  },
-  {
-    name: "ping",
-    category: "general",
-    usage: ",ping",
-    summary: "Show the gateway latency",
-    details:
-      "Replies with the current gateway latency and nothing else. It takes no arguments and reads nothing but the shard manager.",
-    examples: [",ping"],
-  },
-  {
-    name: "botinfo",
-    category: "general",
-    usage: ",botinfo",
-    summary: "Latency, uptime, memory and library versions",
-    details:
-      "Lists ping, uptime, RSS and heap use, shard count, platform, Node version and the discordeno version, with a link button to the library's repository. Aliases: ,about and ,bi.",
-    examples: [",botinfo", ",bi"],
-  },
-  {
-    name: "test",
-    category: "general",
-    usage: ",test",
-    summary: "Post the Components V2 showcase",
-    details:
-      "Sends two messages: one with every layout component, one with the interactive ones plus a small text file. It is split in two because a message holds five action rows and the select menus alone fill all five.",
-    examples: [",test"],
   },
   {
     name: "help",
