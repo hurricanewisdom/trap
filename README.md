@@ -46,6 +46,7 @@ rather than turning it into a three-word path with named fields.
 - `,purge` — twenty-one ways to clear messages
 - `,lockdown`, `,unlock`, `,hide`, `,slowmode`, `,nuke` — channel control
 - `,thread`, `,remind`, `,stickyrole`, `,restrictcommand`, `,raid` — the rest of moderation
+- `,antiraid` — sixteen ways to spot a raid arriving and shut the door
 - `,antinuke` — twenty ways to watch a server being taken apart, owner only
 - `,lf link` DMs an authorisation link; after that `,fm` works
 

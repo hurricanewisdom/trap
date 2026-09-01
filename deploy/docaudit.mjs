@@ -279,6 +279,17 @@ console.log("\nevery cog's own count, as its section states it:");
     }
   }
 
+  // The antiraid is a group inside a cog, like the antinuke below it.
+  checked += 1;
+  const antiraid = all.filter(
+    (command) => command.name === "antiraid" || (command.groupedUnder ?? "").startsWith("antiraid"),
+  ).length;
+  const claim = /\*\*(\d+) commands\*\* watching the door/.exec(readme);
+  if (!claim) say(false, "README does not state the antiraid's count");
+  else if (Number(claim[1]) !== antiraid) {
+    say(false, `README says antiraid has ${claim[1]}, actual ${antiraid}`);
+  }
+
   // The antinuke is a group inside a cog rather than a cog of its own.
   checked += 1;
   const antinuke = all.filter(
@@ -289,7 +300,7 @@ console.log("\nevery cog's own count, as its section states it:");
   else if (Number(said[1]) !== antinuke) {
     say(false, `README says antinuke has ${said[1]}, actual ${antinuke}`);
   }
-  console.log("  3 cog counts checked");
+  console.log("  4 cog counts checked");
 }
 
 console.log("\nevery help section slug is its own:");
