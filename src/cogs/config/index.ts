@@ -9,6 +9,7 @@ import { registerAlias } from "./alias/index.js";
 import { registerSticky } from "./sticky/index.js";
 import { registerGallery } from "./gallery/index.js";
 import { registerFilter } from "./filter/index.js";
+import { registerAutorole } from "./autorole/index.js";
 import { registerAutoresponder } from "./autoresponder/index.js";
 import { registerPagination } from "./pagination/index.js";
 import { registerAvailability } from "./availability/index.js";
@@ -41,6 +42,7 @@ export const configCog: Cog = {
     inCategory("sticky", registerSticky);
     inCategory("gallery", registerGallery);
     inCategory("automod", registerFilter);
+    inCategory("autorole", registerAutorole);
     inCategory("autoresponder", registerAutoresponder);
     inCategory("pagination", registerPagination);
     inCategory("availability", registerAvailability);

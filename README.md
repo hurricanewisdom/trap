@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 498 commands across four cogs,
+(TypeScript strict, Node 22), run bare with pm2. 503 commands across four cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -27,6 +27,7 @@ rather than turning it into a three-word path with named fields.
 - `,alias` — server shortcuts for existing commands
 - `,stickymessage` — keep a message at the bottom of a channel
 - `,imgonly` — make a channel take images only
+- `,autorole` — roles handed out to members as they join
 - `,autoresponder` — automatic replies when a message matches a trigger
 - `,pagination` — several pages behind one message, turned with arrows
 - `,disablecommand` — turn commands, modules and events off per channel
@@ -193,6 +194,51 @@ The `onMessage` hook it rides on runs for every guild message, so the check in
 front of it is a cached set of channel ids rather than a query. Bot messages are
 ignored before the hook is reached, which is also what stops the sticky
 retriggering on itself.
+
+## Autorole
+
+`,autorole` hands roles to members as they arrive. Five commands, all Manage
+Roles.
+
+```
+,autorole                         what is handed out, and what is stuck
+,autorole add @Member             everyone who joins gets it
+,autorole add @Verified --humans  people only, never bots
+,autorole add @BotRole --bots     bots only
+,autorole remove @Member          stop handing one out
+,autorole clear                   stop handing out all of them
+```
+
+⚠️ **It does not backfill.** Adding a role changes what happens to the *next*
+member through the door; nobody already in the server is touched. Removing one
+does not take it off anybody either, so a role handed out by mistake has to be
+cleaned up separately.
+
+Four things are refused rather than stored, because each would fail on every
+join instead of once here:
+
+| | |
+| --- | --- |
+| `@everyone` | everybody already has it |
+| a role Discord manages | a bot's role, an integration's, or the booster role — nobody can assign these |
+| a role with **Administrator** | it would hand the server to whoever joins next |
+| a role above the bot's own | Discord's hierarchy, which no permission gets around |
+
+A role carrying Manage Server, Manage Roles, Manage Channels, Ban, Kick or
+Manage Webhooks **is** accepted, and the card names the permission so the choice
+is a deliberate one.
+
+The hierarchy is checked again when the list is shown, not only when a role is
+added, because the bot's role can be dragged down afterwards — and then the
+role simply stops being handed out with nothing to see. `,autorole` says so.
+
+Ten roles at most. That is not a Discord limit but a rate-limit one: each role
+is a separate request, so a join flood multiplies by however many are on the
+list.
+
+⚠️ **This needs the privileged GuildMembers intent**, the same one `,welcome`
+and `,goodbye` need, because it hangs off `guildMemberAdd`. The commands and the
+storage work without it; the roles just never get handed out.
 
 ## Autoresponders
 
@@ -1333,12 +1379,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 406 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 410 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`automod caps whitelist view`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help automod links ignore` opens that exact command.
 
-The check that keeps this honest renders **all 672 views** and asserts unique
+The check that keeps this honest renders **all 678 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

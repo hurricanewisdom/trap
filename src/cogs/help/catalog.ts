@@ -128,6 +128,12 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "What the bot posts when somebody boosts",
   },
   {
+    slug: "autorole",
+    label: "Autorole",
+    emoji: "",
+    blurb: "Roles handed out to members as they join",
+  },
+  {
     slug: "autoresponder",
     label: "Autoresponder",
     emoji: "",
@@ -420,6 +426,23 @@ export const DOCS: CommandDoc[] = [
       { name: "remove", usage: ",goodbye remove <channel>", summary: "Stop a channel posting", permission: "Manage Server" },
       { name: "list", usage: ",goodbye list", summary: "Every channel with a goodbye message", permission: "Manage Server" },
       { name: "variables", usage: ",goodbye variables", summary: "Every variable a message can use", permission: "Manage Server" },
+    ],
+  },
+  {
+    name: "autorole",
+    category: "autorole",
+    usage: ",autorole",
+    summary: "Assign roles to new members automatically",
+    details:
+      "Every role on the list is handed to a member as they join, and nothing is done to members who are already here -- switching this on does not backfill the server. Add --humans or --bots to a role to narrow who gets it; both, or neither, means everyone. Ten roles at most, because each one is a separate request and a join flood multiplies them. A role Discord manages (a bot's role, an integration's, or the booster role) cannot be handed out by anybody, and a role carrying Administrator is refused outright rather than given to whoever arrives next; anything else with real power is taken but named on the card. The list flags a role that has moved above the bot, since that stops it silently. Alias: ,autoroles.",
+    examples: [",autorole", ",autorole add @Member", ",autorole add @Verified --humans"],
+    permission: "Manage Roles",
+    guildOnly: true,
+    subcommands: [
+      { name: "add", usage: ",autorole add <role> [--humans|--bots]", summary: "Add a role to be assigned automatically", permission: "Manage Roles" },
+      { name: "remove", usage: ",autorole remove <role>", summary: "Remove a role from automatic assignment", permission: "Manage Roles" },
+      { name: "list", usage: ",autorole list", summary: "View all roles being assigned automatically", permission: "Manage Roles" },
+      { name: "clear", usage: ",autorole clear", summary: "Remove all roles from automatic assignment", permission: "Manage Roles" },
     ],
   },
   {

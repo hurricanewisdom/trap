@@ -891,6 +891,17 @@ export async function migrate(): Promise<void> {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS autoroles (
+      guild_id   TEXT NOT NULL,
+      role_id    TEXT NOT NULL,
+      targets    TEXT NOT NULL DEFAULT 'all',
+      added_by   TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, role_id)
+    )
+  `;
+
   console.log("db: schema ready");
 }
 
