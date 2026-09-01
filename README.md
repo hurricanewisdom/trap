@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 660 commands across eight cogs,
+(TypeScript strict, Node 22), run bare with pm2. 663 commands across eight cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -582,6 +582,14 @@ The reply says how many were skipped rather than quietly returning a short count
 ⚠️ **`restrictcommand` fails open.** A database that cannot be reached should not
 lock a server out of its own bot, so an unanswerable restriction is no restriction.
 
+⚠️ **`plain()` truncates at 180 characters.** It is built for a name or a title,
+and the cut is invisible at the call site: `run` posted program output through it
+and every error longer than 180 characters arrived cut mid-word, looking like the
+program had printed that much and stopped. It now takes an explicit limit, and
+**text inside a fenced code block should not go through it at all** — markdown is
+not interpreted in there, so escaping only puts backslashes through somebody's
+output. Containing the backticks is the whole job.
+
 ## Miscellaneous
 
 Forty commands that did not belong to any of the other cogs.
@@ -655,6 +663,51 @@ doing it the other way round means somebody who is back is still reported away.
 The away list is held in memory because this runs on the message path, and a
 failed refresh keeps whatever is cached rather than emptying the map — an empty
 map would switch the feature off silently instead of degrading it.
+
+### Running code
+
+`run py print(6*7)`, or a fenced block with a language tag. `run languages`
+lists what is installed — fifteen of them, from python and javascript to rust,
+go and sqlite.
+
+⚠️ **Piston's public API went whitelist-only in February 2026**, so this runs a
+**self-hosted Piston** on the box instead, bound to `127.0.0.1:2000` and nothing
+else. It executes code a stranger typed; it must not be reachable from outside.
+
+The sandbox was tested rather than assumed. From inside it: `/root/trap/.env` is
+`FileNotFoundError`, `/etc/shadow` is `PermissionError`, `/root` does not exist,
+the docker socket is absent, `/proc/1/cmdline` is unreachable, outbound network
+raises, a fork bomb hits `EAGAIN`, a gigabyte write fails, and `while True: pass`
+is `SIGKILL`ed on a wall-clock limit. It runs as uid 60014 in `/box/submission`.
+
+⚠️ **Client limits must not exceed the server's.** Piston **refuses the whole
+request** rather than clamping a `run_timeout` above its configured ceiling, and
+the refusal arrives as a plain message with no `run` object — which reads exactly
+like the runner being down. The container is configured to allow what the command
+asks for.
+
+⚠️ **`node` is not a language name.** Piston registers javascript with the
+aliases `node-js` and `node-javascript`, and neither plain `node` nor `js` is
+among them, so the two things everybody types both miss. A small synonym table
+sits in front of the alias lookup.
+
+### Listening: `transcribe` and `shazam`
+
+Both are local. `transcribe` runs **faster-whisper** (the `small` model, int8, on
+cpu) and `shazam` runs **shazamio**, in a virtualenv at `/opt/trap-py` with a
+helper at `tools/audio.py` that prints one json object. Audio is pulled with
+yt-dlp — twelve seconds of it for `shazam`, which is all Shazam wants.
+
+⚠️ **The voice-activity filter throws away singing.** `vad_filter=True` is tuned
+for speech over silence, and on music it drops every segment — the transcript
+comes back **empty with no error**, which reads as "nothing was said" rather than
+as a setting. It is off.
+
+⚠️ **These will not install into Debian's python.** `pip install faster-whisper`
+wants to remove a system `click`, and shazamio needs a Rust toolchain. The
+virtualenv is on **3.13, not 3.14**, because the audio wheels lag the newest
+release, and shazamio additionally needs `audioop-lts` since 3.13 removed
+`audioop` from the standard library.
 
 ### Discogs, and what it will not do without an account
 
@@ -1751,7 +1804,7 @@ each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 888 views** and asserts unique
+The check that keeps this honest renders **all 893 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

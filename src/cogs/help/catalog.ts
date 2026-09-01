@@ -452,6 +452,12 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Discogs, wikiHow and turning a video into audio",
   },
   {
+    slug: "sandbox",
+    label: "Running code",
+    emoji: "",
+    blurb: "Somebody else's code, in a container that cannot reach anything",
+  },
+  {
     slug: "tools",
     label: "Odds and ends",
     emoji: "",

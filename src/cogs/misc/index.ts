@@ -4,8 +4,10 @@ import { registerAfk } from "./afk.js";
 import { registerDiscogs } from "./discogs.js";
 import { registerEmbeds } from "./embeds/index.js";
 import { registerFun } from "./fun.js";
+import { registerListen } from "./listen.js";
 import { registerMedia } from "./media.js";
 import { registerNames } from "./names.js";
+import { registerRun } from "./run.js";
 import { registerServer } from "./server.js";
 import { registerSports } from "./sports.js";
 import { registerText } from "./text.js";
@@ -30,7 +32,9 @@ export const miscCog: Cog = {
       registerDiscogs();
       registerWikihow();
       registerMedia();
+      registerListen();
     });
+    inCategory("sandbox", registerRun);
     inCategory("tools", registerServer);
   },
 };

@@ -63,6 +63,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 PAYLOAD = [
     "src",
     "deploy",
+    "tools",
     "package.json",
     "package-lock.json",
     "tsconfig.json",

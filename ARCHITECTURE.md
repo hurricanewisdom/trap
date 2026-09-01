@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 201 source files, no comments — the names and the
+the read path and the cache. 203 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -42,6 +42,9 @@ src/
                         set that can be handed out at all
     env.ts              typed configuration access
 
+  tools/                what the bot shells out to that is not typescript
+    audio.py            faster-whisper and shazamio, one json object on stdout,
+                        run from the virtualenv at /opt/trap-py
   helpers/              feature-agnostic utilities. No I/O of their own except
                         http.ts and cache.ts, which exist to be the I/O.
     http.ts             fetch with a timeout, a user agent and typed failures
@@ -175,6 +178,9 @@ src/
       text.ts           uwu, freaky, colour swatches and charinfo
       fun.ts            rps, choose, would-you-rather and the two polls
       media.ts          makemp3, over yt-dlp and ffmpeg
+      run.ts            a self-hosted Piston on loopback, and the synonym table
+                        for the language names Piston does not register
+      listen.ts         transcribe and shazam, over tools/audio.py
       server.ts         invites, timediff, and addemote handing over to emoji add
       shared.ts         card, ids, snowflake times and message-link parsing
       pages.ts          the page shape, so this cog does not reach into another

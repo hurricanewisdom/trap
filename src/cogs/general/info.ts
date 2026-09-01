@@ -256,7 +256,7 @@ async function serverInfo(ctx: PrefixContext): Promise<void> {
   await card(ctx, [
     `### ${plain(guild.name ?? id)}`,
     ...(guild.icon ? [assetUrl(`icons/${id}`, guild.icon, 256)] : []),
-    ...(guild.description ? [`-# ${plain(guild.description.slice(0, 180))}`] : []),
+    ...(guild.description ? [`-# ${plain(guild.description, 180)}`] : []),
     `-# id: ${id}`,
     `-# owner: <@${guild.owner_id}>`,
     `-# made: ${when(madeAt(id))}`,
@@ -444,7 +444,7 @@ async function channelInfo(ctx: PrefixContext): Promise<void> {
     `-# made: ${when(madeAt(wanted))}`,
     ...(channel.parent_id ? [`-# under: <#${channel.parent_id}>`] : []),
     ...(channel.position !== undefined ? [`-# position: ${channel.position}`] : []),
-    ...(channel.topic ? [`-# topic: ${plain(channel.topic.slice(0, 200))}`] : []),
+    ...(channel.topic ? [`-# topic: ${plain(channel.topic, 200)}`] : []),
     ...(channel.nsfw ? ["-# marked NSFW"] : []),
     ...(channel.rate_limit_per_user
       ? [`-# slowmode: one message every ${channel.rate_limit_per_user}s`]
@@ -712,7 +712,7 @@ async function inviteInfo(ctx: PrefixContext): Promise<void> {
   await card(ctx, [
     `### ${plain(guild?.name ?? invite.code)}`,
     ...(guild?.icon ? [assetUrl(`icons/${guild.id}`, guild.icon, 256)] : []),
-    ...(guild?.description ? [`-# ${plain(guild.description.slice(0, 180))}`] : []),
+    ...(guild?.description ? [`-# ${plain(guild.description, 180)}`] : []),
     `-# code: ${plain(invite.code)} · discord.gg/${plain(invite.code)}`,
     ...(guild ? [`-# server id: ${guild.id}`] : []),
     ...(guild ? [`-# server made: ${when(madeAt(guild.id))}`] : []),

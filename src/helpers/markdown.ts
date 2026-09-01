@@ -2,9 +2,13 @@ const MARKDOWN_SPECIAL = new Set(["\\", "`", "*", "_", "~", "|", "[", "]"]);
 
 const MAX_LENGTH = 180;
 
-export function plain(value: string): string {
+// The default cap suits what this is usually given -- a name, a title, a single
+// field -- and quietly truncating one of those is better than posting a wall.
+// Anything legitimately longer has to say so, because the silent cut is
+// invisible at the call site and looks like the data was short.
+export function plain(value: string, limit = MAX_LENGTH): string {
   let out = "";
-  for (const ch of value.slice(0, MAX_LENGTH)) {
+  for (const ch of value.slice(0, limit)) {
     if (MARKDOWN_SPECIAL.has(ch)) out += "\\";
     out += ch;
   }

@@ -145,7 +145,7 @@ async function wikihow(ctx: PrefixContext): Promise<void> {
   await card(ctx, [
     `### ${plain(title)}`,
     ...(image ? [image] : []),
-    ...(description ? [`-# ${plain(description.slice(0, 300))}`] : []),
+    ...(description ? [`-# ${plain(description, 300)}`] : []),
     `-# ${meta(article, "og:url") ?? link}`,
   ]);
 }
