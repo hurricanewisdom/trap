@@ -182,6 +182,42 @@ console.log("\nevery permission gate named in ARCHITECTURE:");
   console.log("  " + gates.length + " gates checked");
 }
 
+// Each cog's README section states its own size, and those numbers drift every
+// time a cog gains a command -- three of them were wrong at once before this
+// check existed. The totals above never caught it: they count the whole bot.
+console.log("\nevery cog's own count, as its section states it:");
+{
+  const claims = [
+    ["information", /\*\*(\d+) commands\*\* answering questions/],
+    ["moderation", /\*\*(\d+) commands\*\* across punishments/],
+    ["miscellaneous", /\*\*(\d+) commands\*\* that did not belong/],
+    ["roleplay", /\*\*(\d+) commands\*\*: sixty-two reactions/],
+    ["lastfm", /one of the (\d+) Last\.fm commands/],
+  ];
+
+  for (const [cog, pattern] of claims) {
+    checked += 1;
+    const actual = all.filter((command) => (command.cog ?? "") === cog).length;
+    const found = pattern.exec(readme);
+    if (!found) say(false, `README does not state ${cog}'s count`);
+    else if (Number(found[1]) !== actual) {
+      say(false, `README says ${cog} has ${found[1]}, actual ${actual}`);
+    }
+  }
+
+  // The antinuke is a group inside a cog rather than a cog of its own.
+  checked += 1;
+  const antinuke = all.filter(
+    (command) => command.name === "antinuke" || (command.groupedUnder ?? "").startsWith("antinuke"),
+  ).length;
+  const said = /\*\*(\d+) commands\*\* watching for a server/.exec(readme);
+  if (!said) say(false, "README does not state the antinuke's count");
+  else if (Number(said[1]) !== antinuke) {
+    say(false, `README says antinuke has ${said[1]}, actual ${antinuke}`);
+  }
+  console.log("  6 cog counts checked");
+}
+
 console.log("\nevery help section slug is its own:");
 {
   const repeats = duplicateSlugs();

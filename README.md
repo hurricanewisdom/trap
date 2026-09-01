@@ -50,6 +50,15 @@ rather than turning it into a three-word path with named fields.
 - `,lockdown`, `,unlock`, `,hide`, `,slowmode`, `,nuke` — channel control
 - `,thread`, `,remind`, `,stickyrole`, `,restrictcommand`, `,raid` — the rest of moderation
 - `,snipe` — what was deleted, edited or unreacted in this channel
+- `,antinuke` — nineteen ways to watch a server being taken apart, owner only
+- `,roleplay` — sixty-two reaction commands, off until a server enables them
+- `,embed`, `,createembed`, `,editembed`, `,embedcode` — rich messages, written as a code
+- `,afk` — tell people you are gone, and see what you missed
+- `,names`, `,gnames`, `,topcommands` — name history, and which commands get used
+- `,nba`, `,nfl`, `,mlb`, `,nhl`, `,soccer` — today's games
+- `,run` — code in a sandbox, `,ask` — a model on the box
+- `,transcribe`, `,shazam`, `,makemp3` — what was said, what was playing, and the audio
+- `,rps`, `,choose`, `,wouldyourather`, `,poll`, `,quickpoll` — the small ones
 - `,lf link` DMs an authorisation link; after that `,fm` works
 
 Everything else is one of the 116 Last.fm commands. `,help` lists them all.
@@ -313,7 +322,7 @@ sentence about `,pins archive` rather than an API error.
 
 ## Information
 
-Eighty-one commands answering questions, in four groups: what Discord already
+**84 commands** answering questions, in four groups: what Discord already
 knows, what another service knows, what to do with a picture, and what somebody
 has asked to be told about. Anything that returns a list pages rather than
 truncating, and the info cards report everything Discord hands over rather than
@@ -531,7 +540,7 @@ at all, which is the number worth having before a cleanup.
 
 ## Antinuke
 
-Eighteen commands watching for a server being taken apart, and stopping whoever
+**19 commands** watching for a server being taken apart, and stopping whoever
 is doing it. **Server owner only** — every one of them, including reading the
 settings. This is the thing that survives a moderator going bad, so it cannot be
 configured by the people it exists to stop; `antinuke trust` is how the owner
@@ -545,6 +554,7 @@ delegates it deliberately.
 ,antinuke trust <member>        may change these, and is never punished
 ,antinuke whitelist <user>      never punished, cannot change anything
 ,antinuke trust|whitelist list|clear
+,antinuke webhookspam exempt [#channel|clear]
 ```
 
 Everything is **off by default**. Aliases: `antiwizz`, `an`, `aw`.
@@ -644,7 +654,7 @@ one outcome worth avoiding.
 
 ## Moderation
 
-A cog of its own, and the largest one: **147 commands** across punishments, the
+A cog of its own, and the largest: **147 commands** across punishments, the
 case log, roles, purging, channel control, threads and reminders.
 
 ```
@@ -705,7 +715,7 @@ output. Containing the backticks is the whole job.
 
 ## Miscellaneous
 
-Forty commands that did not belong to any of the other cogs.
+**44 commands** that did not belong to any of the other cogs.
 
 ```
 embeds     embed (5) · createembed · editembed · embedcode
@@ -714,7 +724,8 @@ text       uwu · freaky · color · randomhex · charinfo
 scores     nba · nfl · mlb · nhl · soccer · futbol
 away       afk · afk mentions
 history    names · clearnames · gnames · cleargnames · topcommands
-elsewhere  discog (2) · wikihow · makemp3
+elsewhere  discog (2) · wikihow · makemp3 · transcribe · shazam
+sandbox    run · ask
 tools      invites · timediff · addemote
 ```
 
@@ -877,7 +888,7 @@ returns nothing and every article ends up titled "wikiHow".
 ## Roleplay
 
 A cog of its own, and **off in every server until an administrator turns it on**.
-Sixty-two reaction commands plus the setting that gates them.
+**63 commands**: sixty-two reactions, plus the setting that gates them.
 
 ```
 ,roleplay              where the server stands
@@ -1768,7 +1779,7 @@ twice.
 2. `npm install && npm run build`
 3. `pm2 start ecosystem.config.cjs && pm2 save`
 
-### Four things npm will not install
+### Seven things npm will not install
 
 Some commands shell out to programs that are not node packages, so `npm install`
 does not bring them and a fresh box does not have them. The bot starts either
@@ -1777,20 +1788,46 @@ to know about, because none of them announce themselves.
 
 | | what it is for | missing it costs |
 | --- | --- | --- |
-| **yt-dlp** | fetching the video and its counts | every repost degrades to a link |
+| **yt-dlp** | fetching video and audio | reposts degrade to links; `makemp3`, `transcribe` and `shazam` stop |
 | **ffmpeg** | joining video and audio, and the image filters | youtube, twitch and reddit fail outright; `rotate`, `invert`, `compress` and `hex` stop working |
 | **curl_cffi** | letting yt-dlp impersonate a browser | tumblr refuses the connection |
 | **Chrome** | rendering a page for `screenshot` | `screenshot` alone; nothing else notices |
+| **Piston** (docker) | running code in a sandbox | `run` says the runner did not answer |
+| **/opt/trap-py** | faster-whisper and shazamio | `transcribe` and `shazam` |
+| **Ollama** | the model behind `ask` | `ask` says the model is not running |
 
 ```
 curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
 chmod +x /usr/local/bin/yt-dlp
 apt-get install -y ffmpeg
 pip3 install --break-system-packages curl_cffi
+
 curl -L https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o /tmp/chrome.deb
 apt-get install -y /tmp/chrome.deb
 useradd --system --create-home --shell /usr/sbin/nologin trapshot
+
+# loopback only: this runs code a stranger typed
+docker run -d --name piston_api --restart=always --privileged \
+  -v /opt/piston/data:/piston -p 127.0.0.1:2000:2000 \
+  -e PISTON_RUN_TIMEOUT=10000 -e PISTON_COMPILE_TIMEOUT=20000 \
+  ghcr.io/engineer-man/piston
+# then POST each language to /api/v2/packages
+
+# 3.13, not 3.14: the audio wheels lag the newest release
+python3.13 -m venv /opt/trap-py
+/opt/trap-py/bin/pip install faster-whisper shazamio audioop-lts
+
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull qwen2.5:7b
 ```
+
+⚠️ **Three of these listen on a port, and every one of them must stay on
+loopback.** Piston runs code somebody typed into Discord; Ollama is an
+unauthenticated model that anybody who finds it can spend the box's cpu on.
+Ollama in particular **binds to `0.0.0.0` by default**, and on this box a
+`override.conf` from an older install put it back there after being fixed —
+drop-ins load alphabetically and the last one wins, so the fix is named
+`zz-loopback.conf`.
 
 ⚠️ **Ubuntu 26.04 has no Chromium deb.** `apt-get install chromium` resolves to a
 snap, which does not run headless under this setup, so Chrome's own deb is what
