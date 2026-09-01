@@ -396,12 +396,21 @@ The help card renders it, and the command reads its value through
 That is the point: a flag described in prose and parsed by a list somewhere else
 drifts the moment either is renamed, and **the failure is silent** — the help
 goes on advertising a flag that no longer does anything. Declaring it on the
-command also means a group registered in a loop, as the antinuke's modules are,
-documents itself without nine hand-written catalog entries.
+command also means a group registered in a loop documents itself without a
+hand-written catalog entry each — which is how twenty commands across the
+antinuke, the antiraid and the filters carry flags with three declarations
+between them.
 
 `unknownFlags()` compares what was typed against what was declared, so
 `--treshold 5` is reported rather than dropped, which is what stops somebody
 walking away sure they had set a threshold they had not.
+
+⚠️ **A shared flag whose meaning differs is not shared.** The antiraid's
+`newaccount` counts days where its siblings count events, and reusing their
+`--threshold` gave it a card promising `<1-200>` for a bound that was really
+1-365 — the command would refuse what its own help advertised. It declares its
+own, worded for days. Same name, different flag; the declaration is per command
+for exactly this reason.
 
 A command can have subcommands **and** flags — `antinuke webhookspam` has both —
 so the group card renders both. Rendering only the subcommands, which is what it
