@@ -49,7 +49,7 @@ rather than turning it into a three-word path with named fields.
 - `,lockdown`, `,unlock`, `,hide`, `,slowmode`, `,nuke` — channel control
 - `,thread`, `,remind`, `,stickyrole`, `,restrictcommand`, `,raid` — the rest of moderation
 - `,snipe` — what was deleted, edited or unreacted in this channel
-- `,antinuke` — nineteen ways to watch a server being taken apart, owner only
+- `,antinuke` — twenty ways to watch a server being taken apart, owner only
 - `,roleplay` — sixty-two reaction commands, off until a server enables them
 - `,embed`, `,createembed`, `,editembed`, `,embedcode` — rich messages, written as a code
 - `,afk` — tell people you are gone, and see what you missed
@@ -552,7 +552,7 @@ delegates it deliberately.
 ,antinuke punishment <ban|kick|stripstaff|jail>
 ,antinuke trust <member>        may change these, and is never punished
 ,antinuke whitelist <user>      never punished, cannot change anything
-,antinuke log                    what fired, and how long it took
+,antinuke log                   what fired, and how long it took
 ,antinuke trust|whitelist list|clear
 ,antinuke webhookspam exempt [#channel|clear]
 ```
@@ -1435,7 +1435,8 @@ set gives a false negative.
 | | |
 | --- | --- |
 | `DISCORD_TOKEN` | required; a malformed one exits 78 and pm2 gives up |
-| `DATABASE_URL`, `REDIS_*`, `PG_POOL_MAX` | Postgres and Redis |
+| `DATABASE_URL`, `PG_POOL_MAX` | Postgres |
+| `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_DB` | Redis |
 | `PREFIX` | the default prefix, `,`; a server can set its own |
 | `GUILD_IDS` | guilds to register `/help` in |
 | `COMMAND_SCOPE` | `guild` registers `/help` only in those guilds, which is instant |
@@ -1443,9 +1444,17 @@ set gives a false negative.
 | `LASTFM_CALLBACK_BASE` | where Last.fm sends the user back, `https://trap.rocks` |
 | `HTTP_BIND`, `HTTP_PORT` | the callback listener |
 | `GUILD_MEMBERS_INTENT` | `1` to request the members intent |
+| `OPENWEATHER_API_KEY`, `HENRIK_API_KEY` | weather and Valorant; each says when it is missing |
+| `STEAM_API_KEY`, `BLOXLINK_API_KEY` | Steam extras, and the Roblox account links |
+| `YTDLP_PATH`, `FFMPEG_PATH` | where the two downloaders live |
+| `CHROME_PATH`, `CHROME_USER` | the browser for `screenshot`, and the unprivileged account it runs as |
+| `PISTON_URL` | the sandbox `run` executes in, on loopback |
+| `OLLAMA_URL`, `OLLAMA_MODEL` | the model behind `ask`, on loopback |
+| `TRAP_PYTHON`, `TRAP_AUDIO` | the audio virtualenv and the script that uses it |
 | `TRAP_TRACE` | `1` logs raw gateway dispatch names |
 
-`.env.example` carries all seventeen with their defaults.
+`.env.example` carries all **30** with their defaults, and the audit checks that
+number against the file rather than trusting this sentence.
 
 Three privileged intents are enabled for this application: **Message Content**
 (every prefix command depends on it), **Server Members** (joins, leaves and

@@ -201,6 +201,27 @@ console.log("\nevery permission gate named in ARCHITECTURE:");
 // Each cog's README section states its own size, and those numbers drift every
 // time a cog gains a command -- three of them were wrong at once before this
 // check existed. The totals above never caught it: they count the whole bot.
+// The env table drifts every time a command gains a knob, and the sentence under
+// it is the sort nobody re-counts. Thirteen were missing before this existed.
+console.log("\nevery setting in .env.example is documented:");
+{
+  const example = await fs.readFile(path.join(ROOT, ".env.example"), "utf8");
+  const names = [...example.matchAll(/^([A-Z][A-Z_0-9]*)=/gm)].map((hit) => hit[1]);
+
+  checked += 1;
+  const claimed = /`\.env\.example` carries all \*\*(\d+)\*\*/.exec(readme);
+  if (!claimed) say(false, "the README no longer says how many settings there are");
+  else if (Number(claimed[1]) !== names.length) {
+    say(false, `README says ${claimed[1]} settings, .env.example has ${names.length}`);
+  }
+
+  // And each one has to appear in the table, or it is undocumented in practice.
+  const missing = names.filter((name) => !readme.includes(`\`${name}\``));
+  checked += 1;
+  if (missing.length) say(false, `not in the README table: ${missing.join(", ")}`);
+  console.log(`  ${names.length} settings checked`);
+}
+
 console.log("\nevery cog's own count, as its section states it:");
 {
   const claims = [
