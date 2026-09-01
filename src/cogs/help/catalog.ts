@@ -332,6 +332,12 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Friends, sharing and what other people are playing",
   },
   {
+    slug: "antiraid",
+    label: "Antiraid",
+    emoji: "",
+    blurb: "Spotting a raid as it arrives, and shutting the door on it",
+  },
+  {
     slug: "antinuke",
     label: "Antinuke",
     emoji: "",

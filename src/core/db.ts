@@ -494,6 +494,36 @@ export async function migrate(): Promise<void> {
   await sql`CREATE INDEX IF NOT EXISTS emote_uses_guild ON emote_uses (guild_id, emote)`;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS antiraid (
+      guild_id   TEXT NOT NULL,
+      module     TEXT NOT NULL,
+      enabled    BOOLEAN NOT NULL DEFAULT false,
+      threshold  INTEGER NOT NULL DEFAULT 10,
+      window_ms  INTEGER NOT NULL DEFAULT 60000,
+      punishment TEXT NOT NULL DEFAULT 'kick',
+      PRIMARY KEY (guild_id, module)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS antiraid_config (
+      guild_id       TEXT PRIMARY KEY,
+      alert_channel  TEXT,
+      pause_ms       INTEGER NOT NULL DEFAULT 600000,
+      disabled_until TIMESTAMPTZ,
+      paused_until   TIMESTAMPTZ
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS antiraid_whitelist (
+      guild_id TEXT NOT NULL,
+      user_id  TEXT NOT NULL,
+      PRIMARY KEY (guild_id, user_id)
+    )
+  `;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS antinuke (
       guild_id  TEXT NOT NULL,
       module    TEXT NOT NULL,

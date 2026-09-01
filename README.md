@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 482 commands across four cogs,
+(TypeScript strict, Node 22), run bare with pm2. 498 commands across four cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -266,6 +266,66 @@ gate, group routing and card colour all behave identically. A second dispatch
 path would drift from the first.
 
 `,disableevent #channel editrerun` switches it off.
+
+## Antiraid
+
+**16 commands** watching the door rather than the furniture: the antinuke stops a
+member taking the server apart, this stops the server filling up with accounts
+that should not be in it. **Manage Server**, and everything off by default.
+
+```
+,antiraid                                 what is on, and what it will do
+,antiraid massjoin on 1m --threshold 15   several accounts arriving at once
+,antiraid newaccount on --threshold 7     accounts under seven days old
+,antiraid avatar on                       nobody without a profile picture
+,antiraid automation on                   accounts that look automated
+,antiraid spam on 10s --threshold 8       one member flooding
+,antiraid mentionspam on --threshold 6    one member mass-mentioning
+,antiraid raidspam on 10s                 a channel flooded by several accounts
+,antiraid channel #alerts                 where any of that gets reported
+,antiraid pause 30m                       shut the door by hand
+,antiraid resolve                         open it again, and wake the antiraid
+,antiraid duration 30m                    how long a raid pauses invites for
+,antiraid disable 1h                      switch the whole thing off for a while
+,antiraid whitelist @member               never touched
+```
+
+Each module takes `--punishment kick|ban|timeout`, and the counting ones take
+`--threshold`. The timeframe is positional, so `antiraid spam on 30s` reads the
+way somebody says it. Aliases: `warden`, `wd`.
+
+### Pausing invites is the only real lever
+
+Discord has no "stop people joining" switch. What it has is a guild **feature**,
+`INVITES_DISABLED`, and toggling it means reading the whole features array and
+writing it back with one entry added or removed — sending a shorter list would
+turn the server's other features off.
+
+A raid pauses invites for the configured time and resumes on a timer. A second
+raid while one is already paused **extends** the pause rather than starting a
+second timer that would resume early.
+
+### What "looks automated" can honestly mean
+
+Discord does not say "this is a bot". What it does expose is its **own** opinion:
+the spammer flag it sets on an account, and `unusual_dm_activity_until`. Those
+sit alongside weaker signals — no avatar, made in the last day, a
+generated-looking name.
+
+⚠️ **One signal is a coincidence, so two are required.** Acting on a single one
+would kick every new member who has not set an avatar yet, which is most of them.
+The undocumented spammer flag is treated as one vote rather than as proof.
+
+⚠️ **A flood is not a busy channel.** `raidspam` counts messages *and* distinct
+accounts, and needs both. Two people talking quickly is a conversation; twelve
+messages from six accounts in ten seconds is not.
+
+⚠️ **`raid` is not an alias for this.** Moderation already has `,raid`, for
+clearing up *after* one, and the config cog loads first — so taking the name here
+silently refused the real command. A command outranks an alias.
+
+Everything it does goes through the same protection log the antinuke uses, timed,
+and `,antinuke log` shows both.
 
 ## Antinuke
 
@@ -1239,12 +1299,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 391 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 406 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 651 views** and asserts unique
+The check that keeps this honest renders **all 672 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.
