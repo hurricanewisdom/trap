@@ -23,3 +23,7 @@ __pycache__/
 
 # Throwaway test scripts run against dist/
 _*.mjs
+
+# The commit message is written outside the work tree; this catches
+# the mistake of putting it here, where git add -A would sweep it up.
+.commitmsg
