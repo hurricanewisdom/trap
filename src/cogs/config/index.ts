@@ -1,3 +1,4 @@
+import { registerAntinuke } from "./antinuke/index.js";
 import type { Cog } from "../../core/cog.js";
 import { inCategory } from "../../core/prefix.js";
 import { registerPrefix } from "./prefix.js";
@@ -29,6 +30,7 @@ export const configCog: Cog = {
   label: "Configuration",
   description: "Server settings",
   setup() {
+    inCategory("antinuke", registerAntinuke);
     inCategory("prefix", registerPrefix);
     inCategory("booster", registerBoosterRole);
     inCategory("welcome", registerWelcome);

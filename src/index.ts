@@ -12,6 +12,7 @@ import {
   emitMemberJoin,
   emitMemberLeave,
   emitCommandRan,
+  emitAuditAction,
   emitMemberUpdate,
   emitMessage,
   emitChannelPins,
@@ -123,6 +124,9 @@ const bot = createBot({
     Intents.MessageContent |
 
     Intents.GuildMessageReactions |
+    // Not privileged, and the antinuke depends on it entirely: audit log entry
+    // events only arrive with it, and without them nothing is watched at all.
+    Intents.GuildModeration |
     (WANT_MEMBERS ? Intents.GuildMembers : 0),
   desiredProperties: {
     interaction: {
@@ -167,6 +171,26 @@ const bot = createBot({
     raw(data, shardId) {
       if (process.env.TRAP_TRACE === "1" && data.t) {
         console.log(`[trace] shard ${shardId} <- ${data.t}`);
+      }
+      // Taken raw rather than through a typed handler: the library models this
+      // event thinly, and the antinuke wants the changes array untouched.
+      if (data.t === "GUILD_AUDIT_LOG_ENTRY_CREATE") {
+        const entry = data.d as {
+          guild_id?: string;
+          user_id?: string | null;
+          target_id?: string | null;
+          action_type?: number;
+          reason?: string | null;
+          changes?: { key: string; old_value?: unknown; new_value?: unknown }[];
+        };
+        void emitAuditAction({
+          guildId: String(entry?.guild_id ?? ""),
+          actorId: String(entry?.user_id ?? ""),
+          targetId: String(entry?.target_id ?? ""),
+          actionType: Number(entry?.action_type ?? -1),
+          reason: entry?.reason ?? null,
+          changes: entry?.changes ?? [],
+        });
       }
     },
     async reactionAdd({ messageId, channelId, userId, emoji, guildId }) {

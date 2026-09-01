@@ -176,6 +176,48 @@ export function emitCommandRan(guildId: string, command: string, userId: string)
   }
 }
 
+/**
+ * One audit log entry, as Discord writes it.
+ *
+ * `GUILD_AUDIT_LOG_ENTRY_CREATE` is the only signal that names the actor at the
+ * moment of the act. Reacting to `channelDelete` and then reading the audit log
+ * back means a request per event, a retry when the entry has not landed yet,
+ * and -- for emoji and webhook changes, where the gateway does not say what
+ * changed -- guessing from recency, which can blame the wrong person. This
+ * carries actor, target and the exact change together.
+ *
+ * Requires the GuildModeration intent and View Audit Log in the server. Without
+ * either, nothing arrives at all, and the antinuke stays quiet rather than
+ * guessing.
+ */
+export interface AuditActionEvent {
+  guildId: string;
+  actorId: string;
+  targetId: string;
+  actionType: number;
+  reason?: string | null;
+  changes?: { key: string; old_value?: unknown; new_value?: unknown }[];
+}
+
+export type AuditActionHandler = (event: AuditActionEvent) => Promise<void>;
+
+const auditActions: AuditActionHandler[] = [];
+
+export function onAuditAction(handler: AuditActionHandler): void {
+  auditActions.push(handler);
+}
+
+export async function emitAuditAction(event: AuditActionEvent): Promise<void> {
+  if (!event.guildId || !event.actorId) return;
+  for (const handler of auditActions) {
+    try {
+      await handler(event);
+    } catch (err) {
+      console.error("audit action handler failed:", err);
+    }
+  }
+}
+
 export interface BoostEvent {
   guildId: string;
   channelId: string;

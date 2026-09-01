@@ -510,6 +510,53 @@ export async function migrate(): Promise<void> {
   await sql`CREATE INDEX IF NOT EXISTS emote_uses_guild ON emote_uses (guild_id, emote)`;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS antinuke (
+      guild_id  TEXT NOT NULL,
+      module    TEXT NOT NULL,
+      enabled   BOOLEAN NOT NULL DEFAULT false,
+      threshold INTEGER NOT NULL DEFAULT 3,
+      window_ms INTEGER NOT NULL DEFAULT 60000,
+      PRIMARY KEY (guild_id, module)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS antinuke_config (
+      guild_id   TEXT PRIMARY KEY,
+      punishment TEXT NOT NULL DEFAULT 'ban'
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS antinuke_trust (
+      guild_id TEXT NOT NULL,
+      user_id  TEXT NOT NULL,
+      PRIMARY KEY (guild_id, user_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS antinuke_whitelist (
+      guild_id TEXT NOT NULL,
+      user_id  TEXT NOT NULL,
+      PRIMARY KEY (guild_id, user_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS antinuke_events (
+      guild_id TEXT NOT NULL,
+      user_id  TEXT NOT NULL,
+      module   TEXT NOT NULL,
+      detail   TEXT NOT NULL,
+      outcome  TEXT NOT NULL,
+      at       TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`CREATE INDEX IF NOT EXISTS antinuke_events_guild ON antinuke_events (guild_id, at DESC)`;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS embeds (
       guild_id  TEXT NOT NULL,
       name      TEXT NOT NULL,

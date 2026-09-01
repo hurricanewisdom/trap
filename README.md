@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 664 commands across eight cogs,
+(TypeScript strict, Node 22), run bare with pm2. 682 commands across eight cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -528,6 +528,85 @@ The ranking pages like the rest of the lists, and each row carries the use count
 how many distinct people used it, its share of all uses and when it was last
 seen. The footer counts how many of the server's own emotes have never been used
 at all, which is the number worth having before a cleanup.
+
+## Antinuke
+
+Eighteen commands watching for a server being taken apart, and stopping whoever
+is doing it. **Server owner only** — every one of them, including reading the
+settings. This is the thing that survives a moderator going bad, so it cannot be
+configured by the people it exists to stop; `antinuke trust` is how the owner
+delegates it deliberately.
+
+```
+,antinuke                       what is on, and what it will do
+,antinuke ban|kick|channel|role|emoji|webhook <on|off> [--threshold 3] [--per 60]
+,antinuke bot|permissions <on|off>          one is already too many
+,antinuke punishment <ban|kick|stripstaff|jail>
+,antinuke trust <member>        may change these, and is never punished
+,antinuke whitelist <user>      never punished, cannot change anything
+,antinuke trust|whitelist list|clear
+```
+
+Everything is **off by default**. Aliases: `antiwizz`, `an`, `aw`.
+
+### It listens to one event, not nine
+
+`GUILD_AUDIT_LOG_ENTRY_CREATE`, which Discord sends the moment anything audited
+happens and which carries the actor, the target and the exact change together.
+
+⚠️ **The obvious design is worse, and it is the one this started as.** Reacting
+to `channelDelete` and then reading the audit log back costs a request per event
+and needs a retry when the entry has not landed yet — but the real problem is
+emoji and webhook changes, where the gateway does not say *what* changed. With
+no target to match on, the actor has to be guessed from whoever appears most
+recently in the log, and two people acting within the same few seconds get each
+other's punishment. In a feature that bans people, that is not an acceptable
+failure mode. The audit event removes the guess entirely.
+
+It needs the **GuildModeration** intent (not privileged) and **View Audit Log**
+in the server. Without either, no events arrive at all and the antinuke stays
+silent — which is the right direction to fail, but worth knowing it is silent
+rather than working.
+
+### Who it will never touch
+
+The bot itself, the server owner, anyone trusted, and anyone whitelisted. The
+owner is not a courtesy — Discord will not let anybody ban them, so acting would
+only produce noise and a failed request.
+
+⚠️ **Not knowing who did something is a reason to do nothing.** Every path that
+cannot name an actor returns without acting. An antinuke that guesses is worse
+than one that misses, because the guess lands on a moderator doing their job.
+
+### Thresholds, and the two that have none
+
+Most modules count: three channel deletions in sixty seconds, and so on, per
+person per module, held in memory. `bot` and `permissions` do not, because one
+bot added or one administrator granted is already the whole attack.
+
+`permissions` also **reverts before it counts** — the grant is undone the moment
+it is seen, whether or not the threshold is reached, because a role holding
+administrator is dangerous while the count is still one.
+
+⚠️ **What was granted is not what the role now holds.** The check is
+`new & ~old`, so a role that already had administrator and still does has
+granted nothing, and re-saving a role's settings does not trip anything.
+
+⚠️ **The gateway sends permissions as a json number where REST sends a string.**
+Everything watched sits below bit 31 so no precision is lost, but the conversion
+goes through a string rather than through `Number` regardless.
+
+⚠️ **Counts live in memory, not in the table.** Clearing the log does not clear
+somebody's count, which is deliberate: a count that could be reset by waiting
+for a row to disappear would not be much of a tripwire.
+
+### When it trips
+
+The punishment runs, the owner gets a DM naming who, what and the outcome, and a
+row goes into `antinuke_events`. A punishment that cannot be carried out falls
+back rather than giving up — `jail` with no jail role configured strips staff
+roles instead, because leaving somebody in place with their permissions is the
+one outcome worth avoiding.
 
 ## Moderation
 
@@ -1825,12 +1904,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 424 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 441 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 894 views** and asserts unique
+The check that keeps this honest renders **all 919 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

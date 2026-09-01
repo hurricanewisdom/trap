@@ -694,6 +694,35 @@ export interface Channel {
   flags?: number;
 }
 
+/**
+ * Who did a thing, according to the audit log.
+ *
+ * A gateway event says a channel was deleted; it never says by whom. The audit
+ * log is the only place that answers, and it is written a moment after the fact,
+ * so a caller reacting to an event has to allow for the entry not being there
+ * yet. Returning null means "not known", never "nobody" -- an antinuke that
+ * treats an unreadable log as an all-clear is worse than one that does nothing.
+ */
+export interface AuditEntry {
+  id: string;
+  action_type: number;
+  user_id?: string | null;
+  target_id?: string | null;
+  reason?: string | null;
+  changes?: { key: string; old_value?: unknown; new_value?: unknown }[];
+}
+
+export async function auditEntries(
+  guildId: string,
+  actionType: number,
+  limit = 6,
+): Promise<AuditEntry[] | null> {
+  const found = await api<{ audit_log_entries?: AuditEntry[] }>(
+    `/guilds/${guildId}/audit-logs?action_type=${actionType}&limit=${limit}`,
+  );
+  return found?.audit_log_entries ?? null;
+}
+
 export function guildChannels(guildId: string): Promise<Channel[] | null> {
   return api<Channel[]>(`/guilds/${guildId}/channels`);
 }
