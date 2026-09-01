@@ -58,7 +58,9 @@ src/
                         guard every command that fetches a given address shares
     sysinfo.ts          host, process and codebase statistics for ,botinfo
     components.ts       Components V2 primitives and builders
-    flags.ts            --flag parsing, shared by every command that takes one
+    flags.ts            --flag parsing, and CommandFlag: the declaration a
+                        command registers so the help card and the parser read
+                        the same names and cannot drift apart
 
   integrations/         third-party services. No Discord knowledge at all, so
                         they are usable from any cog and testable on their own.
@@ -426,8 +428,36 @@ measuring nothing.
 Named arguments are **flags**, parsed by `helpers/flags.ts` and never by
 position. `parseFlags()` returns the leftover words plus a map, so
 `,filter caps on --threshold 60` and `,filter caps --threshold 60 on` are the
-same command, and `flagNumber(flags, "threshold", "limit", "t")` accepts all
-three spellings of one option.
+same command.
+
+A command **declares** the flags it takes, and the declaration is used twice:
+
+```ts
+const THRESHOLD: CommandFlag = {
+  name: "threshold",
+  description: "How many it takes to trip the module.",
+  aliases: ["t", "count"],
+  takes: "<1-50>",
+};
+
+register({ name: "channel", description: "...", handler, flags: [THRESHOLD, DURATION] });
+```
+
+The help card renders it, and the command reads its value through
+`numberFor(parsed, THRESHOLD)` rather than through a separate list of strings.
+That is the point: a flag described in prose and parsed by a list somewhere else
+drifts the moment either is renamed, and **the failure is silent** — the help
+goes on advertising a flag that no longer does anything. Declaring it on the
+command also means a group registered in a loop, as the antinuke's modules are,
+documents itself without nine hand-written catalog entries.
+
+`unknownFlags()` compares what was typed against what was declared, so
+`--treshold 5` is reported rather than dropped, which is what stops somebody
+walking away sure they had set a threshold they had not.
+
+A command can have subcommands **and** flags — `antinuke webhookspam` has both —
+so the group card renders both. Rendering only the subcommands, which is what it
+did at first, hides half of what the command accepts.
 
 ## Colour
 

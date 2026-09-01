@@ -415,9 +415,24 @@ function groupBody(owner: string, list: Entry[], page: number, prefix: string): 
     return `\`${usage}\`\n-# ${summaryOf(sub)}${aliases}`;
   });
 
+  // A command can have subcommands *and* flags -- `antinuke webhookspam` takes
+  // both -- and showing only its subcommands hides half of what it accepts.
+  const declared = entry?.command.flags ?? [];
+  const flagLines = declared.length
+    ? [
+        "",
+        "**Optional flags**",
+        ...declared.map(
+          (flag) =>
+            "`--" + flag.name + (flag.takes ? " " + flag.takes : "") + "` \u2014 " + flag.description,
+        ),
+      ]
+    : [];
+
   return [
     ...head,
     body.length ? body.join("\n") : "-# No subcommands.",
+    ...flagLines,
     "",
     footer(list, page, "subcommand"),
   ].join("\n");
@@ -437,11 +452,20 @@ function commandBody(entry: Entry, prefix: string): string {
   }
   lines.push(`**Cog** \`${cog?.label ?? entry.cog}\`${section ? ` / ${section.label}` : ""}`);
 
-  const flags = [
+  const notes = [
     doc?.guildOnly ? "Server only" : null,
     doc?.permission ? `Requires **${doc.permission}**` : null,
   ].filter(Boolean);
-  if (flags.length) lines.push(flags.join(" · "));
+  if (notes.length) lines.push(notes.join(" · "));
+
+  if (command.flags?.length) {
+    lines.push("", "**Optional flags**");
+    for (const flag of command.flags) {
+      lines.push(
+        `\`--${flag.name}${flag.takes ? ` ${flag.takes}` : ""}\` — ${flag.description}`,
+      );
+    }
+  }
 
   if (doc?.details) lines.push("", doc.details);
 

@@ -1,3 +1,5 @@
+import type { CommandFlag } from "../helpers/flags.js";
+
 export interface PrefixContext {
   argument: string;
   authorId: string;
@@ -36,6 +38,13 @@ export interface PrefixCommand {
   cog?: string;
   groupedUnder?: string;
   category?: string;
+  /**
+   * Flags the command accepts. Declared here rather than written into the help
+   * catalog by hand, so a command that is registered in a loop -- as the
+   * antinuke's modules are -- documents itself, and the card cannot describe a
+   * flag the command does not read.
+   */
+  flags?: CommandFlag[];
 }
 
 let attributing: string | null = null;

@@ -548,7 +548,7 @@ delegates it deliberately.
 
 ```
 ,antinuke                       what is on, and what it will do
-,antinuke ban|kick|channel|role|emoji|webhook <on|off> [--threshold 3] [--per 60]
+,antinuke ban|kick|channel|role|emoji|webhook <on|off> [--threshold 3] [--duration 60]
 ,antinuke bot|permissions <on|off>          one is already too many
 ,antinuke punishment <ban|kick|stripstaff|jail>
 ,antinuke trust <member>        may change these, and is never punished

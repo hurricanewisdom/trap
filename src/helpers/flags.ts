@@ -1,3 +1,22 @@
+/**
+ * A flag a command accepts, declared once and used twice: the help card renders
+ * it and the command reads its value through it.
+ *
+ * Declaring it in one place is the point. A flag documented in prose and parsed
+ * by a separate list of names drifts the moment one of them is renamed, and the
+ * failure is silent -- the help keeps advertising a flag that no longer does
+ * anything.
+ */
+export interface CommandFlag {
+  /** What the help card shows, and the name the parser looks for first. */
+  name: string;
+  description: string;
+  /** Other spellings accepted, never shown. */
+  aliases?: string[];
+  /** What it takes, for the help card. Omit for a flag that is just present. */
+  takes?: string;
+}
+
 export interface Parsed {
   rest: string;
   flags: Map<string, string>;
@@ -68,4 +87,34 @@ export function switchWord(word: string): boolean | null {
   if (TRUE.has(lowered)) return true;
   if (FALSE.has(lowered)) return false;
   return null;
+}
+
+/** Every spelling of a flag, primary first. */
+function namesOf(flag: CommandFlag): string[] {
+  return [flag.name, ...(flag.aliases ?? [])];
+}
+
+/**
+ * The value of a declared flag, as a whole number.
+ *
+ * Reading through the declaration rather than through a list of strings is what
+ * keeps the help card honest: renaming the flag renames what is parsed, and the
+ * two cannot drift apart.
+ */
+export function numberFor(parsed: Parsed, flag: CommandFlag): number | null {
+  return flagNumber(parsed.flags, ...namesOf(flag));
+}
+
+export function textFor(parsed: Parsed, flag: CommandFlag): string | null {
+  return flagText(parsed.flags, ...namesOf(flag));
+}
+
+export function onFor(parsed: Parsed, flag: CommandFlag): boolean | null {
+  return flagOn(parsed.flags, ...namesOf(flag));
+}
+
+/** Flags that were typed but not declared, so a typo can be reported. */
+export function unknownFlags(parsed: Parsed, declared: CommandFlag[]): string[] {
+  const known = new Set(declared.flatMap((one) => namesOf(one).map((n) => n.toLowerCase())));
+  return [...parsed.flags.keys()].filter((one) => !known.has(one));
 }

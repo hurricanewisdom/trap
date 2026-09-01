@@ -2,7 +2,8 @@ import { getGuild } from "../../../core/discord.js";
 import { paginate } from "../../../core/pager.js";
 import { requireOwner } from "../../../core/permissions.js";
 import { groupUnder, lookupIn, register, type PrefixContext } from "../../../core/prefix.js";
-import { flagNumber, parseFlags } from "../../../helpers/flags.js";
+import { numberFor, parseFlags, unknownFlags, type CommandFlag } from "../../../helpers/flags.js";
+import { plain } from "../../../helpers/markdown.js";
 import { container, text, IS_COMPONENTS_V2 } from "../../../helpers/components.js";
 import {
   BOUNDS,
@@ -64,6 +65,24 @@ function pagesOf(heading: string, lines: string[], perPage = 10, footer?: string
   });
 }
 
+// Declared once: the help card reads these and so does the command. `--per` and
+// `--window` are kept as spellings because they were the ones this shipped with.
+const THRESHOLD: CommandFlag = {
+  name: "threshold",
+  description: "How many it takes to trip the module.",
+  aliases: ["t", "count"],
+  takes: "<1-50>",
+};
+
+const DURATION: CommandFlag = {
+  name: "duration",
+  description: "The window the count is measured over, before it resets.",
+  aliases: ["per", "window", "seconds"],
+  takes: "<5-600s>",
+};
+
+const COUNTING_FLAGS = [THRESHOLD, DURATION];
+
 const ON = new Set(["on", "enable", "enabled", "true", "yes"]);
 
 const OFF = new Set(["off", "disable", "disabled", "false", "no"]);
@@ -102,6 +121,20 @@ function moduleCommand(module: Module) {
     const settings = await settingsFor(guildId);
     const held = settings.modules[module];
 
+    // A misspelt flag would otherwise be dropped in silence, and somebody would
+    // walk away believing they had set a threshold they had not.
+    const strange = unknownFlags(parsed, COUNTABLE.has(module) ? COUNTING_FLAGS : []);
+    if (strange.length > 0) {
+      await card(ctx, [
+        `\`--${plain(strange[0] ?? "", 30)}\` is not a flag here.`,
+        "",
+        ...(COUNTABLE.has(module)
+          ? COUNTING_FLAGS.map((one) => `-# \`--${one.name} ${one.takes}\` — ${one.description}`)
+          : ["-# This one takes no flags: the first one trips it."]),
+      ]);
+      return;
+    }
+
     if (!said) {
       await card(ctx, [
         `### ${module} — ${held.on ? "on" : "off"}`,
@@ -111,7 +144,7 @@ function moduleCommand(module: Module) {
           : ["-# The first one trips it."]),
         "",
         `-# \`antinuke ${module} on\`` +
-          (COUNTABLE.has(module) ? " · `--threshold 3` · `--per 60`" : ""),
+          (COUNTABLE.has(module) ? " · `--threshold 3` · `--duration 60`" : ""),
       ]);
       return;
     }
@@ -125,7 +158,7 @@ function moduleCommand(module: Module) {
     const notes: string[] = [];
 
     if (COUNTABLE.has(module)) {
-      const threshold = flagNumber(parsed.flags, "threshold", "t", "count");
+      const threshold = numberFor(parsed, THRESHOLD);
       if (threshold !== null) {
         if (threshold < BOUNDS.threshold.least || threshold > BOUNDS.threshold.most) {
           await card(ctx, [
@@ -137,7 +170,7 @@ function moduleCommand(module: Module) {
         notes.push(`threshold ${patch.threshold}`);
       }
 
-      const per = flagNumber(parsed.flags, "per", "window", "seconds");
+      const per = numberFor(parsed, DURATION);
       if (per !== null) {
         if (per < BOUNDS.seconds.least || per > BOUNDS.seconds.most) {
           await card(ctx, [
@@ -356,25 +389,26 @@ export function registerAntinuke(): void {
   });
 
   groupUnder("antinuke", () => {
-    register({ name: "ban", aliases: ["bans"], description: "Prevent members from being banned", handler: moduleCommand("ban") });
+    register({ name: "ban", aliases: ["bans"], description: "Prevent members from being banned", handler: moduleCommand("ban"), flags: COUNTING_FLAGS });
     register({ name: "bot", aliases: ["bots", "botadd"], description: "Prevent bots from being added", handler: moduleCommand("bot") });
-    register({ name: "channel", aliases: ["channels"], description: "Prevent channels being created or deleted", handler: moduleCommand("channel") });
-    register({ name: "emoji", aliases: ["emojis"], description: "Prevent emojis being created or deleted", handler: moduleCommand("emoji") });
-    register({ name: "kick", aliases: ["kicks"], description: "Prevent members from being kicked", handler: moduleCommand("kick") });
+    register({ name: "channel", aliases: ["channels"], description: "Prevent channels being created or deleted", handler: moduleCommand("channel"), flags: COUNTING_FLAGS });
+    register({ name: "emoji", aliases: ["emojis"], description: "Prevent emojis being created or deleted", handler: moduleCommand("emoji"), flags: COUNTING_FLAGS });
+    register({ name: "kick", aliases: ["kicks"], description: "Prevent members from being kicked", handler: moduleCommand("kick"), flags: COUNTING_FLAGS });
     register({ name: "permissions", aliases: ["permission", "perms"], description: "Revert and punish dangerous permission grants", handler: moduleCommand("permissions") });
     register({ name: "punishment", aliases: ["action"], description: "Set the punishment for a tripped threshold", handler: punishment });
-    register({ name: "role", aliases: ["roles"], description: "Prevent roles being created or deleted", handler: moduleCommand("role") });
+    register({ name: "role", aliases: ["roles"], description: "Prevent roles being created or deleted", handler: moduleCommand("role"), flags: COUNTING_FLAGS });
     register({
       name: "settings",
       aliases: ["config", "cfg", "configuration", "overview", "view", "ov"],
       description: "View the current antinuke protection settings",
       handler: overview,
     });
-    register({ name: "webhook", aliases: ["webhooks"], description: "Prevent webhooks being created or deleted", handler: moduleCommand("webhook") });
+    register({ name: "webhook", aliases: ["webhooks"], description: "Prevent webhooks being created or deleted", handler: moduleCommand("webhook"), flags: COUNTING_FLAGS });
     register({
       name: "webhookspam",
       aliases: ["wspam", "hookspam", "whspam", "mentionspam", "whook", "wh", "spam"],
       description: "Detect mass-mention spam sent through webhooks",
+      flags: COUNTING_FLAGS,
       handler: async (ctx) => {
         const sub = words(ctx.argument)[0]?.toLowerCase() ?? "";
         const nested = sub ? lookupIn("antinuke webhookspam", sub) : undefined;
