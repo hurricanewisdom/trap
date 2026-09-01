@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 557 commands across six cogs,
+(TypeScript strict, Node 22), run bare with pm2. 558 commands across six cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -321,7 +321,7 @@ has asked to be told about.
 serverinfo / userinfo / roleinfo / channelinfo / membercount / inviteinfo
 avatar / banner / serveravatar / serverbanner / guildicon / guildbanner / splash
 roles / emotes / bots / members / boosters            emoji (8) / sticker (5)
-rotate / invert / compress / hex                      highlight / birthday / timezone / seen
+rotate / invert / compress / hex / screenshot         highlight / birthday / timezone / seen
 define / urbandictionary / minecraft / github / steam / telegram / snapchat / roblox (8)
 ```
 
@@ -391,6 +391,35 @@ No image library was added.
 `customize` does: the host is resolved first and refused if it is loopback,
 private, link-local or carrier NAT, and a redirect is refused rather than
 followed somewhere the check already rejected.
+
+### `screenshot` runs a real browser, as somebody else
+
+`screenshot <url>` hands the page to headless Chrome and posts the 1280×800 PNG.
+A hosted screenshot API would have wanted a key and a monthly bill; Chrome on the
+box wants 400MB once, and no request leaves for a third party.
+
+⚠️ **It does not run as the bot.** The bot is root, and this command points a
+full browser engine at a stranger's URL. Chrome runs as `trapshot`, an
+unprivileged system account with `nologin` and nothing to reach, which is also
+what lets the **sandbox stay on** — the sandbox needs user namespaces, and root
+would have had to give it up with `--no-sandbox` to run at all. Each shot gets a
+throwaway directory, chowned to that user and deleted afterwards; `CHROME_PATH`
+and `CHROME_USER` override both.
+
+```
+useradd --system --create-home --shell /usr/sbin/nologin trapshot
+```
+
+⚠️ **The private-address guard matters more here than anywhere else.** A browser
+would happily render this box's own dashboard, database admin page or metrics
+endpoint and post the picture to a public channel — `screenshot localhost` is the
+whole attack. The same resolve-and-refuse check the other image commands use runs
+before Chrome is started.
+
+⚠️ **A scheme that is present is kept.** A bare `example.com` is assumed to be
+https because that is what people type, but `ftp://host` is turned away as a bad
+scheme rather than parsed into a hostname called `ftp` and refused later for the
+wrong reason.
 
 ### Things that only start counting now
 
@@ -1289,25 +1318,34 @@ twice.
 2. `npm install && npm run build`
 3. `pm2 start ecosystem.config.cjs && pm2 save`
 
-### Three things npm will not install
+### Four things npm will not install
 
-The reposter shells out to programs that are not node packages, so `npm install`
+Some commands shell out to programs that are not node packages, so `npm install`
 does not bring them and a fresh box does not have them. The bot starts either
-way — the reposter just does less the more of them are missing, which is the
-failure mode to know about, because none of them announce themselves.
+way — it just does less the more of them are missing, which is the failure mode
+to know about, because none of them announce themselves.
 
 | | what it is for | missing it costs |
 | --- | --- | --- |
 | **yt-dlp** | fetching the video and its counts | every repost degrades to a link |
-| **ffmpeg** | joining separate video and audio | youtube, twitch and reddit fail outright |
+| **ffmpeg** | joining video and audio, and the image filters | youtube, twitch and reddit fail outright; `rotate`, `invert`, `compress` and `hex` stop working |
 | **curl_cffi** | letting yt-dlp impersonate a browser | tumblr refuses the connection |
+| **Chrome** | rendering a page for `screenshot` | `screenshot` alone; nothing else notices |
 
 ```
 curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
 chmod +x /usr/local/bin/yt-dlp
 apt-get install -y ffmpeg
 pip3 install --break-system-packages curl_cffi
+curl -L https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o /tmp/chrome.deb
+apt-get install -y /tmp/chrome.deb
+useradd --system --create-home --shell /usr/sbin/nologin trapshot
 ```
+
+⚠️ **Ubuntu 26.04 has no Chromium deb.** `apt-get install chromium` resolves to a
+snap, which does not run headless under this setup, so Chrome's own deb is what
+is installed. `chromium-browser` in the archive is only a shim pointing at that
+snap — it looks like a package and is not one.
 
 ⚠️ **ffmpeg is not optional for youtube.** Youtube serves no combined
 video-and-audio format any more, so without something to merge the two streams
@@ -1455,7 +1493,7 @@ each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 750 views** and asserts unique
+The check that keeps this honest renders **all 751 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

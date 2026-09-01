@@ -72,7 +72,8 @@ src/
       info.ts           what Discord already knows: servers, members, roles,
                         channels, invites, avatars and banners
       expressions.ts    emotes and stickers: adding, removing, renaming, tidying
-      images.ts         rotate, invert, compress and dominant colour, via ffmpeg
+      images.ts         rotate, invert, compress and dominant colour, via ffmpeg;
+                        screenshot, which is headless Chrome as its own user
       lookups.ts        other people's services, the key-free ones
       services.ts       the ones that need a key, and what they say without it
       personal.ts       highlights, birthdays, timezones and last seen
@@ -112,7 +113,8 @@ src/
       ratelimit/        how many commands a person or a server may run, and the
                         provider that hands those numbers to core/throttle.ts
       customize/        the bot's own avatar, banner and bio in one server;
-                        images.ts fetches the link and refuses private addresses
+                        images.ts fetches the link and refuses private addresses,
+                        which screenshot leans on hardest of all
       suggest/          member suggestions and the statuses staff move them
                         through; store.ts holds config, suggestions and the
                         ignore list, post.ts renders a card and edits it in place

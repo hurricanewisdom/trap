@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { lookup as dnsLookup } from "node:dns/promises";
@@ -20,7 +20,7 @@ const KINDS = new Set(["image/png", "image/jpeg", "image/jpg", "image/gif", "ima
 
 // The same guard the customize commands use: this box runs a database and a web
 // server on private addresses, and these commands fetch whatever they are given.
-async function reachesPrivate(host: string): Promise<boolean> {
+export async function reachesPrivate(host: string): Promise<boolean> {
   let found: { address: string }[];
   try {
     found = await dnsLookup(host, { all: true });
@@ -211,7 +211,110 @@ async function hex(ctx: PrefixContext): Promise<void> {
   }
 }
 
+const CHROME = process.env.CHROME_PATH ?? "google-chrome";
+
+// Chrome renders whatever page it is handed, so it runs as its own unprivileged
+// user rather than as the bot. That also means the sandbox stays on: it needs
+// user namespaces, which root would have had to give up with --no-sandbox.
+const AS_USER = process.env.CHROME_USER ?? "trapshot";
+
+const SHOT_MS = 45_000;
+
+const SHOT_DIR = "/var/tmp/trapshot";
+
+function as_(command: string, args: string[], ms: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    execFile(command, args, { timeout: ms, maxBuffer: 4 * 1024 * 1024 }, (error) => resolve(!error));
+  });
+}
+
+function shoot(url: string, into: string): Promise<boolean> {
+  return as_(
+    "sudo",
+    [
+      "-u", AS_USER,
+      `HOME=/home/${AS_USER}`,
+      CHROME,
+      "--headless",
+      "--disable-gpu",
+      "--hide-scrollbars",
+      "--no-first-run",
+      "--disable-extensions",
+      "--window-size=1280,800",
+      `--user-data-dir=${into}/profile`,
+      `--screenshot=${into}/shot.png`,
+      url,
+    ],
+    SHOT_MS,
+  );
+}
+
+async function screenshot(ctx: PrefixContext): Promise<void> {
+  const said = ctx.argument.trim();
+  if (!said) {
+    await card(ctx, ["Which page?", "", "-# `screenshot https://example.com`"]);
+    return;
+  }
+
+  let parsed: URL;
+  try {
+    // A bare `example.com` is what people type, so a missing scheme is assumed
+    // to be https. One that is present is kept, so that `ftp://` is turned away
+    // for the right reason rather than read as a hostname called "ftp".
+    parsed = new URL(/^[a-z][a-z0-9+.-]*:/i.test(said) ? said : `https://${said}`);
+  } catch {
+    await card(ctx, ["That is not a link."]);
+    return;
+  }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    await card(ctx, ["Only http and https links work."]);
+    return;
+  }
+  // The same guard the other image commands use, and it matters more here: a
+  // browser would happily render the dashboard on this box.
+  if (await reachesPrivate(parsed.hostname)) {
+    await card(ctx, ["That address is not reachable from here."]);
+    return;
+  }
+
+  await mkdir(SHOT_DIR, { recursive: true }).catch(() => {});
+  const dir = await mkdtemp(join(SHOT_DIR, "shot-"));
+  try {
+    // mkdtemp makes the directory as the bot, which is root; Chrome writes into
+    // it as somebody else. Handing the whole directory over is tidier than
+    // making it world-writable.
+    await as_("chown", [AS_USER, dir], 5_000);
+    if (!(await shoot(parsed.toString(), dir))) {
+      await card(ctx, [
+        "That page could not be rendered.",
+        "",
+        "-# It may have refused the request, or taken too long.",
+      ]);
+      return;
+    }
+
+    const bytes = await readFile(join(dir, "shot.png"));
+    const body = new Uint8Array(new ArrayBuffer(bytes.length));
+    body.set(bytes);
+
+    const sent = await sendFile(
+      ctx.channelId,
+      {
+        content: `-# ${parsed.hostname}`,
+        allowed_mentions: { parse: [] },
+      },
+      { name: "screenshot.png", body },
+    );
+    if (!sent.ok) await card(ctx, ["That could not be posted."]);
+  } catch {
+    await card(ctx, ["That page could not be rendered."]);
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 export function registerImages(): void {
+  register({ name: "screenshot", aliases: ["ss"], description: "Get an image of a website", handler: screenshot });
   register({ name: "rotate", description: "Rotate an image by a provided degree", handler: filterCommand("rotate") });
   register({ name: "invert", description: "Invert an image's colours", handler: filterCommand("invert") });
   register({ name: "compress", description: "Compress an image to lower quality", handler: filterCommand("compress") });
