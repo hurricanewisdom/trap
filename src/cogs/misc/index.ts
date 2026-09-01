@@ -1,6 +1,7 @@
 import type { Cog } from "../../core/cog.js";
 import { inCategory } from "../../core/prefix.js";
 import { registerAfk } from "./afk.js";
+import { registerAsk } from "./ask.js";
 import { registerDiscogs } from "./discogs.js";
 import { registerEmbeds } from "./embeds/index.js";
 import { registerFun } from "./fun.js";
@@ -34,7 +35,10 @@ export const miscCog: Cog = {
       registerMedia();
       registerListen();
     });
-    inCategory("sandbox", registerRun);
+    inCategory("sandbox", () => {
+      registerRun();
+      registerAsk();
+    });
     inCategory("tools", registerServer);
   },
 };

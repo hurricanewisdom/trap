@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 663 commands across eight cogs,
+(TypeScript strict, Node 22), run bare with pm2. 664 commands across eight cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -690,6 +690,32 @@ asks for.
 aliases `node-js` and `node-javascript`, and neither plain `node` nor `js` is
 among them, so the two things everybody types both miss. A small synonym table
 sits in front of the alias lookup.
+
+### Asking a model
+
+`ask <question>`, or `chatgpt` / `ai` / `gpt`, which all reach the same command.
+
+⚠️ **It is not ChatGPT.** It is **qwen2.5:7b** on this box through Ollama: no
+key, no per-question bill, and nothing anybody types leaves the machine. The
+spec asked for `chatgpt`, so that name still works, but the card says which model
+answered and how long it took. Warm, a real question comes back in one to four
+seconds at about 16 tokens a second; the first question after a restart adds
+several while the model loads into memory.
+
+**Boosters, and the server owner.** The spec gated this behind the other bot's
+donor tier, which Trap has no equivalent of, and boosting is the closest honest
+match. The owner is allowed too, and that is not a nicety: Discord counts boosts
+against the guild rather than the member, so a server can report twenty-eight
+boosts with **no** member carrying `premium_since` — as this one does — and a
+strict boosters-only gate would leave nobody able to use it at all.
+
+⚠️ **Ollama binds to every interface by default, and a stale drop-in put it
+back.** Installing it left `0.0.0.0:11434` listening with `OLLAMA_ORIGINS=*` —
+an unauthenticated model, open to the internet, on somebody else's compute
+budget. The cause was an `override.conf` from a previous install that survived
+the uninstall and won on alphabetical load order over the drop-in written to fix
+it. It is now `zz-loopback.conf`, sorted last on purpose, and the old file is
+kept disabled beside it. Verified from the public address: connection refused.
 
 ### Listening: `transcribe` and `shazam`
 
@@ -1804,7 +1830,7 @@ each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`filter caps exempt list`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help filter links whitelist` opens that exact command.
 
-The check that keeps this honest renders **all 893 views** and asserts unique
+The check that keeps this honest renders **all 894 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.
