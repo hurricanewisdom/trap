@@ -902,6 +902,28 @@ export async function migrate(): Promise<void> {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS autothread_channels (
+      guild_id         TEXT NOT NULL,
+      channel_id       TEXT NOT NULL,
+      name             TEXT NOT NULL DEFAULT '{user.display}',
+      archive_minutes  INTEGER NOT NULL DEFAULT 1440,
+      slowmode_seconds INTEGER NOT NULL DEFAULT 0,
+      script           TEXT,
+      created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, channel_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS autothread_reactions (
+      guild_id   TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      emoji      TEXT NOT NULL,
+      PRIMARY KEY (guild_id, channel_id, emoji)
+    )
+  `;
+
   console.log("db: schema ready");
 }
 

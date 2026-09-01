@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 503 commands across four cogs,
+(TypeScript strict, Node 22), run bare with pm2. 518 commands across four cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -28,6 +28,7 @@ rather than turning it into a three-word path with named fields.
 - `,stickymessage` — keep a message at the bottom of a channel
 - `,imgonly` — make a channel take images only
 - `,autorole` — roles handed out to members as they join
+- `,autothread` — a thread started on every message in a channel
 - `,autoresponder` — automatic replies when a message matches a trigger
 - `,pagination` — several pages behind one message, turned with arrows
 - `,disablecommand` — turn commands, modules and events off per channel
@@ -239,6 +240,54 @@ list.
 ⚠️ **This needs the privileged GuildMembers intent**, the same one `,welcome`
 and `,goodbye` need, because it hangs off `guildMemberAdd`. The commands and the
 storage work without it; the roles just never get handed out.
+
+## Autothread
+
+`,autothread` starts a thread on every message in a channel. Fifteen commands,
+all **Manage Channels**.
+
+```
+,autothread add #help                      thread every message here
+,autothread name #help {user.display}      what the thread is called
+,autothread archive #help 60               how long before it archives
+,autothread slowmode #help 30              slowmode on the new thread
+,autothread message #help someone will be with you
+,autothread reactions add #help 👍          react to the threaded message
+,autothread variables                      what a name can use
+,autothread remove #help                   stop
+```
+
+The name and the opening message take **the same variables as the greetings**,
+so `,autothread variables` and `,welcome variables` list the same table. The
+spec's own default is `{user.display_name}`, which now works alongside
+`{user.display}` — the same value under both spellings.
+
+⚠️ **The reactions go on the message, not in the thread.** The point is to mark
+the original as having one, so `,autothread reactions add` reacts to what was
+posted. Five per channel, because each is its own request on top of the thread
+and the message.
+
+**The bot's own messages are skipped.** Otherwise the opening message and every
+command reply in the channel would each get a thread of their own.
+
+Two kinds of channel are refused rather than stored:
+
+| | |
+| --- | --- |
+| a forum | it already makes a thread of every post |
+| a thread, or anything without channel-level messages | there is nothing for a thread to hang off |
+
+Discord allows exactly four archive lengths — 60, 1440, 4320 and 10080 minutes,
+being an hour, a day, three days and a week — and rejects anything else, so the
+command lists them rather than passing a number through to a 400.
+
+⚠️ **This is the heaviest hook in the bot.** A configured channel costs a thread
+creation per message, plus a request per reaction and one more for the opening
+message. Twenty-five channels is the cap, and a busy channel will meet Discord's
+rate limits before it meets that.
+
+`,disableevent #channel autothread` switches it off in one channel without
+unconfiguring it.
 
 ## Autoresponders
 
@@ -838,12 +887,11 @@ Three things can be switched off, each with its own pair of commands.
 Every `disable` has a matching `enable`, and `disablemodule` and `disableevent`
 carry their own `list`. Sixteen commands, all **Manage Channels**.
 
-**A module is a cog** — `information`, `configuration`, `utility`, `lastfm`,
-`help` — so switching one off takes every command in it with it.
+**A module is a cog** — `configuration`, `moderation`, `lastfm`, `help` — so switching one off takes every command in it with it.
 
 **An event is something the bot does that nobody typed**: `autoresponder`,
-`filter`, `gallery`, `sticky`, `reactions`, `editrerun`, `welcome`, `goodbye`
-and `boost`. Nine of them.
+`autothread`, `filter`, `gallery`, `sticky`, `reactions`, `editrerun`,
+`welcome`, `goodbye` and `boost`. Ten of them.
 
 Ten are enforced in `core/hooks.ts` rather than in each feature: a handler
 registers with a name (`onMessage(police, "filter")`), and the emitter skips a
@@ -1379,12 +1427,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 410 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 424 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`automod caps whitelist view`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help automod links ignore` opens that exact command.
 
-The check that keeps this honest renders **all 678 views** and asserts unique
+The check that keeps this honest renders **all 698 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

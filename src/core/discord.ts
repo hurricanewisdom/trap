@@ -645,10 +645,14 @@ export function startThread(
   channelId: string,
   messageId: string,
   name: string,
+  options: { autoArchiveMinutes?: number; slowmodeSeconds?: number } = {},
 ): Promise<Wrote<{ id: string }>> {
   return write<{ id: string }>("POST", `/channels/${channelId}/messages/${messageId}/threads`, {
     name: name.slice(0, 100) || "Suggestion",
-    auto_archive_duration: 1440,
+    auto_archive_duration: options.autoArchiveMinutes ?? 1440,
+    // Omitted rather than sent as 0: Discord treats an explicit 0 as "clear the
+    // slowmode", which is the same outcome here but a needless field.
+    ...(options.slowmodeSeconds ? { rate_limit_per_user: options.slowmodeSeconds } : {}),
   });
 }
 

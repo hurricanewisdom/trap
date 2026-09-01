@@ -6,6 +6,7 @@ export interface EventKind {
 
 export const EVENTS: EventKind[] = [
   { name: "autoresponder", describes: "automatic replies to a trigger", channel: true },
+  { name: "autothread", describes: "starting a thread on every message", channel: true },
   { name: "filter", describes: "the chat filters the bot enforces itself", channel: true },
   { name: "gallery", describes: "deleting a post with no image", channel: true },
   { name: "sticky", describes: "reposting a stuck message", channel: true },
