@@ -270,7 +270,7 @@ async function nukeView(ctx: PrefixContext): Promise<void> {
   }
   await card(ctx, [
     `After each nuke of <#${wanted}>:`,
-    rows[0]?.message ? plain(rows[0].message.slice(0, 500)) : "-# nothing is posted",
+    rows[0]?.message ? plain(rows[0].message, 500) : "-# nothing is posted",
   ]);
 }
 

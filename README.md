@@ -741,11 +741,16 @@ The reply says how many were skipped rather than quietly returning a short count
 ⚠️ **`restrictcommand` fails open.** A database that cannot be reached should not
 lock a server out of its own bot, so an unanswerable restriction is no restriction.
 
-⚠️ **`plain()` truncates at 180 characters.** It is built for a name or a title,
-and the cut is invisible at the call site: `run` posted program output through it
-and every error longer than 180 characters arrived cut mid-word, looking like the
-program had printed that much and stopped. It now takes an explicit limit, and
-**text inside a fenced code block should not go through it at all** — markdown is
+⚠️ **`plain()` and `label()` truncate at 180 characters.** They are built for a
+name or a title, and the cut is invisible at the call site — `plain(x.slice(0,
+1800))` cuts at 180, because the slice runs first and the escaper cuts again.
+Nineteen call sites had it: a whole suggestion body asking for 1800 characters
+and getting 180, `run` output ending mid-word, an Urban Dictionary definition
+stopping mid-sentence, moderation case reasons and proof, `seen` quotes, channel
+topics. All of them pass a length now, and **docaudit fails on any call site that
+asks for more than the escaper gives**, because none of these looked wrong.
+
+**Text inside a fenced code block should not go through it at all** — markdown is
 not interpreted in there, so escaping only puts backslashes through somebody's
 output. Containing the backticks is the whole job.
 

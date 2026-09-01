@@ -76,7 +76,7 @@ export function watchHighlights(): void {
         content:
           `**${plain(one.word)}** was said in **${plain(guild?.name ?? "a server")}**\n` +
           `-# <@${event.authorId}> in <#${event.channelId}>\n` +
-          `> ${plain(event.content.slice(0, 300))}\n` +
+          `> ${plain(event.content, 300)}\n` +
           `https://discord.com/channels/${event.guildId}/${event.channelId}/${event.messageId}`,
       });
     }

@@ -203,6 +203,46 @@ console.log("\nevery permission gate named in ARCHITECTURE:");
 // check existed. The totals above never caught it: they count the whole bot.
 // The env table drifts every time a command gains a knob, and the sentence under
 // it is the sort nobody re-counts. Thirteen were missing before this existed.
+// plain() and label() cut at 180 characters. Slicing to anything longer before
+// calling one of them does nothing, and the cut is invisible at the call site --
+// which is how a suggestion body asking for 1800 characters arrived at 180, and
+// how an Urban Dictionary definition ended mid-sentence. Nineteen call sites had
+// it before anything looked.
+console.log("\nno call site asks for more than the escapers give:");
+{
+  const CAP = 180;
+  const inner = /(?:plain|label)\(\s*([^()]*?)\.slice\(0,\s*(\d+)\s*\)\s*\)/g;
+  const outer = /(?:plain|label)\([^;]*?\)\s*\.slice\(0,\s*(\d+)\s*\)/g;
+
+  const walk = async (dir) => {
+    const found = [];
+    for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) found.push(...(await walk(full)));
+      else if (entry.name.endsWith(".ts")) found.push(full);
+    }
+    return found;
+  };
+
+  const offenders = [];
+  for (const file of await walk(path.join(ROOT, "src"))) {
+    const body = await fs.readFile(file, "utf8");
+    const where = path.relative(ROOT, file).replace(/\\/g, "/");
+    for (const hit of body.matchAll(inner)) {
+      if (Number(hit[2]) > CAP) offenders.push(`${where} asks for ${hit[2]}`);
+    }
+    for (const hit of body.matchAll(outer)) {
+      if (Number(hit[1]) > CAP) offenders.push(`${where} slices to ${hit[1]} after escaping`);
+    }
+  }
+
+  checked += 1;
+  if (offenders.length) {
+    say(false, `truncated silently: ${offenders.slice(0, 5).join("; ")}`);
+  }
+  console.log(`  every plain() and label() call checked`);
+}
+
 console.log("\nevery setting in .env.example is documented:");
 {
   const example = await fs.readFile(path.join(ROOT, ".env.example"), "utf8");

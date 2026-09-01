@@ -109,8 +109,8 @@ async function shown(ctx: PrefixContext, caseId: number | null): Promise<void> {
     `-# moderator: <@${one.moderatorId}>`,
     `-# when: <t:${Math.floor(one.at.getTime() / 1000)}:F>`,
     ...(one.durationMs ? [`-# duration: ${humanDuration(one.durationMs)}`] : []),
-    `-# reason: ${plain((one.reason ?? "none given").slice(0, 300))}`,
-    ...(one.proof ? [`-# proof: ${plain(one.proof.slice(0, 300))}`] : []),
+    `-# reason: ${plain(one.reason ?? "none given", 300)}`,
+    ...(one.proof ? [`-# proof: ${plain(one.proof, 300)}`] : []),
     ...(proof.length > 0 ? [`-# attachments: ${proof.length}`] : []),
   ]);
 }
@@ -135,7 +135,7 @@ async function reasonCmd(ctx: PrefixContext): Promise<void> {
   const done = await setReason(guildId, Number(said), reason.slice(0, 500));
   await card(
     ctx,
-    done ? [`Case #${said} now reads: ${plain(reason.slice(0, 200))}`] : [`There is no case #${said}.`],
+    done ? [`Case #${said} now reads: ${plain(reason, 200)}`] : [`There is no case #${said}.`],
   );
 }
 
@@ -276,7 +276,7 @@ async function proofView(ctx: PrefixContext): Promise<void> {
   const held = await attachments(got.guildId, got.caseId);
   await card(ctx, [
     `**Case #${got.caseId}** proof`,
-    one?.proof ? plain(one.proof.slice(0, 600)) : "-# nothing written down",
+    one?.proof ? plain(one.proof, 600) : "-# nothing written down",
     ...(held.length === 0 ? [] : ["", ...held.map((url, at) => `-# ${at + 1}. ${url}`)]),
   ]);
 }

@@ -20,11 +20,11 @@ export const LABEL: Record<Status, string> = {
 export function body(one: Suggestion): string {
   const lines = [
     `### Suggestion #${one.id} · ${LABEL[one.status]}`,
-    plain(one.body.slice(0, 1800)),
+    plain(one.body, 1800),
     `-# from <@${one.authorId}>`,
   ];
   if (one.reply) {
-    lines.push("", `> ${plain(one.reply.slice(0, 500))}`, `-# reply from <@${one.repliedBy}>`);
+    lines.push("", `> ${plain(one.reply, 500)}`, `-# reply from <@${one.repliedBy}>`);
   }
   return lines.join("\n");
 }

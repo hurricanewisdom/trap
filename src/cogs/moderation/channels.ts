@@ -347,7 +347,7 @@ async function topic(ctx: PrefixContext): Promise<void> {
   await card(ctx, [
     done.ok
       ? said
-        ? `Topic set: ${plain(said.slice(0, 200))}`
+        ? `Topic set: ${plain(said, 200)}`
         : "Topic cleared."
       : `That did not work. ${done.message.slice(0, 120)}`,
   ]);

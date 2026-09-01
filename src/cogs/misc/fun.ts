@@ -42,7 +42,7 @@ async function choose(ctx: PrefixContext): Promise<void> {
 
   const picked = parts[Math.floor(Math.random() * parts.length)] as string;
   await card(ctx, [
-    `### ${plain(picked.slice(0, 200))}`,
+    `### ${plain(picked, 200)}`,
     `-# out of ${parts.length}`,
   ]);
 }
