@@ -583,6 +583,19 @@ around it tints.
   while the prose was stale: updating a test and updating a sentence are
   separate acts. It also fails when a total *disappears*, not only when it is
   wrong.
+- **A check nobody runs is a check nobody has.** The audit gates the deploy: it
+  runs after the build and before the restart, and a failure exits 1 without
+  restarting. The order is the point — the new code is on disk with nothing
+  serving it, which is the safe half of a half-done deploy. `--skip-audit` is
+  the way out when the docs are mid-rewrite; `--no-build` skips the audit too,
+  because it reads `dist/` and checking a stale build would pass for the wrong
+  reason.
+- **Every kind of drift found once becomes a check.** The suite grew from 86 to
+  94 that way: per-cog counts, the settings table against `.env.example`, events
+  in *both* directions, duplicate help slugs, select menus rendered rather than
+  counted, and `plain()` call sites asking for more than the escaper gives.
+  Each one was a real mistake first. Counting the whole bot never caught any of
+  them, because the whole-bot totals were right while the parts were wrong.
 - **Never store a credential you can fetch.** A webhook URL is a password that
   needs no account behind it, so `webhooks` has no token column: the token is
   read from Discord at the moment of a send and dropped. The row is worthless on
