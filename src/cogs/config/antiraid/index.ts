@@ -73,7 +73,29 @@ const PUNISHMENT: CommandFlag = {
   takes: "<kick|ban|timeout>",
 };
 
-const COUNTING = [THRESHOLD, PUNISHMENT];
+// `newaccount` shares the flag's name but not its meaning: it counts days, not
+// events, and a card promising "1-200" for a bound that is really 1-365 is the
+// exact drift declaring flags was meant to stop.
+const AGE: CommandFlag = {
+  name: "threshold",
+  description: "How many days old an account has to be to get in.",
+  aliases: ["days", "age", "t"],
+  takes: "<1-365 days>",
+};
+
+// The window is positional -- `antiraid spam on 30s` -- because that is how it
+// reads out loud, but the antinuke spells the same idea `--duration`, so both
+// work rather than making somebody remember which group wants which.
+const DURATION: CommandFlag = {
+  name: "duration",
+  description: "The window the count is measured over, before it resets.",
+  aliases: ["per", "window", "timeframe"],
+  takes: "<3-3600s>",
+};
+
+const COUNTING = [THRESHOLD, DURATION, PUNISHMENT];
+
+const AGED = [AGE, PUNISHMENT];
 
 const JOIN_ONLY = [PUNISHMENT];
 
@@ -94,7 +116,8 @@ const COUNTED = new Set<Module>(["massjoin", "spam", "mentionspam", "raidspam"])
 const TIMED = new Set<Module>(["massjoin", "spam", "raidspam", "mentionspam"]);
 
 function flagsFor(module: Module): CommandFlag[] {
-  return COUNTED.has(module) || module === "newaccount" ? COUNTING : JOIN_ONLY;
+  if (module === "newaccount") return AGED;
+  return COUNTED.has(module) ? COUNTING : JOIN_ONLY;
 }
 
 function moduleCommand(module: Module) {
@@ -146,10 +169,11 @@ function moduleCommand(module: Module) {
     };
     const notes: string[] = [];
 
-    // The timeframe is positional, the way the other bots write it, so
-    // `antiraid spam on 30s` reads the way somebody says it.
-    if (TIMED.has(module) && parts[1]) {
-      const ms = parseDuration(parts.slice(1).join(" "));
+    // Positional first, then the flag: `antiraid spam on 30s` and
+    // `antiraid spam on --duration 30s` mean the same thing.
+    const flagged = TIMED.has(module) ? numberFor(parsed, DURATION) : null;
+    if (TIMED.has(module) && (parts[1] || flagged !== null)) {
+      const ms = flagged !== null ? flagged * 1000 : parseDuration(parts.slice(1).join(" "));
       if (ms === null) {
         await card(ctx, [`\`${plain(parts.slice(1).join(" "), 40)}\` is not a length of time.`, "", "-# `30s` · `2m` · `1m30s`"]);
         return;
@@ -163,7 +187,7 @@ function moduleCommand(module: Module) {
       notes.push(`over ${humanDuration(patch.windowMs)}`);
     }
 
-    const threshold = numberFor(parsed, THRESHOLD);
+    const threshold = numberFor(parsed, module === "newaccount" ? AGE : THRESHOLD);
     if (threshold !== null) {
       const bound = module === "newaccount" ? BOUNDS.days : BOUNDS.threshold;
       if (threshold < bound.least || threshold > bound.most) {
@@ -435,7 +459,7 @@ export function registerAntiraid(): void {
     register({ name: "duration", aliases: ["pausefor", "lockfor", "freezefor"], description: "How long invites pause when a raid is detected", handler: durationCommand("duration") });
     register({ name: "massjoin", aliases: ["massjoins", "mass", "join", "joins"], description: "Prevent several members joining at once", handler: moduleCommand("massjoin"), flags: COUNTING });
     register({ name: "mentionspam", aliases: ["mention", "mentions", "pingspam", "pings"], description: "Punish members that send too many mentions", handler: moduleCommand("mentionspam"), flags: COUNTING });
-    register({ name: "newaccount", aliases: ["new", "accountage", "account", "age"], description: "Prevent members with new accounts from joining", handler: moduleCommand("newaccount"), flags: COUNTING });
+    register({ name: "newaccount", aliases: ["new", "accountage", "account", "age"], description: "Prevent members with new accounts from joining", handler: moduleCommand("newaccount"), flags: AGED });
     register({ name: "pause", aliases: ["lock", "freeze"], description: "Manually pause invites", handler: durationCommand("pause") });
     register({ name: "raidspam", aliases: ["flood", "massspam", "floodspam", "channelspam"], description: "Detect a channel being flooded and lock it", handler: moduleCommand("raidspam"), flags: COUNTING });
     register({ name: "resolve", aliases: ["status", "state", "resume", "unpause", "unlock", "unfreeze"], description: "Resolve the current raid or spam state", handler: resolve });

@@ -291,9 +291,17 @@ that should not be in it. **Manage Server**, and everything off by default.
 ,antiraid whitelist @member               never touched
 ```
 
-Each module takes `--punishment kick|ban|timeout`, and the counting ones take
-`--threshold`. The timeframe is positional, so `antiraid spam on 30s` reads the
-way somebody says it. Aliases: `warden`, `wd`.
+Every module takes `--punishment kick|ban|timeout`; the counting ones also take
+`--threshold` and `--duration`. The timeframe is positional as well, so
+`antiraid spam on 30s` and `antiraid spam on --duration 30` mean the same thing —
+the antinuke spells it `--duration`, and nobody should have to remember which
+group wants which. Aliases: `warden`, `wd`.
+
+⚠️ **`newaccount` shares the flag's name but not its meaning.** It counts days,
+not events, so it declares its own `--threshold <1-365 days>` with its own
+wording. Reusing the shared one advertised `<1-200>` for a bound that was really
+1-365 — a card promising something the command would refuse, which is the exact
+drift declaring flags exists to stop.
 
 ### Pausing invites is the only real lever
 
