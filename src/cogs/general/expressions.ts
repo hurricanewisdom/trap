@@ -9,8 +9,9 @@ import {
   type PrefixHandler,
 } from "../../core/prefix.js";
 import { plain } from "../../helpers/markdown.js";
-import { card, pagesOf, words } from "./shared.js";
+import { card, pagesOf, stamp, words } from "./shared.js";
 import { paginate } from "../../core/pager.js";
+import { onMessage } from "../../core/hooks.js";
 
 const CUSTOM = /<(a?):(\w+):(\d{15,25})>/g;
 
@@ -270,24 +271,119 @@ async function emojiInformation(ctx: PrefixContext): Promise<void> {
   ]);
 }
 
+// Custom emotes only. A unicode emoji is not a server emote and is not what this
+// counts, and the id is what is stored rather than the whole tag: the tag carries
+// the name, so a rename would otherwise split one emote's tally in two.
+const EMOTE = /<(a?):(\w{2,32}):(\d{15,25})>/g;
+
+// Counting happens on the message path, where nothing is allowed to touch the
+// database, so uses are buffered and written in one statement every half minute.
+const pending: { guild_id: string; emote: string; user_id: string }[] = [];
+
+const FLUSH_MS = 30_000;
+
+// A raid posting emotes must not grow this without bound. Dropping the tail of a
+// burst costs a few counts; keeping it costs the process.
+const MOST_PENDING = 20_000;
+
+let cachedSelfId = "";
+function selfId(): string {
+  if (cachedSelfId) return cachedSelfId;
+  const first = (process.env.DISCORD_TOKEN ?? "").split(".")[0] ?? "";
+  try {
+    cachedSelfId = Buffer.from(first, "base64").toString("utf8");
+  } catch {
+    cachedSelfId = "";
+  }
+  return cachedSelfId;
+}
+
+async function flushEmotes(): Promise<void> {
+  if (pending.length === 0) return;
+  const batch = pending.splice(0, pending.length);
+  try {
+    await sql`INSERT INTO emote_uses ${sql(batch, "guild_id", "emote", "user_id")}`;
+  } catch {
+    // A failed flush loses that half minute of counts, which is the right trade:
+    // re-queueing them would grow without bound while the database is unhappy.
+  }
+}
+
+function countEmotes(event: {
+  guildId: string;
+  authorId: string;
+  content: string;
+}): void {
+  if (!event.guildId || !event.content || event.authorId === selfId()) return;
+  if (pending.length >= MOST_PENDING) return;
+
+  // Once per message per emote. Somebody pasting the same one forty times is
+  // enthusiasm, not forty uses, and counting it as forty lets one person decide
+  // what the server's favourite is.
+  const seen = new Set<string>();
+  for (const [, , , id] of event.content.matchAll(EMOTE)) {
+    if (seen.has(id as string)) continue;
+    seen.add(id as string);
+    pending.push({ guild_id: event.guildId, emote: id as string, user_id: event.authorId });
+  }
+}
+
 async function emojiStats(ctx: PrefixContext): Promise<void> {
   const guildId = await requireExpressions(ctx, "see emote statistics");
   if (!guildId) return;
 
-  const rows = await sql<{ emote: string; uses: string }[]>`
-    SELECT emote, count(*)::text AS uses FROM emote_uses
-    WHERE guild_id = ${guildId} GROUP BY emote ORDER BY count(*) DESC LIMIT 10
-  `;
+  // Anything still buffered belongs in the answer, or the command contradicts
+  // the emote somebody just watched being used.
+  await flushEmotes();
 
-  await card(ctx, [
-    "### Most used emotes",
-    ...(rows.length === 0
-      ? [
-          "-# Nothing counted yet.",
-          "-# Counting starts from now; Discord keeps no history of this.",
-        ]
-      : rows.map((row, at) => `-# ${at + 1}. ${row.emote} — ${row.uses}`)),
+  const [rows, held] = await Promise.all([
+    sql<{ emote: string; uses: string; people: string; last_at: Date }[]>`
+      SELECT emote,
+             count(*)::text AS uses,
+             count(DISTINCT user_id)::text AS people,
+             max(at) AS last_at
+      FROM emote_uses
+      WHERE guild_id = ${guildId}
+      GROUP BY emote
+      ORDER BY count(*) DESC, emote
+    `,
+    guildEmojis(guildId),
   ]);
+
+  if (rows.length === 0) {
+    await card(ctx, [
+      "### Most used emotes",
+      "-# Nothing counted yet.",
+      "-# Counting starts from now; Discord keeps no history of this.",
+    ]);
+    return;
+  }
+
+  const here = new Map((held ?? []).map((one) => [one.id as string, one]));
+  const total = rows.reduce((sum, row) => sum + Number(row.uses), 0);
+
+  const lines = rows.map((row, at) => {
+    const one = here.get(row.emote);
+    const tag = one
+      ? `<${one.animated ? "a" : ""}:${one.name}:${row.emote}>`
+      : `<:e:${row.emote}>`;
+    const share = Math.round((Number(row.uses) / Math.max(1, total)) * 100);
+    return (
+      `\`${String(at + 1).padStart(2, " ")}.\` ${tag} ` +
+      (one ? `\`:${plain(one.name ?? "")}:\`` : "`(not from here)`") +
+      ` — **${row.uses}** uses · ${row.people} ${Number(row.people) === 1 ? "person" : "people"}` +
+      (share >= 1 ? ` · ${share}%` : "") +
+      ` · ${stamp(row.last_at?.toISOString?.() ?? null)}`
+    );
+  });
+
+  const counted = new Set(rows.map((row) => row.emote));
+  const unused = (held ?? []).filter((one) => !counted.has(one.id as string)).length;
+  const footer =
+    `${total} uses counted` +
+    (unused ? ` · ${unused} of this server's emotes never used` : "");
+
+  await paginate(ctx, pagesOf("Most used emotes", lines, 10, footer), null);
 }
 
 async function stickerAdd(ctx: PrefixContext): Promise<void> {
@@ -422,6 +518,13 @@ async function stickerOverview(ctx: PrefixContext): Promise<void> {
 }
 
 export function registerExpressions(): void {
+  // Nothing was ever writing to emote_uses, so `emoji stats` read an empty table
+  // and said "nothing counted yet" for good. This is the half that was missing.
+  onMessage(async (event) => {
+    countEmotes(event);
+  });
+  setInterval(() => void flushEmotes().catch(() => {}), FLUSH_MS).unref?.();
+
   register({
     name: "emoji",
     aliases: ["emote", "jumbo"],
@@ -454,7 +557,7 @@ export function registerExpressions(): void {
       description: "The emotes used in a message",
       handler: emojiInformation,
     });
-    register({ name: "stats", description: "Show top ten most used emotes", handler: emojiStats });
+    register({ name: "stats", description: "Rank every emote by how often it is used", handler: emojiStats });
   });
 
   register({

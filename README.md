@@ -497,6 +497,38 @@ answered at all, because Discord never reports somebody stopping.
 and refreshed on write. The membership and ignore checks happen only after a word
 matches, which is rare.
 
+⚠️ **`emoji stats` was reading a table nothing wrote to.** `emote_uses` was
+created, indexed and selected from, and there was no `INSERT` anywhere in the
+codebase — so the command answered "nothing counted yet" and always would have.
+The recorder is the half that was missing, and the empty reply is exactly what a
+missing writer looks like, which is why it went unnoticed.
+
+Counting happens on the message path, so it does no I/O there: uses are buffered
+in memory and written in **one batched statement every thirty seconds**, and
+reading the command flushes first so it never contradicts an emote somebody just
+watched being used. A failed flush drops that half minute rather than re-queueing
+it, and the buffer is capped at twenty thousand, because a raid posting emotes
+must not be able to grow it without bound.
+
+⚠️ **The id is stored, not the tag.** A tag carries the emote's name, so storing
+`<:party:123>` would split one emote's tally the moment somebody renamed it. The
+name is looked up fresh when the ranking is drawn, and an emote that has since
+been deleted — or came from another server — is labelled rather than dropped.
+
+⚠️ **One use per message, not per appearance.** Somebody pasting the same emote
+forty times in one line is enthusiasm, not forty uses, and counting it as forty
+would let one person decide what the server's favourite is.
+
+⚠️ **Emote names are two characters minimum**, which the matcher relies on.
+Discord will not create a one-character name, so `<:z:123>` is not an emote and
+is not counted — a test that assumes otherwise records nothing and looks like a
+broken recorder.
+
+The ranking pages like the rest of the lists, and each row carries the use count,
+how many distinct people used it, its share of all uses and when it was last
+seen. The footer counts how many of the server's own emotes have never been used
+at all, which is the number worth having before a cleanup.
+
 ## Moderation
 
 A cog of its own, and the largest one: **147 commands** across punishments, the

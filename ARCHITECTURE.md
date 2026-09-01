@@ -73,7 +73,9 @@ src/
                         channels, invites, avatars and banners; the list commands
                         page through core/pager and the info cards read every
                         field Discord returns rather than a name and a date
-      expressions.ts    emotes and stickers: adding, removing, renaming, tidying
+      expressions.ts    emotes and stickers: adding, removing, renaming, tidying;
+                        also the emote-use recorder, an onMessage hook that
+                        buffers in memory and batch-inserts every 30s
       images.ts         rotate, invert, compress and dominant colour, via ffmpeg;
                         also screenshot -- headless Chrome as its own unprivileged
                         user -- which is NOT REGISTERED at the moment, switched
