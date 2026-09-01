@@ -77,6 +77,10 @@ export interface Role {
   colors?: { primary_color: number; secondary_color: number | null; tertiary_color: number | null };
   icon?: string | null;
   managed?: boolean;
+  hoist?: boolean;
+  mentionable?: boolean;
+  unicode_emoji?: string | null;
+  tags?: { bot_id?: string; integration_id?: string; premium_subscriber?: null };
 }
 
 export interface Guild {
@@ -86,8 +90,25 @@ export interface Guild {
   premium_tier?: number;
   premium_subscription_count?: number;
   approximate_member_count?: number;
+  approximate_presence_count?: number;
   features?: string[];
   roles?: Role[];
+  icon?: string | null;
+  banner?: string | null;
+  splash?: string | null;
+  description?: string | null;
+  vanity_url_code?: string | null;
+  verification_level?: number;
+  explicit_content_filter?: number;
+  mfa_level?: number;
+  nsfw_level?: number;
+  afk_channel_id?: string | null;
+  afk_timeout?: number;
+  system_channel_id?: string | null;
+  rules_channel_id?: string | null;
+  public_updates_channel_id?: string | null;
+  preferred_locale?: string;
+  max_members?: number;
 }
 
 export type Wrote<T> = { ok: true; data: T } | { ok: false; status: number; message: string };
@@ -661,6 +682,16 @@ export interface Channel {
   position?: number;
   rate_limit_per_user?: number;
   permission_overwrites?: { id: string; type: number; allow: string; deny: string }[];
+  bitrate?: number;
+  user_limit?: number;
+  rtc_region?: string | null;
+  last_message_id?: string | null;
+  default_auto_archive_duration?: number;
+  available_tags?: { id: string; name: string }[];
+  message_count?: number;
+  member_count?: number;
+  owner_id?: string;
+  flags?: number;
 }
 
 export function guildChannels(guildId: string): Promise<Channel[] | null> {

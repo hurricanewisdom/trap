@@ -9,7 +9,8 @@ import {
   type PrefixHandler,
 } from "../../core/prefix.js";
 import { plain } from "../../helpers/markdown.js";
-import { card, words } from "./shared.js";
+import { card, pagesOf, words } from "./shared.js";
+import { paginate } from "../../core/pager.js";
 
 const CUSTOM = /<(a?):(\w+):(\d{15,25})>/g;
 
@@ -391,15 +392,33 @@ function stickerTidy(tagging: boolean): PrefixHandler {
   };
 }
 
+const STICKER_FORMATS: Record<number, string> = { 1: "png", 2: "apng", 3: "lottie", 4: "gif" };
+
 async function stickerOverview(ctx: PrefixContext): Promise<void> {
   if (!ctx.guildId) return;
   const held = (await guildStickers(ctx.guildId)) ?? [];
-  await card(ctx, [
-    `### ${held.length} sticker${held.length === 1 ? "" : "s"}`,
-    held.length === 0 ? "-# none" : held.slice(0, 20).map((o) => plain(o.name ?? "")).join(", "),
-    "",
-    "-# `sticker add` · `sticker remove` · `sticker rename` · `sticker tag` · `sticker cleanup`",
-  ]);
+
+  const lines = held.map((one) => {
+    const format = STICKER_FORMATS[(one as { format_type?: number }).format_type ?? 0] ?? "unknown";
+    const tags = (one as { tags?: string }).tags;
+    const description = (one as { description?: string | null }).description;
+    return (
+      `\`${plain(one.name ?? "")}\` — ${format}` +
+      (tags ? ` · ${plain(tags)}` : "") +
+      (description ? ` · ${plain(description.slice(0, 60))}` : "")
+    );
+  });
+
+  await paginate(
+    ctx,
+    pagesOf(
+      `${held.length} sticker${held.length === 1 ? "" : "s"}`,
+      lines,
+      10,
+      "`sticker add` · `remove` · `rename` · `tag` · `cleanup`",
+    ),
+    null,
+  );
 }
 
 export function registerExpressions(): void {

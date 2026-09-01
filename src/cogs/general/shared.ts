@@ -14,6 +14,33 @@ export async function card(ctx: PrefixContext, lines: string[]): Promise<void> {
   await ctx.reply(notice(lines.join("\n")));
 }
 
+// A page is one text block, the same shape `card` posts, so a paginated list and
+// a plain one look identical apart from the buttons underneath.
+export function pagesOf(
+  heading: string,
+  lines: string[],
+  perPage = 10,
+  footer?: string,
+): unknown[][] {
+  if (lines.length === 0) {
+    return [[{ type: 10, content: `### ${heading}\n-# ${footer ?? "nothing here"}` }]];
+  }
+
+  const count = Math.ceil(lines.length / perPage);
+  return Array.from({ length: count }, (_, page) => {
+    const slice = lines.slice(page * perPage, (page + 1) * perPage);
+    const tail = [footer, count > 1 ? `page ${page + 1} of ${count}` : null]
+      .filter(Boolean)
+      .join(" · ");
+    return [
+      {
+        type: 10,
+        content: [`### ${heading}`, ...slice, ...(tail ? [`-# ${tail}`] : [])].join("\n"),
+      },
+    ];
+  });
+}
+
 export function words(argument: string): string[] {
   return argument.trim().split(/\s+/).filter(Boolean);
 }

@@ -70,7 +70,9 @@ src/
                         (the cog is named "information")
       shared.ts         parsing a member, role or channel, and CDN asset urls
       info.ts           what Discord already knows: servers, members, roles,
-                        channels, invites, avatars and banners
+                        channels, invites, avatars and banners; the list commands
+                        page through core/pager and the info cards read every
+                        field Discord returns rather than a name and a date
       expressions.ts    emotes and stickers: adding, removing, renaming, tidying
       images.ts         rotate, invert, compress and dominant colour, via ffmpeg;
                         also screenshot -- headless Chrome as its own unprivileged

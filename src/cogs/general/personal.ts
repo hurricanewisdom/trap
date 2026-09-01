@@ -10,7 +10,8 @@ import {
   type PrefixHandler,
 } from "../../core/prefix.js";
 import { plain } from "../../helpers/markdown.js";
-import { card, channelId, findRole, stamp, userId, whoever, words } from "./shared.js";
+import { card, channelId, findRole, pagesOf, stamp, userId, whoever, words } from "./shared.js";
+import { paginate } from "../../core/pager.js";
 
 const MOST_WORDS = 25;
 
@@ -277,15 +278,33 @@ async function birthdayList(ctx: PrefixContext): Promise<void> {
 
   const rows = await sql<{ user_id: string; month: number; day: number }[]>`
     SELECT user_id, month, day FROM birthdays WHERE guild_id = ${ctx.guildId}
-    ORDER BY month, day LIMIT 60
+    ORDER BY month, day
   `;
-  await card(ctx, [
-    rows.length === 0 ? "Nobody has set one." : `### ${rows.length} birthdays`,
-    ...rows.map(
-      (row) =>
-        `-# <@${row.user_id}> — ${(MONTHS[row.month - 1] ?? "").slice(0, 3).replace(/^./, (c) => c.toUpperCase())} ${row.day}`,
-    ),
-  ]);
+
+  // Ordered by how soon it is rather than by calendar month, because a list of
+  // birthdays is read to find the next one, not to browse January.
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const soon = rows
+    .map((row) => {
+      let next = Date.UTC(today.getUTCFullYear(), row.month - 1, row.day);
+      if (next < today.getTime()) next = Date.UTC(today.getUTCFullYear() + 1, row.month - 1, row.day);
+      return { ...row, days: Math.round((next - today.getTime()) / 86_400_000) };
+    })
+    .sort((a, b) => a.days - b.days);
+
+  const lines = soon.map((row) => {
+    const month = (MONTHS[row.month - 1] ?? "").slice(0, 3).replace(/^./, (c) => c.toUpperCase());
+    const away =
+      row.days === 0 ? "**today**" : row.days === 1 ? "tomorrow" : `in ${row.days} days`;
+    return `<@${row.user_id}> — ${month} ${row.day} · ${away}`;
+  });
+
+  await paginate(
+    ctx,
+    pagesOf(`${rows.length} birthdays`, lines, 12, "soonest first", ),
+    null,
+  );
 }
 
 function birthdayConfig(
@@ -443,19 +462,36 @@ async function timezoneList(ctx: PrefixContext): Promise<void> {
   if (!ctx.guildId) return;
 
   const rows = await sql<{ user_id: string; zone: string }[]>`
-    SELECT t.user_id, t.zone FROM timezones t LIMIT 60
+    SELECT t.user_id, t.zone FROM timezones t
   `;
-  await card(ctx, [
-    rows.length === 0 ? "Nobody has set one." : `### ${rows.length} timezones`,
-    ...rows.slice(0, 30).map((row) => {
-      const at = new Intl.DateTimeFormat("en-GB", {
-        timeZone: row.zone,
-        hour: "2-digit",
-        minute: "2-digit",
-      }).format(new Date());
-      return `-# <@${row.user_id}> — ${at} (${plain(row.zone)})`;
-    }),
-  ]);
+
+  // Sorted by what time it is where they are, so the people awake sit together.
+  const shown = rows
+    .map((row) => {
+      let at = "??:??";
+      let offset = "";
+      try {
+        at = new Intl.DateTimeFormat("en-GB", {
+          timeZone: row.zone,
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(new Date());
+        offset =
+          new Intl.DateTimeFormat("en-GB", { timeZone: row.zone, timeZoneName: "shortOffset" })
+            .formatToParts(new Date())
+            .find((part) => part.type === "timeZoneName")?.value ?? "";
+      } catch {
+        // A zone that stops being valid should not take the whole list with it.
+      }
+      return { ...row, at, offset };
+    })
+    .sort((a, b) => a.at.localeCompare(b.at));
+
+  const lines = shown.map(
+    (row) => `<@${row.user_id}> — **${row.at}** · ${plain(row.zone)}${row.offset ? ` (${row.offset})` : ""}`,
+  );
+
+  await paginate(ctx, pagesOf(`${rows.length} timezones`, lines, 12, "by local time"), null);
 }
 
 function under(owner: string, fallback: PrefixHandler): PrefixHandler {

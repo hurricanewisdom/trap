@@ -315,7 +315,9 @@ sentence about `,pins archive` rather than an API error.
 
 Eighty-one commands answering questions, in four groups: what Discord already
 knows, what another service knows, what to do with a picture, and what somebody
-has asked to be told about.
+has asked to be told about. Anything that returns a list pages rather than
+truncating, and the info cards report everything Discord hands over rather than
+a name and a date.
 
 ```
 serverinfo / userinfo / roleinfo / channelinfo / membercount / inviteinfo
@@ -333,6 +335,63 @@ namespaces, so `,avatar` is now the profile command while `,customize avatar`
 still works through its parent. An **alias** clash is different — `mc` was already
 `membercount`, and the registry refused it for `minecraft` with a warning rather
 than silently taking it.
+
+### Every list pages, and nothing is cut off
+
+`roles`, `members`, `bots`, `emotes`, `boosters`, `sticker`, `birthday list` and
+`timezone list` all return pages with **Back / Next / Page / Close** underneath,
+through the same pager the Last.fm cards use. Before this they each stopped at a
+hardcoded cap — 60 roles, 50 bots, 25 boosters — and said "and 14 more", which on
+a real server meant the command could not answer the question it was for.
+
+Each row now carries what you would otherwise have run a second command to get:
+a role shows its member count, colour and whether it is hoisted or managed; a
+member shows when they joined and their nickname; an emote shows its `:name:`,
+whether it is animated and when it was added; a booster shows the date and how
+long ago. Lists are ordered by what they are read for — roles highest first,
+members and bots oldest first, birthdays **soonest** first rather than by
+calendar month, timezones by local clock so the people awake sit together.
+
+⚠️ **`timezone list` was showing thirty rows under a heading counting sixty.**
+The query took `LIMIT 60`, the render took `.slice(0, 30)`, and the heading
+counted the query. Half the list was missing and the number above it said
+otherwise.
+
+⚠️ **`@everyone` is in nobody's role list.** A member's `roles` array never
+includes it, so `members @everyone` filtered the obvious way answers "0 in
+@everyone" on a role that holds the entire server. It is the one role that has to
+be special-cased, in `members` and in `roleinfo` both.
+
+⚠️ **Counting roles the obvious way is quadratic.** `roles` needs a member count
+per role, and asking "how many members have this role" once per role is a hundred
+roles times five thousand members. One pass over the members, incrementing a map,
+is the same answer for a five-hundredth of the work.
+
+### What the info cards carry
+
+`serverinfo`, `userinfo`, `roleinfo`, `channelinfo`, `membercount` and
+`inviteinfo` were each a name, an id and a date. They now report what Discord
+actually hands over:
+
+| | added |
+| --- | --- |
+| `serverinfo` | channel counts by kind, verification level, content filter, 2FA-for-staff, age rating, AFK channel and timeout, system/rules/mod-update channels, vanity, language, emoji slots used against the tier's limit, boosts needed for the next level, description |
+| `userinfo` | badges, top role and its colour, every permission their roles add up to, join position (`4th of 36`), timeout status, whether they wear the server tag, banner and accent, `@username` under the display name |
+| `roleinfo` | permissions, share of the server wearing it, position out of the total, gradient colours, role icon, unicode emoji, what manages it, and the first fifteen members |
+| `channelinfo` | category, position, bitrate/user limit/region for voice, forum tags, thread archive time, permission-override counts split by roles and members, and when the last message was |
+| `membercount` | humans against bots, online now, boosters, joined today/this week/this month, and who is newest |
+| `inviteinfo` | server id and age, channel kind, inviter id, share of members online, boosts, verification, age rating, vanity and features |
+
+⚠️ **The last message time is free.** A channel's `last_message_id` is a
+snowflake, and a snowflake carries its own timestamp, so "is this channel dead"
+costs no extra request and needs no Read Message History.
+
+⚠️ **A server can report boosts while nobody is boosting.** Discord counts
+subscriptions against the guild, not boosters in it, so somebody who bought a
+boost and then left still holds the tier up — `0ping.net` reports 28 boosts and
+level 3 with no current member carrying `premium_since`. Printing "0 boosting"
+under a footer reading "28 boosts" reads as a bug, so `boosters` names the gap
+instead and says Discord will not reveal who they were.
 
 ### The ones that needed a key
 
