@@ -23,7 +23,6 @@ export interface RuleMetadata {
   regex_patterns?: string[];
   allow_list?: string[];
   mention_total_limit?: number;
-  mention_raid_protection_enabled?: boolean;
 }
 
 export interface Rule {

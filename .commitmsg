@@ -1,0 +1,17 @@
+Take the spec-only commands back out of automod
+
+Following the supplied command list literally grew the group by eight commands
+the bot had never had: mentions raid, an allow list for invites and its view,
+per-filter reset on music and spam, and the bare `ignore view` / `whitelist
+view` / `links ignore view`. None of them answered a need anyone had; they were
+there because a list said so. Out.
+
+What the list was worth was the vocabulary, and that stays: automod, ignore,
+whitelist, mentions, music, clear. The group is 35 commands again, the same 35
+it has always been, under better names. Counts back to 498 / 406 / 672.
+
+The allow list is gated on a spec flag again, so only the link filter has one --
+which is how it was before, and the reason `automod invites` never took a
+domain.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>

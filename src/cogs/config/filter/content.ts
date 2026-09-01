@@ -11,7 +11,7 @@ import {
 } from "../../../core/prefix.js";
 import { numberFor, parseFlags, switchWord } from "../../../helpers/flags.js";
 import { card, channelId, findRole, roleList, words, registerExempt, THRESHOLD, isListWord } from "./shared.js";
-import { allSettings, clearKind, setChannel, setEnabled, setThreshold, toggleRole } from "./store.js";
+import { allSettings, setChannel, setEnabled, setThreshold, toggleRole } from "./store.js";
 
 const MUSIC = "musicfiles";
 
@@ -234,20 +234,6 @@ function build(spec: Simple): void {
     );
   };
 
-  const wipe = async (ctx: PrefixContext): Promise<void> => {
-    const guildId = await requireManageChannels(ctx, `reset the ${spec.label.toLowerCase()}`);
-    if (!guildId) return;
-
-    await clearKind(guildId, spec.kind);
-    await card(
-      ctx,
-      [
-        `### ${spec.label}`,
-        "Off, with no exempt roles or skipped channels left.",
-      ].join("\n"),
-    );
-  };
-
   const handler: PrefixHandler = async (ctx) => {
     const sub = words(ctx.argument)[0]?.toLowerCase() ?? "";
     const found = sub ? lookupIn(`automod ${spec.command}`, sub) : undefined;
@@ -269,13 +255,6 @@ function build(spec: Simple): void {
 
   groupUnder(`automod ${spec.command}`, () => {
     registerExempt(`automod ${spec.command}`, spec.label.toLowerCase(), exempt);
-
-    register({
-      name: "reset",
-      aliases: ["clear", "off"],
-      description: `Switch the ${spec.label.toLowerCase()} off and forget its settings`,
-      handler: wipe,
-    });
   });
 }
 

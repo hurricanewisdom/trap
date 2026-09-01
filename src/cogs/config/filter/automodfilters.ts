@@ -30,6 +30,8 @@ export interface Guarded {
   what: string;
   patterns: string[];
   blocked: string;
+  /** Only the link filter has an allow list; invites never had one. */
+  allows?: boolean;
 }
 
 const BS = String.fromCharCode(92);
@@ -57,6 +59,7 @@ export const LINKS: Guarded = {
   what: "messages containing a link",
   blocked: "Links are not allowed here.",
   patterns: [`https?://[${BS}S]+`, `www${BS}.[${BS}S]+${BS}.[a-z]{2,}`],
+  allows: true,
 };
 
 export const GUARDED = [INVITES, LINKS];
@@ -82,12 +85,12 @@ async function status(ctx: PrefixContext, guildId: string, spec: Guarded): Promi
         ? `Skipped in ${rule.exempt_channels.map((id) => `<#${id}>`).join(" · ")}.`
         : "",
       rule?.exempt_roles?.length ? `Exempt: ${roleList(rule.exempt_roles)}` : "",
-      allowed.length ? `Allowed: ${allowed.map((e) => `\`${e}\``).join(" · ")}` : "",
+      spec.allows && allowed.length ? `Allowed: ${allowed.map((e) => `\`${e}\``).join(" · ")}` : "",
       "",
       `\`automod ${spec.command} on\` or \`off\` switches it`,
       `\`automod ${spec.command} #channel off\` skips one channel`,
       `\`automod ${spec.command} whitelist <role>\` exempts a role`,
-      `\`automod ${spec.command} ignore <text>\` lets one through`,
+      spec.allows ? `\`automod ${spec.command} ignore <text>\` lets one through` : "",
       "",
       "-# Enforced by Discord itself, so a blocked message never posts.",
     ]
@@ -304,24 +307,17 @@ function build(spec: Guarded): void {
     handler,
   });
 
-  groupUnder(`automod ${spec.command} ignore`, () => {
-    register({
-      name: "view",
-      aliases: ["list"],
-      description: `Everything the ${spec.label.toLowerCase()} lets through`,
-      handler: ignore,
-    });
-  });
-
   groupUnder(`automod ${spec.command}`, () => {
     registerExempt(`automod ${spec.command}`, spec.label.toLowerCase(), exempt);
 
-    register({
-      name: "ignore",
-      aliases: ["allow", "exclude"],
-      description: `Let a ${spec.kind === "invites" ? "server" : "domain"} through the filter`,
-      handler: ignore,
-    });
+    if (spec.allows) {
+      register({
+        name: "ignore",
+        aliases: ["allow", "exclude"],
+        description: "Let a domain through the filter",
+        handler: ignore,
+      });
+    }
   });
 }
 

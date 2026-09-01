@@ -248,7 +248,7 @@ is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 414 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 406 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.
@@ -573,6 +573,12 @@ around it tints.
   refuses loopback, private and link-local ranges, bare hostnames and embedded
   credentials before anything is sent. Postgres, Redis and the callback listener
   all sit on interfaces that gate would otherwise reach.
+- **A spec from another bot is a vocabulary, not a feature list.** The rename
+  came from a command list the user supplied, and following it literally grew
+  the group by eight commands nobody had asked for — a mention-raid switch, an
+  allow list for invites, per-filter `reset`s. They came back out. What the
+  spec was actually worth was the *naming*: `automod`, `ignore`, `whitelist`,
+  `mentions`, `music`. Copy the words, not the inventory.
 - ⚠️ **Renaming a command is cheap; renaming a *word* is not.** `,filter`
   became `,automod` by adding an alias, and nobody has to relearn anything. But
   the same pass swapped what two words mean: `whitelist` used to take a word to
@@ -583,12 +589,13 @@ around it tints.
   a bare word, gets told about `,automod ignore` instead of a flat "I cannot
   find that role."
 - ⚠️ **A subcommand under a command that does not dispatch is decoration.**
-  `whitelist` and `ignore` call their handler directly, so `automod music
-  whitelist view` arrives at the handler as the argument `view` — which was then
-  looked up as a role name and failed. Registering the subcommand made it
-  appear in `,help` without making it work. The handlers now share one
-  `isListWord()`, so every spelling of "show me the list" lands in the same
-  branch, whether it came through the registry or as a bare word.
+  `whitelist` calls its handler directly, so `automod music whitelist view`
+  arrives at the handler as the argument `view` — which was then looked up as a
+  role name and failed. Registering the subcommand made it appear in `,help`
+  without making it work, and it had been that way since it was called `exempt
+  list`. The handlers now share one `isListWord()`, so every spelling of "show
+  me the list" lands in the same branch, whether it came through the registry or
+  as a bare word.
 - **A doc check must read the docs.** `deploy/docaudit.mjs` pulls the numbers
   out of README.md and ARCHITECTURE.md and compares them to the registry. The
   earlier version hard-coded what it expected, so it reported success twice

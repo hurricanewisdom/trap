@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 506 commands across four cogs,
+(TypeScript strict, Node 22), run bare with pm2. 498 commands across four cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -888,8 +888,9 @@ leftovers.
 
 ## AutoMod
 
-`,automod` is ten filters behind one command, 42 commands in all. It answers
-to `,filter` too, which is what it was called for most of its life.
+`,automod` is ten filters behind one command, 35 commands in all. It answers
+to `,filter` too, which is what it was called for most of its life: the rename
+added no commands and removed none, it only changed what they are called.
 
 ```
 ,automod add <word>               filter a word, * wildcards allowed
@@ -899,7 +900,6 @@ to `,filter` too, which is what it was called for most of its life.
 ,automod emoji on --threshold 3   emoji per message, default 10
 ,automod spoilers on              spoilers per message, default 5
 ,automod mentions on -t 5         mentions per message
-,automod mentions raid on         Discord's own mention-raid guard
 ,automod invites on               server invites
 ,automod links on                 any link
 ,automod links ignore github.com  one domain through the link filter
@@ -1333,12 +1333,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 414 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 406 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`automod caps whitelist view`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help automod links ignore` opens that exact command.
 
-The check that keeps this honest renders **all 682 views** and asserts unique
+The check that keeps this honest renders **all 672 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

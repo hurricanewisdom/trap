@@ -196,65 +196,6 @@ async function exempt(ctx: PrefixContext): Promise<void> {
   );
 }
 
-async function raid(ctx: PrefixContext): Promise<void> {
-  const guildId = await requireManageChannels(ctx, "change mention raid protection");
-  if (!guildId) return;
-
-  const rule = await mentionRule(guildId);
-  const state = switchWord(words(ctx.argument)[0] ?? "");
-
-  if (!rule) {
-    await card(
-      ctx,
-      [
-        `### ${LABEL}`,
-        "There is no mention rule yet.",
-        "",
-        "`automod mentions on` creates one, then `automod mentions raid on` guards it.",
-      ].join("\n"),
-    );
-    return;
-  }
-
-  const on = rule.trigger_metadata?.mention_raid_protection_enabled === true;
-
-  if (state === null) {
-    await card(
-      ctx,
-      [
-        `### ${LABEL}`,
-        on
-          ? "Raid protection is **on**. Discord blocks a member who suddenly floods mentions, whatever the limit says."
-          : "Raid protection is **off**. Only the per-message limit applies.",
-        "",
-        "`automod mentions raid on` or `off` switches it",
-      ].join("\n"),
-    );
-    return;
-  }
-
-  // trigger_metadata is replaced wholesale, so the limit has to be sent again
-  // or switching raid protection on would quietly erase it.
-  const saved = await patchRule(
-    guildId,
-    rule.id,
-    {
-      trigger_metadata: {
-        mention_total_limit: rule.trigger_metadata?.mention_total_limit ?? DEFAULT_LIMIT,
-        mention_raid_protection_enabled: state,
-      },
-    },
-    REASON,
-  );
-
-  await card(
-    ctx,
-    saved.ok
-      ? [`### ${LABEL}`, state ? "Raid protection is on." : "Raid protection is off."].join("\n")
-      : [`### ${LABEL}`, "That could not be saved.", `-# ${explain(saved.message)}`].join("\n"),
-  );
-}
-
 export function registerMentions(): void {
   const handler: PrefixHandler = async (ctx) => {
     const sub = words(ctx.argument)[0]?.toLowerCase() ?? "";
@@ -277,13 +218,6 @@ export function registerMentions(): void {
 
   groupUnder("automod mentions", () => {
     registerExempt("automod mentions", "mass mention filter", exempt);
-
-    register({
-      name: "raid",
-      aliases: ["raidprotection", "mentionraid"],
-      description: "Block a sudden flood of mentions from one member",
-      handler: raid,
-    });
   });
 }
 

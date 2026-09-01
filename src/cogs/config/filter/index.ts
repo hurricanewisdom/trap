@@ -93,32 +93,11 @@ export function registerFilter(): void {
       handler: whitelist,
     });
 
-    // `whitelist` and `ignore` take their handler directly rather than
-    // dispatching, so these exist to be found by help and by `automod ignore
-    // view`; the word itself reaches the handler as an argument.
-    groupUnder("automod ignore", () => {
-      register({
-        name: "view",
-        aliases: ["list"],
-        description: "Every substring the filter lets through",
-        handler: whitelist,
-      });
-    });
-
     register({
       name: "whitelist",
       aliases: ["exempt", "wl", "exemptions"],
       description: "Exempt a role or channel from the automod",
       handler: exempt,
-    });
-
-    groupUnder("automod whitelist", () => {
-      register({
-        name: "view",
-        aliases: ["list"],
-        description: "Every role exempt from the word filter",
-        handler: exempt,
-      });
     });
 
     register({
