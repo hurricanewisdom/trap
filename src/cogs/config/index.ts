@@ -20,6 +20,7 @@ import { registerAutothread } from "./autothread/index.js";
 import { registerAutoresponder } from "./autoresponder/index.js";
 import { registerPagination } from "./pagination/index.js";
 import { registerAvailability } from "./availability/index.js";
+import { registerEvents } from "./events/index.js";
 import { registerIgnore } from "./ignore/index.js";
 import { registerAppearance } from "./appearance/index.js";
 import { registerPinArchive } from "./pins/index.js";
@@ -60,6 +61,7 @@ export const configCog: Cog = {
     inCategory("autoresponder", registerAutoresponder);
     inCategory("pagination", registerPagination);
     inCategory("availability", registerAvailability);
+    inCategory("events", registerEvents);
     inCategory("ignore", registerIgnore);
     inCategory("appearance", registerAppearance);
     inCategory("pins", registerPinArchive);

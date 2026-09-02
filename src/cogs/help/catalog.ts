@@ -296,6 +296,12 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Members and channels the bot reads nothing from",
   },
   {
+    slug: "events",
+    label: "Events",
+    emoji: "",
+    blurb: "The things the bot does without being asked",
+  },
+  {
     slug: "availability",
     label: "Availability",
     emoji: "",
@@ -1609,6 +1615,24 @@ export const DOCS: CommandDoc[] = [
       { name: "add", usage: ",ignore add <member or #channel>", summary: "Ignore a member or a channel", permission: "Administrator" },
       { name: "remove", usage: ",ignore remove <member or #channel>", summary: "Stop ignoring a member or a channel", permission: "Administrator" },
       { name: "list", usage: ",ignore list", summary: "Every ignored member and channel", permission: "Administrator" },
+    ],
+  },
+  {
+    name: "events",
+    category: "events",
+    usage: ",events",
+    summary: "Manage the events the bot runs without being asked",
+    details:
+      "An event is something the bot does that nobody typed: the autoresponder, the automod filters it enforces itself, autothread, counting, gallery, sticky, the now-playing reactions, rerunning an edited command, and the welcome, goodbye and boost messages. Each can be switched off in one channel or in all of them. This is a second door onto the same room as ,disableevent and ,enableevent -- both write one table through one store, so the two spellings can never disagree about what is switched off. Aliases: ,event, ,evnt and ,listener.",
+    examples: [",events", ",events disable autothread #general", ",events list"],
+    permission: "Manage Channels",
+    guildOnly: true,
+    subcommands: [
+      { name: "disable", usage: ",events disable <event> [channel]", summary: "Disable an event in a channel, or everywhere", permission: "Manage Channels" },
+      { name: "disable all", usage: ",events disable all <event>", summary: "Disable an event across every channel", permission: "Manage Channels" },
+      { name: "enable", usage: ",events enable <event> [channel]", summary: "Re-enable an event in a channel, or everywhere", permission: "Manage Channels" },
+      { name: "enable all", usage: ",events enable all <event>", summary: "Re-enable an event across every channel", permission: "Manage Channels" },
+      { name: "list", usage: ",events list", summary: "View all channels where events have been disabled", permission: "Manage Channels" },
     ],
   },
   {

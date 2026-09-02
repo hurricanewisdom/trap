@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 635 commands across four cogs,
+(TypeScript strict, Node 22), run bare with pm2. 641 commands across four cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -38,6 +38,7 @@ rather than turning it into a three-word path with named fields.
 - `,autoresponder` — automatic replies when a message matches a trigger
 - `,pagination` — several pages behind one message, turned with arrows
 - `,disablecommand` — turn commands, modules and events off per channel
+- `,events` — the same for events, in the grammar people expect
 - `,ignore` — members and channels the bot reads nothing from
 - `,pins` — flush a channel's pins into an archive channel
 - `,seticon`, `,setbanner`, `,setsplashbackground` — the server's look
@@ -1165,6 +1166,33 @@ A banner needs boost level 2 and a splash background level 1. Both are checked
 against the server's own features first, so the answer is a sentence rather than
 a raw API rejection.
 
+## Events
+
+`,events` switches off the things the bot does that nobody typed. Six commands,
+all **Manage Channels**.
+
+```
+,events                            what the events are
+,events disable autothread #general
+,events disable all counting       every channel
+,events enable autothread #general
+,events list                       where anything is switched off
+```
+
+⚠️ **This is a second door onto the same room.** `,disableevent` and
+`,enableevent` already did this job, and both spellings write one table through
+one store (`availability/store.ts`). Keeping a second record would have drifted
+the moment somebody used one door and then the other — and the drift would be
+invisible until an event stopped firing for no reason anybody could see. Both
+directions are tested: a rule made with `,disableevent` shows up in
+`,events list`, and one cleared with `,events enable` is gone from
+`,disableevent list` **and** from the gate that actually blocks the event.
+
+⚠️ **A word that is not a channel is refused, not ignored.** Leaving the channel
+out means every channel, so reading `#genral` as "absent" would turn a typo into
+a server-wide switch-off that looked like it had worked. It says it cannot read
+the channel instead.
+
 ## Ignore
 
 ```
@@ -1748,12 +1776,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 535 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 540 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`automod caps whitelist view`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help automod links ignore` opens that exact command.
 
-The check that keeps this honest renders **all 853 views** and asserts unique
+The check that keeps this honest renders **all 861 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.
