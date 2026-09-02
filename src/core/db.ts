@@ -1076,6 +1076,31 @@ export async function migrate(): Promise<void> {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS dropdown_roles (
+      id          BIGSERIAL PRIMARY KEY,
+      guild_id    TEXT NOT NULL,
+      channel_id  TEXT NOT NULL,
+      message_id  TEXT NOT NULL,
+      position    INTEGER NOT NULL,
+      role_id     TEXT NOT NULL,
+      emoji       TEXT,
+      label       TEXT,
+      description TEXT,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`CREATE INDEX IF NOT EXISTS dropdown_roles_message ON dropdown_roles (message_id, position)`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS dropdown_placeholders (
+      guild_id   TEXT NOT NULL,
+      message_id TEXT PRIMARY KEY,
+      text       TEXT NOT NULL
+    )
+  `;
+
   console.log("db: schema ready");
 }
 

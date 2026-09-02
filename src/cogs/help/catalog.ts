@@ -152,6 +152,12 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Channels whose name is a live figure",
   },
   {
+    slug: "dropdownrole",
+    label: "Dropdown roles",
+    emoji: "",
+    blurb: "Roles members pick from a menu",
+  },
+  {
     slug: "buttonrole",
     label: "Button roles",
     emoji: "",
@@ -603,6 +609,26 @@ export const DOCS: CommandDoc[] = [
       { name: "spotify", usage: ",counter spotify [channel] <handle> [template]", summary: "Track a Spotify artist (needs credentials I do not have)", permission: "Manage Server" },
       { name: "instagram", usage: ",counter instagram [channel] <username> [template]", summary: "Track an Instagram account (needs a login I do not have)", permission: "Manage Server" },
       { name: "twitter", usage: ",counter twitter [channel] <username> [template]", summary: "Track a Twitter / X account (needs a paid key)", permission: "Manage Server" },
+    ],
+  },
+  {
+    name: "dropdownrole",
+    category: "dropdownrole",
+    usage: ",dropdownrole",
+    summary: "Let members pick their roles from a menu",
+    details:
+      "One menu on one of my messages hands out as many roles as you like. Picking an option gives the role and unpicking it takes the role back, and the answer is only ever shown to whoever used the menu. The minimum selection is zero, which is what lets somebody end up with none of them. Options carry an emoji, a label and a description; the menu itself carries a placeholder. Twenty-five options at most, which is Discord's ceiling for a select. The same four roles are refused as everywhere else -- @everyone, a role Discord manages, a role carrying Administrator, and a role above my own -- and the hierarchy is checked again on every pick, since my role can be dragged down afterwards. A message can carry this and button roles and response buttons at once; re-rendering any of them leaves the others alone. Aliases: ,dropdownroles, ,selectrole, ,selectroles, ,dropdown and ,dd.",
+    examples: [",dropdownrole list", ",dropdownrole add <link> @Reader 📚 Books", ",dropdownrole placeholder Pick a colour"],
+    permission: "Manage Roles",
+    guildOnly: true,
+    subcommands: [
+      { name: "add", usage: ",dropdownrole add [message] <role> [emoji] [label]", summary: "Add a role option to a message's dropdown", permission: "Manage Roles" },
+      { name: "clear", usage: ",dropdownrole clear [message]", summary: "Remove all dropdown roles from a message or the entire server", permission: "Manage Roles" },
+      { name: "description", usage: ",dropdownrole description [message] <role> [description]", summary: "Set or clear the description beneath an option", permission: "Manage Roles" },
+      { name: "list", usage: ",dropdownrole list", summary: "View every dropdown role configured in this server", permission: "Manage Roles" },
+      { name: "placeholder", usage: ",dropdownrole placeholder [message] <placeholder>", summary: "Set the text shown when nothing is selected", permission: "Manage Roles" },
+      { name: "remove", usage: ",dropdownrole remove [message] <role or index>", summary: "Remove a role option by role or index", permission: "Manage Roles" },
+      { name: "render", usage: ",dropdownrole render [message]", summary: "Re-apply the dropdown to a message", permission: "Manage Roles" },
     ],
   },
   {

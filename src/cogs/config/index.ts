@@ -14,6 +14,7 @@ import { registerConfessions } from "./confessions/index.js";
 import { registerCounters } from "./counter/index.js";
 import { registerButtons } from "./button/index.js";
 import { registerButtonRoles } from "./buttonrole/index.js";
+import { registerDropdownRoles } from "./dropdownrole/index.js";
 import { registerAutorole } from "./autorole/index.js";
 import { registerAutothread } from "./autothread/index.js";
 import { registerAutoresponder } from "./autoresponder/index.js";
@@ -53,6 +54,7 @@ export const configCog: Cog = {
     inCategory("counter", registerCounters);
     inCategory("button", registerButtons);
     inCategory("buttonrole", registerButtonRoles);
+    inCategory("dropdownrole", registerDropdownRoles);
     inCategory("autorole", registerAutorole);
     inCategory("autothread", registerAutothread);
     inCategory("autoresponder", registerAutoresponder);

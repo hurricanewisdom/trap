@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 627 commands across four cogs,
+(TypeScript strict, Node 22), run bare with pm2. 635 commands across four cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -32,6 +32,7 @@ rather than turning it into a three-word path with named fields.
 - `,counter` — channels whose name is a live figure
 - `,button` — buttons on a message that answer whoever presses them
 - `,buttonrole` — roles members give themselves by pressing a button
+- `,dropdownrole` — roles members pick from a menu
 - `,autorole` — roles handed out to members as they join
 - `,autothread` — a thread started on every message in a channel
 - `,autoresponder` — automatic replies when a message matches a trigger
@@ -443,6 +444,43 @@ would aim at the channel the command was typed in.
 Twenty-five buttons per message, five to a row: Discord's ceiling, not one of
 ours. A message that already has five rows of something else has no room, and
 the card says so rather than letting the edit fail.
+
+## Dropdown roles
+
+`,dropdownrole` puts one menu on a message that hands out as many roles as you
+like. Picking an option gives the role, unpicking it takes the role back, and
+the answer is only shown to whoever used the menu. Eight commands, all
+**Manage Roles**.
+
+```
+,dropdownrole add <link> @Reader 📚 Books
+,dropdownrole description @Reader for the readers
+,dropdownrole placeholder Pick your interests
+,dropdownrole remove @Reader          by role, or by index
+,dropdownrole render                  put the menu back
+```
+
+**The minimum selection is zero.** That is what lets somebody deselect
+everything and end up with none of the roles — a menu with a minimum of one can
+never give a role back.
+
+Twenty-five options at most, which is Discord's ceiling for a select. The same
+four roles are refused as everywhere else, and the hierarchy is re-checked on
+every pick since the bot's role can be dragged down afterwards.
+
+⚠️ **A select is not a row of buttons.** It sits alone in its own action row, so
+the shared renderer grew `applyComponents`, which takes prebuilt rows;
+`applyRows` is now the button-shaped convenience on top of it. `ours()` needed
+no change at all — a select carries a custom id exactly as a button does, so it
+was already recognised.
+
+**One message can carry all three.** Response buttons (`rb:`), button roles
+(`brl:`) and this menu (`ddr:`) each own the rows carrying their own prefix and
+treat the rest as foreign, so re-rendering any one of them leaves the other two
+alone. That is tested directly.
+
+With no options left the row is not built at all, which is how clearing takes
+the menu off the message without touching anything else on it.
 
 ## Button roles
 
@@ -1710,12 +1748,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 528 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 535 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`automod caps whitelist view`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help automod links ignore` opens that exact command.
 
-The check that keeps this honest renders **all 843 views** and asserts unique
+The check that keeps this honest renders **all 853 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

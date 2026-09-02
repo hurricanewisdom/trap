@@ -63,7 +63,7 @@ export type RenderResult =
   | { ok: false; why: string };
 
 /**
- * Puts one feature's buttons back on a message.
+ * Puts one feature's components back on a message.
  *
  * ⚠️ The components array is rewritten, and on a Components V2 message that
  * array *is* the message: replacing it wholesale would delete the text. So the
@@ -71,11 +71,11 @@ export type RenderResult =
  * our rows go back where ours used to be rather than on the end -- otherwise
  * two features rendering in turn would swap places with each other every time.
  */
-export async function applyRows(
+export async function applyComponents(
   channelId: string,
   messageId: string,
   prefix: string,
-  faces: Face[],
+  mine: unknown[],
 ): Promise<RenderResult> {
   const message = await getMessage(channelId, messageId);
   if (!message) return { ok: false, why: "I cannot see that message any more." };
@@ -85,7 +85,6 @@ export async function applyRows(
   }
 
   const existing = (message.components ?? []) as Row[];
-  const mine = rowsFor(faces, prefix);
   const at = existing.findIndex((component) => ours(component, prefix));
   const kept = existing.filter((component) => !ours(component, prefix));
   const spot = at < 0 ? kept.length : Math.min(at, kept.length);
@@ -102,7 +101,18 @@ export async function applyRows(
   });
 
   if (!written.ok) return { ok: false, why: written.message || "Discord refused the edit." };
-  return { ok: true, count: faces.length };
+  return { ok: true, count: mine.length };
+}
+
+/** The button-shaped convenience: build the rows, then apply them. */
+export async function applyRows(
+  channelId: string,
+  messageId: string,
+  prefix: string,
+  faces: Face[],
+): Promise<RenderResult> {
+  const done = await applyComponents(channelId, messageId, prefix, rowsFor(faces, prefix));
+  return done.ok ? { ok: true, count: faces.length } : done;
 }
 
 export async function render(channelId: string, messageId: string): Promise<RenderResult> {
