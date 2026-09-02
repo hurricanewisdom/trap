@@ -991,6 +991,52 @@ export async function migrate(): Promise<void> {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS confession_settings (
+      guild_id           TEXT PRIMARY KEY,
+      channel_id         TEXT,
+      review_channel_id  TEXT,
+      log_channel_id     TEXT,
+      anonymous          BOOLEAN NOT NULL DEFAULT true,
+      min_account_age_ms BIGINT,
+      cooldown_ms        BIGINT,
+      allow_images       BOOLEAN NOT NULL DEFAULT false,
+      allow_links        BOOLEAN NOT NULL DEFAULT false,
+      filter_on          BOOLEAN NOT NULL DEFAULT true,
+      template           TEXT,
+      reply_template     TEXT,
+      button_style       SMALLINT NOT NULL DEFAULT 1,
+      button_label       TEXT DEFAULT 'Submit a confession',
+      reply_button_style SMALLINT NOT NULL DEFAULT 2,
+      reply_button_label TEXT DEFAULT 'Reply',
+      updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS confession_lists (
+      guild_id TEXT NOT NULL,
+      kind     TEXT NOT NULL,
+      value    TEXT NOT NULL,
+      added_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, kind, value)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS confessions (
+      id         BIGSERIAL PRIMARY KEY,
+      guild_id   TEXT NOT NULL,
+      number     INTEGER NOT NULL,
+      user_id    TEXT NOT NULL,
+      content    TEXT NOT NULL,
+      message_id TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`CREATE INDEX IF NOT EXISTS confessions_guild ON confessions (guild_id, created_at DESC)`;
+
   console.log("db: schema ready");
 }
 

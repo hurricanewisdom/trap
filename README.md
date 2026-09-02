@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 551 commands across four cogs,
+(TypeScript strict, Node 22), run bare with pm2. 597 commands across four cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -27,6 +27,7 @@ rather than turning it into a three-word path with named fields.
 - `,alias` — server shortcuts for existing commands
 - `,stickymessage` — keep a message at the bottom of a channel
 - `,imgonly` — make a channel take images only
+- `,confessions` — anonymous confessions submitted through a button
 - `,counter` — channels whose name is a live figure
 - `,button` — buttons on a message that answer whoever presses them
 - `,buttonrole` — roles members give themselves by pressing a button
@@ -228,6 +229,48 @@ The `onMessage` hook it rides on runs for every guild message, so the check in
 front of it is a cached set of channel ids rather than a query. Bot messages are
 ignored before the hook is reached, which is also what stops the sticky
 retriggering on itself.
+
+## Confessions
+
+`,confessions` posts a panel with a button. Pressing it opens a modal, and what
+somebody types is posted to the confession channel under a number, with no name
+attached. Forty-six commands, all **Manage Server**, four levels deep.
+
+```
+,confessions channel #confessions     where they are posted
+,confessions review #staff            hold them for approval first
+,confessions log #audit               where the author IS recorded
+,confessions panel                    post the submit button
+,confessions cooldown 1h              one each per hour
+,confessions age 7d                   no brand new accounts
+,confessions filter <word>            add or remove a filtered word
+,confessions settings                 everything at a glance
+```
+
+**Five things can stop a submission**, and each says which without saying
+anything about anyone else's confession: the blacklist, a minimum account age, a
+per-member cooldown, the word filter, and the link and image settings.
+
+⚠️ **The account age is read out of the account's own snowflake**, so it costs
+no request: a Discord id carries its creation time in its top bits.
+
+⚠️ **The log channel is the one place the author is named.** That is the point
+of it — `anonymous` only decides whether the *reviewers* see who sent it, and
+without a log nobody can be traced at all. Set one before you need it.
+
+⚠️ **A Discord modal has text inputs and nothing else.** There is no attachment
+field, so `confessions images` cannot govern uploads because none can happen.
+It governs image *links* instead, checked separately from the link setting so
+that "links yes, images no" means something.
+
+**The reply button runs the same gauntlet.** Replies are checked exactly as
+confessions are — otherwise the reply button would be a way around every check
+on the submit button. It can also be removed entirely with
+`confessions replybutton remove`.
+
+Numbers are handed out by the insert itself (`MAX(number) + 1` inside the
+statement) rather than by counting rows first, so two confessions submitted in
+the same moment cannot get the same number.
 
 ## Counters
 
@@ -1591,12 +1634,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 454 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 499 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`automod caps whitelist view`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help automod links ignore` opens that exact command.
 
-The check that keeps this honest renders **all 744 views** and asserts unique
+The check that keeps this honest renders **all 804 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.
