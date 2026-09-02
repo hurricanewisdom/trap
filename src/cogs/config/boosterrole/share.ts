@@ -24,7 +24,7 @@ import {
 
 async function setNumber(
   ctx: PrefixContext,
-  field: "share_max" | "share_limit",
+  field: "share_max",
   raw: string,
   action: string,
   describe: (value: number | null) => string,
@@ -32,8 +32,7 @@ async function setNumber(
   const guildId = await requireManageGuild(ctx, action);
   if (!guildId) return;
 
-  const current = await config(guildId);
-  const value = field === "share_max" ? current.shareMax : current.shareLimit;
+  const value = (await config(guildId)).shareMax;
 
   if (!raw) {
     await card(ctx, [`### ${HEADING}`, describe(value)].join("\n"));
@@ -56,19 +55,11 @@ async function setNumber(
   await card(ctx, [`### ${HEADING}`, describe(wanted)].join("\n"));
 }
 
-export async function shareMax(ctx: PrefixContext): Promise<void> {
-  await setNumber(ctx, "share_max", ctx.argument.trim(), "set the share size", (value) =>
+export async function shareLimit(ctx: PrefixContext): Promise<void> {
+  await setNumber(ctx, "share_max", ctx.argument.trim(), "set the share limit", (value) =>
     value === null
       ? "A booster role can be shared with any number of members."
-      : `A booster role can hold ${value} shared member${value === 1 ? "" : "s"}.`,
-  );
-}
-
-export async function shareLimit(ctx: PrefixContext): Promise<void> {
-  await setNumber(ctx, "share_limit", ctx.argument.trim(), "set the share limit", (value) =>
-    value === null
-      ? "A member can be in any number of booster roles."
-      : `A member can be in ${value} booster role${value === 1 ? "" : "s"}.`,
+      : `A booster role can be shared with ${value} member${value === 1 ? "" : "s"}.`,
   );
 }
 
@@ -170,17 +161,6 @@ export async function share(ctx: PrefixContext): Promise<void> {
       await card(
         ctx,
         [`### ${HEADING}`, `Your role already holds its limit of ${settings.shareMax} shared member${settings.shareMax === 1 ? "" : "s"}.`].join("\n"),
-      );
-      return;
-    }
-  }
-
-  if (settings.shareLimit !== null) {
-    const theirs = await sharesFor(guildId, userId);
-    if (theirs.length >= settings.shareLimit) {
-      await card(
-        ctx,
-        [`### ${HEADING}`, `<@${userId}> is already in ${settings.shareLimit} booster role${settings.shareLimit === 1 ? "" : "s"}.`].join("\n"),
       );
       return;
     }

@@ -10,7 +10,7 @@ import {
 } from "../../../core/discord.js";
 import { notice, requireGuild, requireManageGuild } from "../../../core/permissions.js";
 import type { PrefixContext } from "../../../core/prefix.js";
-import { config, filters } from "./store.js";
+import { config } from "./store.js";
 import { isIncluded } from "./include.js";
 
 export const HEADING = "Booster role";
@@ -100,28 +100,12 @@ export async function requireGuildHere(ctx: PrefixContext, action: string): Prom
   return requireGuild(ctx, action);
 }
 
-export async function awardIfDue(guildId: string, member: GuildMember): Promise<void> {
-  const userId = member.user?.id;
-  if (!userId || !member.premium_since) return;
-
-  const { awardRoleId } = await config(guildId);
-  if (!awardRoleId || (member.roles ?? []).includes(awardRoleId)) return;
-
-  const ceiling = await botCeiling(guildId);
-  if (!ceiling.manageRoles) return;
-
-  await giveRole(guildId, userId, awardRoleId, "Booster award role");
-}
-
 export async function requireBooster(ctx: PrefixContext, action: string): Promise<string | null> {
   const guildId = await requireGuild(ctx, action);
   if (!guildId) return null;
 
   const member = await memberOf(guildId, ctx.authorId);
-  if (member?.premium_since) {
-    await awardIfDue(guildId, member);
-    return guildId;
-  }
+  if (member?.premium_since) return guildId;
 
   // `boosterrole include` lets a server open this to a role as well. The check
   // lives here rather than in each command, so every member command opens up
@@ -171,14 +155,6 @@ export function hierarchyNote(role: Role): string {
     `**${role.name}** sits above my own role, so I cannot change it.`,
     "-# Drag my role above it in Server Settings and try again.",
   ].join("\n");
-}
-
-export async function blockedWord(guildId: string, name: string): Promise<string | null> {
-  const banned = await filters(guildId);
-  if (banned.length === 0) return null;
-
-  const haystack = name.toLowerCase();
-  return banned.find((word) => haystack.includes(word)) ?? null;
 }
 
 export async function dominantColor(guildId: string, userId: string): Promise<number | null> {

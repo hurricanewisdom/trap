@@ -12,13 +12,11 @@ import type { PrefixContext } from "../../../core/prefix.js";
 import {
   HEADING,
   belowMe,
-  blockedWord,
   card,
   dominantColor,
   hex,
   hierarchyNote,
   parseColor,
-  randomColor,
   requireBooster,
   requireBotRoles,
   roleById,
@@ -109,17 +107,6 @@ async function apply(ctx: PrefixContext, wanted: Wanted): Promise<void> {
   if (!(await requireBotRoles(ctx, guildId))) return;
 
   const chosenName = wanted.name;
-  if (chosenName) {
-    const banned = await blockedWord(guildId, chosenName);
-    if (banned) {
-      await card(
-        ctx,
-        [`### ${HEADING}`, `That name contains a blocked word: \`${banned}\`.`].join("\n"),
-      );
-      return;
-    }
-  }
-
   const held = await existing(guildId, ctx.authorId);
 
   if (held) {
@@ -139,19 +126,6 @@ async function apply(ctx: PrefixContext, wanted: Wanted): Promise<void> {
       return;
     }
     await done(ctx, edited.data, wanted, "updated");
-    return;
-  }
-
-  const { roleLimit } = await config(guildId);
-  if (roleLimit !== null && (await countRoles(guildId)) >= roleLimit) {
-    await card(
-      ctx,
-      [
-        `### ${HEADING}`,
-        `This server is at its limit of ${roleLimit} booster role${roleLimit === 1 ? "" : "s"}.`,
-        "-# An admin can raise it with `boosterrole limit`.",
-      ].join("\n"),
-    );
     return;
   }
 
@@ -202,10 +176,6 @@ export async function setColor(ctx: PrefixContext): Promise<void> {
   await apply(ctx, wanted);
 }
 
-export async function setRandom(ctx: PrefixContext): Promise<void> {
-  await apply(ctx, { primary: randomColor(), secondary: null, name: null });
-}
-
 export async function setDominant(ctx: PrefixContext): Promise<void> {
   const guildId = await requireBooster(ctx, "use an avatar colour");
   if (!guildId) return;
@@ -242,11 +212,6 @@ export async function rename(ctx: PrefixContext): Promise<void> {
     return;
   }
 
-  const banned = await blockedWord(guildId, name);
-  if (banned) {
-    await card(ctx, [`### ${HEADING}`, `That name contains a blocked word: \`${banned}\`.`].join("\n"));
-    return;
-  }
 
   const role = await existing(guildId, ctx.authorId);
   if (!role) {

@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 526 commands across four cogs,
+(TypeScript strict, Node 22), run bare with pm2. 515 commands across four cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -95,12 +95,11 @@ unreachable the last known value is used, so the bot does not go silent.
 
 Each booster gets one role of their own, coloured and named by them.
 
-Thirty commands.
+Nineteen commands.
 
 ```
 ,boosterrole #1db954 night owl   make or update yours
 ,br blue purple                  a two-colour gradient
-,br random                       a random colour
 ,br dominant [@member]           the main colour out of an avatar
 ,br rename <name>                rename it
 ,br icon <url>                   set its icon
@@ -112,28 +111,37 @@ Thirty commands.
 
 Admin side, all Manage Server: `base` (where new roles sit, `above` or `below`
 a role of your choosing), `include` (a role that may make one without
-boosting), `limit` (how many the server can hold), `award` (a role handed to
-anyone who boosts), `filter` (blocked words in names), `list`, `link` (adopt an
-existing role), `cleanup` (delete roles whose owner stopped boosting), `sync`
-(put them all back where they belong) and `clear` (delete every one of them).
-
-⚠️ **`share max` and `share limit` are two different settings and the names do
-not help.** `share max` is how many members one role may be shared with;
-`share limit` is how many shared roles a single member may wear. A spec that
-calls the first of those `limit` therefore means this bot's `max` — the `max`
-spelling is kept as the primary, because renaming it would silently change what
-`share limit` does for every server already using it.
+boosting, plus `list` / `remove` / `clear`), `list`, `share limit` (how many
+members may share one role), `sync` (delete the roles whose owner stopped
+boosting and put the rest back where they belong) and `clear` (delete every one
+of them).
 
 ⚠️ **`,color` is not an alias for this.** Last.fm already answers to it for
 `,lfcolor`, and the configuration cog loads first, so claiming it here would
-quietly take that command away. `,br`, `,cr` and `,boosterrole color` all
-work.
+quietly take that command away. `,br` and `,cr` are the short forms, and
+`,boosterrole color <colour>` works because the group swallows a leading
+`color` rather than registering it — a word the dispatcher ignores cannot steal
+a command from another cog.
 
 **`include` opens the whole member side at once.** The check lives in
 `requireBooster()` rather than in each command, so a server that includes a
-role does not have to remember which of the nine member commands were updated.
-Roles already made are kept when the exception is removed; `sync` is what tidies
+role does not have to remember which member commands were updated. Roles
+already made are kept when the exception is removed; `sync` is what tidies
 them.
+
+⚠️ **Four settings were removed along with the commands that set them.** The
+group was cut to a supplied spec, which dropped `random`, `award`, `filter`,
+`link`, `cleanup`, `limit` and the old `share limit`. Four of those were not
+just commands: the server role cap, the blocked-word list for names, the
+per-member share cap and the award-on-boost role were each *enforced* elsewhere
+in the code. Deleting only the command would have left a server permanently
+subject to a rule with no way to see or change it, so the enforcement went too.
+The rows are still in the database, so nothing is lost if they come back.
+
+⚠️ **`share limit` changed meaning.** It used to cap how many shared roles one
+member could wear. It now caps how many members one role can be shared with —
+what `share max` did, which is kept as its alias. A server that had set the old
+one is no longer bound by it.
 
 Three things bound what the bot can do here, and each says so rather than
 failing quietly:
@@ -1449,12 +1457,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 432 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 421 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`automod caps whitelist view`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help automod links ignore` opens that exact command.
 
-The check that keeps this honest renders **all 709 views** and asserts unique
+The check that keeps this honest renders **all 695 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.
