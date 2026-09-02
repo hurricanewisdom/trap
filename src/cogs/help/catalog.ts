@@ -134,6 +134,12 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "Buttons on a message that answer whoever presses them",
   },
   {
+    slug: "buttonrole",
+    label: "Button roles",
+    emoji: "",
+    blurb: "Roles members give themselves by pressing a button",
+  },
+  {
     slug: "autorole",
     label: "Autorole",
     emoji: "",
@@ -462,6 +468,24 @@ export const DOCS: CommandDoc[] = [
       { name: "render", usage: ",button render [message]", summary: "Re-apply all response buttons to a message", permission: "Manage Server" },
       { name: "style", usage: ",button style [message] <index> <style>", summary: "Change the style of a response button", permission: "Manage Server" },
       { name: "view", usage: ",button view [message] <index>", summary: "View the response script a button is configured with", permission: "Manage Server" },
+    ],
+  },
+  {
+    name: "buttonrole",
+    category: "buttonrole",
+    usage: ",buttonrole",
+    summary: "Let members give themselves roles with a button",
+    details:
+      "A button on one of my messages hands out a role, and pressing it again takes the role back; the confirmation is only ever shown to whoever pressed. Give a message link once and the channel remembers it, so the link is optional afterwards. The style and emoji are optional and come after the role, and anything left over is the label -- with nothing left the role's own name is used. Four roles are refused rather than stored, because each would fail on every press instead of once here: @everyone, a role Discord manages, a role carrying Administrator, and a role above my own. The hierarchy is checked again on every press too, since my role can be dragged down afterwards. Twenty-five per message, five to a row. Aliases: ,buttonroles and ,btr.",
+    examples: [",buttonrole list", ",buttonrole add <link> @Reader success 📚", ",buttonrole remove @Reader"],
+    permission: "Manage Roles",
+    guildOnly: true,
+    subcommands: [
+      { name: "add", usage: ",buttonrole add [message] <role> [style] [emoji] [label]", summary: "Add a button role to a message", permission: "Manage Roles" },
+      { name: "clear", usage: ",buttonrole clear [message]", summary: "Remove all button roles from a message or the entire server", permission: "Manage Roles" },
+      { name: "list", usage: ",buttonrole list", summary: "View every button role configured in this server", permission: "Manage Roles" },
+      { name: "remove", usage: ",buttonrole remove [message] <role or index>", summary: "Remove a button role from a message", permission: "Manage Roles" },
+      { name: "render", usage: ",buttonrole render [message]", summary: "Re-apply all role components to a message", permission: "Manage Roles" },
     ],
   },
   {

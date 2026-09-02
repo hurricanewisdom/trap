@@ -952,6 +952,23 @@ export async function migrate(): Promise<void> {
 
   await sql`CREATE INDEX IF NOT EXISTS response_buttons_message ON response_buttons (message_id, position)`;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS button_roles (
+      id         BIGSERIAL PRIMARY KEY,
+      guild_id   TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      position   INTEGER NOT NULL,
+      role_id    TEXT NOT NULL,
+      style      SMALLINT NOT NULL DEFAULT 2,
+      emoji      TEXT,
+      label      TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`CREATE INDEX IF NOT EXISTS button_roles_message ON button_roles (message_id, position)`;
+
   console.log("db: schema ready");
 }
 

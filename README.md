@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 527 commands across four cogs,
+(TypeScript strict, Node 22), run bare with pm2. 533 commands across four cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -28,6 +28,7 @@ rather than turning it into a three-word path with named fields.
 - `,stickymessage` — keep a message at the bottom of a channel
 - `,imgonly` — make a channel take images only
 - `,button` — buttons on a message that answer whoever presses them
+- `,buttonrole` — roles members give themselves by pressing a button
 - `,autorole` — roles handed out to members as they join
 - `,autothread` — a thread started on every message in a channel
 - `,autoresponder` — automatic replies when a message matches a trigger
@@ -272,6 +273,41 @@ would aim at the channel the command was typed in.
 Twenty-five buttons per message, five to a row: Discord's ceiling, not one of
 ours. A message that already has five rows of something else has no room, and
 the card says so rather than letting the edit fail.
+
+## Button roles
+
+`,buttonrole` puts a role behind a button. Pressing it hands the role over;
+pressing again takes it back, and the confirmation is only ever shown to whoever
+pressed. Six commands, all **Manage Roles**.
+
+```
+,buttonrole add <link> @Reader success 📚 Books
+,buttonrole list                  every one in the server
+,buttonrole remove @Reader        by role, or by index
+,buttonrole render                put them back on the message
+,buttonrole clear                 all of them, everywhere
+```
+
+The style and emoji are optional and come after the role; whatever is left is
+the label, and with nothing left the role's own name is used.
+
+**Four roles are refused rather than stored** — `@everyone`, a role Discord
+manages, a role carrying Administrator, and a role above the bot's own — for the
+same reason `,autorole` refuses them: each would fail on every press instead of
+once at the point of setting it up.
+
+⚠️ **The hierarchy is checked again on every press.** The bot's role can be
+dragged below the role after the button is made, and then the press has to say
+so rather than doing nothing.
+
+⚠️ **This and `,button` share one renderer and can share a message.** Each
+treats the other's rows as foreign and puts its own back where its own used to
+be, so a message can carry both and re-rendering either leaves the other alone.
+That is also what keeps a Components V2 body and a pagination control intact —
+`cogs/config/button/render.ts` is the single place that knows how.
+
+Members keep the roles they took when a button is removed; taking the button
+away only stops it being handed out.
 
 ## Autorole
 
@@ -1504,12 +1540,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 432 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 437 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`automod caps whitelist view`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help automod links ignore` opens that exact command.
 
-The check that keeps this honest renders **all 711 views** and asserts unique
+The check that keeps this honest renders **all 719 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

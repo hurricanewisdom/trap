@@ -10,36 +10,20 @@ interface Row {
 }
 
 /**
- * Whether an action row belongs to this feature.
+ * Whether an action row belongs to the feature that owns `prefix`.
  *
- * Only a row made entirely of our own buttons counts. A row we did not write is
- * left exactly where it was, which is what stops a re-render eating a
- * pagination control or anything else living on the same message.
+ * Only a row made entirely of that feature's own buttons counts. A row written
+ * by anything else is left exactly where it was, which is what stops one
+ * feature's re-render eating another's controls -- response buttons and button
+ * roles live on the same messages and each treats the other as foreign.
  */
-function ours(component: Row): boolean {
+function ours(component: Row, prefix: string): boolean {
   if (component.type !== 1) return false;
   const inside = component.components ?? [];
   return (
     inside.length > 0 &&
-    inside.every((one) => String(one.custom_id ?? one.customId ?? "").startsWith(PREFIX))
+    inside.every((one) => String(one.custom_id ?? one.customId ?? "").startsWith(prefix))
   );
-}
-
-function rowsFor(buttons: ResponseButton[]): unknown[] {
-  const rows: unknown[] = [];
-  for (let at = 0; at < buttons.length; at += 5) {
-    rows.push({
-      type: 1,
-      components: buttons.slice(at, at + 5).map((one) => ({
-        type: 2,
-        style: one.style,
-        custom_id: `${PREFIX}${one.id}`,
-        ...(one.label ? { label: one.label } : {}),
-        ...(one.emoji ? { emoji: emojiFor(one.emoji) } : {}),
-      })),
-    });
-  }
-  return rows;
 }
 
 /** A custom emoji goes as id, a standard one as name. */
@@ -49,19 +33,50 @@ export function emojiFor(raw: string): { id?: string; name?: string; animated?: 
   return { name: raw.trim() };
 }
 
+export interface Face {
+  id: string;
+  style: number;
+  emoji: string | null;
+  label: string | null;
+}
+
+/** Five to a row, which is Discord's limit for an action row. */
+export function rowsFor(faces: Face[], prefix: string): unknown[] {
+  const rows: unknown[] = [];
+  for (let at = 0; at < faces.length; at += 5) {
+    rows.push({
+      type: 1,
+      components: faces.slice(at, at + 5).map((one) => ({
+        type: 2,
+        style: one.style,
+        custom_id: `${prefix}${one.id}`,
+        ...(one.label ? { label: one.label } : {}),
+        ...(one.emoji ? { emoji: emojiFor(one.emoji) } : {}),
+      })),
+    });
+  }
+  return rows;
+}
+
 export type RenderResult =
   | { ok: true; count: number }
   | { ok: false; why: string };
 
 /**
- * Puts the message's buttons back on it.
+ * Puts one feature's buttons back on a message.
  *
  * ⚠️ The components array is rewritten, and on a Components V2 message that
  * array *is* the message: replacing it wholesale would delete the text. So the
- * existing components are read back and everything that is not ours is kept in
- * place, with our rows appended after.
+ * existing components are read back, everything that is not ours is kept, and
+ * our rows go back where ours used to be rather than on the end -- otherwise
+ * two features rendering in turn would swap places with each other every time.
  */
-export async function render(channelId: string, messageId: string): Promise<RenderResult> {
+export async function applyRows(
+  channelId: string,
+  messageId: string,
+  prefix: string,
+  faces: Face[],
+): Promise<RenderResult> {
   const message = await getMessage(channelId, messageId);
   if (!message) return { ok: false, why: "I cannot see that message any more." };
 
@@ -69,23 +84,28 @@ export async function render(channelId: string, messageId: string): Promise<Rend
     return { ok: false, why: "Buttons can only go on a message I posted myself." };
   }
 
-  const buttons = await buttonsOn(messageId);
   const existing = (message.components ?? []) as Row[];
-  const foreign = existing.filter((component) => !ours(component));
+  const mine = rowsFor(faces, prefix);
+  const at = existing.findIndex((component) => ours(component, prefix));
+  const kept = existing.filter((component) => !ours(component, prefix));
+  const spot = at < 0 ? kept.length : Math.min(at, kept.length);
 
-  if (foreign.length + Math.ceil(buttons.length / 5) > 5) {
-    return {
-      ok: false,
-      why: "That message has no room left; Discord allows five rows in total.",
-    };
+  if (kept.length + mine.length > 5) {
+    return { ok: false, why: "That message has no room left; Discord allows five rows in total." };
   }
 
+  const next = [...kept.slice(0, spot), ...mine, ...kept.slice(spot)];
   const written = await editMessage(channelId, messageId, {
-    components: [...foreign, ...rowsFor(buttons)],
+    components: next,
     // A V2 message must keep its flag or Discord rejects the edit.
     ...(typeof message.flags === "number" ? { flags: message.flags } : {}),
   });
 
   if (!written.ok) return { ok: false, why: written.message || "Discord refused the edit." };
-  return { ok: true, count: buttons.length };
+  return { ok: true, count: faces.length };
+}
+
+export async function render(channelId: string, messageId: string): Promise<RenderResult> {
+  const buttons: ResponseButton[] = await buttonsOn(messageId);
+  return applyRows(channelId, messageId, PREFIX, buttons);
 }

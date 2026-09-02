@@ -10,6 +10,7 @@ import { registerSticky } from "./sticky/index.js";
 import { registerGallery } from "./gallery/index.js";
 import { registerFilter } from "./filter/index.js";
 import { registerButtons } from "./button/index.js";
+import { registerButtonRoles } from "./buttonrole/index.js";
 import { registerAutorole } from "./autorole/index.js";
 import { registerAutothread } from "./autothread/index.js";
 import { registerAutoresponder } from "./autoresponder/index.js";
@@ -45,6 +46,7 @@ export const configCog: Cog = {
     inCategory("gallery", registerGallery);
     inCategory("automod", registerFilter);
     inCategory("button", registerButtons);
+    inCategory("buttonrole", registerButtonRoles);
     inCategory("autorole", registerAutorole);
     inCategory("autothread", registerAutothread);
     inCategory("autoresponder", registerAutoresponder);
