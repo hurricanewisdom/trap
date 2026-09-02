@@ -204,3 +204,45 @@ export async function share(ctx: PrefixContext): Promise<void> {
 
   await card(ctx, [`### ${HEADING}`, `<@${userId}> now wears <@&${role.id}>.`].join("\n"));
 }
+
+/**
+ * Takes your booster role back off everyone wearing it.
+ *
+ * The role itself is untouched; only the shares go. Anyone who had it loses it
+ * from their profile, which is the point of the command.
+ */
+export async function shareClear(ctx: PrefixContext): Promise<void> {
+  const guildId = await requireGuildHere(ctx, "unshare a booster role");
+  if (!guildId) return;
+  if (!(await requireBotRoles(ctx, guildId))) return;
+
+  const role = await existing(guildId, ctx.authorId);
+  if (!role) {
+    await card(ctx, [`### ${HEADING}`, "You do not have a booster role."].join("\n"));
+    return;
+  }
+
+  const wearers = await sharedWith(guildId, role.id);
+  if (wearers.length === 0) {
+    await card(ctx, [`### ${HEADING}`, "Nobody is wearing your booster role."].join("\n"));
+    return;
+  }
+
+  let taken = 0;
+  for (const userId of wearers) {
+    await unshare(guildId, role.id, userId);
+    const gone = await takeRole(guildId, userId, role.id, "Booster role unshared");
+    if (gone.ok) taken += 1;
+  }
+
+  await card(
+    ctx,
+    [
+      `### ${HEADING}`,
+      `Took <@&${role.id}> back from ${taken} member${taken === 1 ? "" : "s"}.`,
+      taken === wearers.length ? "" : `-# ${wearers.length - taken} could not be changed, but are no longer recorded.`,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
+}

@@ -6,6 +6,7 @@ export interface BoosterConfig {
   roleLimit: number | null;
   shareMax: number | null;
   shareLimit: number | null;
+  baseAbove: boolean;
 }
 
 interface ConfigRow {
@@ -14,6 +15,7 @@ interface ConfigRow {
   role_limit: number | null;
   share_max: number | null;
   share_limit: number | null;
+  base_above: boolean | null;
 }
 
 const EMPTY: BoosterConfig = {
@@ -22,11 +24,12 @@ const EMPTY: BoosterConfig = {
   roleLimit: null,
   shareMax: null,
   shareLimit: null,
+  baseAbove: false,
 };
 
 export async function config(guildId: string): Promise<BoosterConfig> {
   const rows = await sql<ConfigRow[]>`
-    SELECT base_role_id, award_role_id, role_limit, share_max, share_limit
+    SELECT base_role_id, award_role_id, role_limit, share_max, share_limit, base_above
     FROM booster_config WHERE guild_id = ${guildId}
   `;
   const row = rows[0];
@@ -38,15 +41,22 @@ export async function config(guildId: string): Promise<BoosterConfig> {
     roleLimit: row.role_limit,
     shareMax: row.share_max,
     shareLimit: row.share_limit,
+    baseAbove: row.base_above === true,
   };
 }
 
-type ConfigField = "base_role_id" | "award_role_id" | "role_limit" | "share_max" | "share_limit";
+type ConfigField =
+  | "base_role_id"
+  | "award_role_id"
+  | "role_limit"
+  | "share_max"
+  | "share_limit"
+  | "base_above";
 
 export async function setConfig(
   guildId: string,
   field: ConfigField,
-  value: string | number | null,
+  value: string | number | boolean | null,
 ): Promise<void> {
   await sql`
     INSERT INTO booster_config (guild_id, ${sql(field)}, updated_at)

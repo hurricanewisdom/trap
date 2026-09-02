@@ -1,6 +1,7 @@
 import { deleteRole, displayName, memberOf } from "../../../core/discord.js";
 import type { PrefixContext } from "../../../core/prefix.js";
 import { requireManageGuild } from "../../../core/permissions.js";
+import { place } from "./member.js";
 import {
   HEADING,
   belowMe,
@@ -67,17 +68,29 @@ export async function setBase(ctx: PrefixContext): Promise<void> {
   const guildId = await requireManager(ctx, "set the base role");
   if (!guildId) return;
 
-  const raw = ctx.argument.trim();
+  let raw = ctx.argument.trim();
   if (!raw) {
-    const { baseRoleId } = await config(guildId);
+    const { baseRoleId, baseAbove } = await config(guildId);
     await card(
       ctx,
       [
         `### ${HEADING}`,
-        baseRoleId ? `New booster roles go under <@&${baseRoleId}>.` : "No base role is set.",
-        "-# `boosterrole base <role>` sets one, `boosterrole base none` clears it.",
+        baseRoleId
+          ? `New booster roles go ${baseAbove ? "above" : "below"} <@&${baseRoleId}>.`
+          : "No base role is set.",
+        "-# `boosterrole base [above|below] <role>` sets one, `boosterrole base none` clears it.",
       ].join("\n"),
     );
+    return;
+  }
+
+  // `above` or `below` may lead, and below is the default because it is what
+  // the command did before the word existed.
+  const side = /^(above|below)\s+/i.exec(raw);
+  const above = (side?.[1] ?? "below").toLowerCase() === "above";
+  if (side) raw = raw.slice(side[0].length).trim();
+  if (!raw) {
+    await card(ctx, [`### ${HEADING}`, "Name the role to sit " + (above ? "under" : "over") + "."].join("\n"));
     return;
   }
 
@@ -94,9 +107,14 @@ export async function setBase(ctx: PrefixContext): Promise<void> {
   }
 
   await setConfig(guildId, "base_role_id", role.id);
+  await setConfig(guildId, "base_above", above);
   await card(
     ctx,
-    [`### ${HEADING}`, `New booster roles will sit under <@&${role.id}>.`].join("\n"),
+    [
+      `### ${HEADING}`,
+      `New booster roles will sit ${above ? "above" : "below"} <@&${role.id}>.`,
+      "-# `boosterrole sync` moves the ones already made.",
+    ].join("\n"),
   );
 }
 
@@ -289,5 +307,108 @@ export async function link(ctx: PrefixContext): Promise<void> {
       `<@&${role.id}> is now <@${userId}>'s booster role.`,
       `-# ${await displayName(guildId, userId)} can edit it with \`boosterrole color\`.`,
     ].join("\n"),
+  );
+}
+
+/**
+ * Deletes every booster role in the server.
+ *
+ * Unlike `cleanup`, which only takes back roles whose owner stopped boosting,
+ * this takes the lot. It says how many it is about to remove and does it, rather
+ * than asking twice -- Manage Server is already the gate, and the roles are
+ * recreated by their owners with one command.
+ */
+export async function clearAll(ctx: PrefixContext): Promise<void> {
+  const guildId = await requireManager(ctx, "remove every booster role");
+  if (!guildId) return;
+
+  const owned = (await allRoles(guildId)).slice(0, CLEANUP_CAP);
+  if (owned.length === 0) {
+    await card(ctx, [`### ${HEADING}`, "There are no booster roles."].join("\n"));
+    return;
+  }
+
+  let deleted = 0;
+  let stuck = 0;
+  for (const entry of owned) {
+    await forgetRole(guildId, entry.roleId);
+    const role = await roleById(guildId, entry.roleId);
+    if (!role) continue;
+    if (!(await belowMe(guildId, role))) {
+      stuck += 1;
+      continue;
+    }
+    const gone = await deleteRole(guildId, entry.roleId, "Booster roles cleared");
+    if (gone.ok) deleted += 1;
+  }
+
+  await card(
+    ctx,
+    [
+      `### ${HEADING}`,
+      `Deleted ${deleted} booster role${deleted === 1 ? "" : "s"}.`,
+      stuck
+        ? `-# ${stuck} sat above my own role and were left alone, though they are no longer tracked.`
+        : "",
+      "-# Boosters can make a new one whenever they like.",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
+}
+
+/**
+ * Tidies the booster roles and puts them back where they belong.
+ *
+ * `cleanup` deletes the ones whose owner stopped boosting; this does that and
+ * then repositions everything still standing against the base role, which is
+ * what drifts when the base is moved or a role is dragged by hand.
+ */
+export async function sync(ctx: PrefixContext): Promise<void> {
+  const guildId = await requireManager(ctx, "sync the booster roles");
+  if (!guildId) return;
+
+  const { baseRoleId } = await config(guildId);
+  const owned = (await allRoles(guildId)).slice(0, CLEANUP_CAP);
+  if (owned.length === 0) {
+    await card(ctx, [`### ${HEADING}`, "There are no booster roles to sync."].join("\n"));
+    return;
+  }
+
+  let forgotten = 0;
+  let moved = 0;
+  const kept: string[] = [];
+
+  for (const entry of owned) {
+    const role = await roleById(guildId, entry.roleId);
+    if (!role) {
+      await forgetRole(guildId, entry.roleId);
+      forgotten += 1;
+      continue;
+    }
+    if (!(await belowMe(guildId, role))) continue;
+    kept.push(entry.roleId);
+  }
+
+  if (baseRoleId) {
+    for (const roleId of kept) {
+      await place(guildId, roleId);
+      moved += 1;
+    }
+  }
+
+  await card(
+    ctx,
+    [
+      `### ${HEADING}`,
+      `${kept.length} booster role${kept.length === 1 ? "" : "s"} in place.`,
+      forgotten ? `-# Forgot ${forgotten} record${forgotten === 1 ? "" : "s"} whose role no longer exists.` : "",
+      baseRoleId
+        ? `-# Repositioned ${moved} against <@&${baseRoleId}>.`
+        : "-# No base role is set, so nothing was moved. `boosterrole base <role>` sets one.",
+      "-# `boosterrole cleanup` is the one that deletes roles whose owner stopped boosting.",
+    ]
+      .filter(Boolean)
+      .join("\n"),
   );
 }

@@ -11,6 +11,7 @@ import {
 import { notice, requireGuild, requireManageGuild } from "../../../core/permissions.js";
 import type { PrefixContext } from "../../../core/prefix.js";
 import { config, filters } from "./store.js";
+import { isIncluded } from "./include.js";
 
 export const HEADING = "Booster role";
 
@@ -67,6 +68,10 @@ export function randomColor(): number {
   return Math.floor(Math.random() * 0x1000000);
 }
 
+export function roleList(ids: string[]): string {
+  return ids.map((id) => `<@&${id}>`).join(" · ");
+}
+
 export function words(argument: string): string[] {
   return argument.split(/\s+/).filter(Boolean);
 }
@@ -118,12 +123,17 @@ export async function requireBooster(ctx: PrefixContext, action: string): Promis
     return guildId;
   }
 
+  // `boosterrole include` lets a server open this to a role as well. The check
+  // lives here rather than in each command, so every member command opens up
+  // together and none of them can be forgotten.
+  if (await isIncluded(guildId, member?.roles ?? [])) return guildId;
+
   await card(
     ctx,
     [
       `### ${HEADING}`,
       `Only members boosting this server can ${action}.`,
-      "-# Boost the server and the command opens up.",
+      "-# Boost the server, or ask an admin about `boosterrole include`.",
     ].join("\n"),
   );
   return null;

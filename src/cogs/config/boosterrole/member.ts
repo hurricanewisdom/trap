@@ -24,6 +24,7 @@ import {
   roleById,
   tierNote,
   words,
+  memberId,
 } from "./shared.js";
 import { claim, config, countRoles, release, roleOf } from "./store.js";
 
@@ -77,12 +78,17 @@ function payloadFor(wanted: Wanted, name?: string): RolePayload {
   return body;
 }
 
-async function place(guildId: string, roleId: string): Promise<void> {
-  const { baseRoleId } = await config(guildId);
+export async function place(guildId: string, roleId: string): Promise<void> {
+  const { baseRoleId, baseAbove } = await config(guildId);
   if (!baseRoleId) return;
 
   const base = await roleById(guildId, baseRoleId);
-  if (base) await moveRole(guildId, roleId, base.position, "Booster role placement");
+  if (!base) return;
+
+  // Taking the base's own position pushes the base up one, which lands the new
+  // role directly below it. One higher lands it directly above.
+  const at = baseAbove ? base.position + 1 : base.position;
+  await moveRole(guildId, roleId, at, "Booster role placement");
 }
 
 export async function existing(guildId: string, userId: string): Promise<Role | null> {
@@ -204,11 +210,21 @@ export async function setDominant(ctx: PrefixContext): Promise<void> {
   const guildId = await requireBooster(ctx, "use an avatar colour");
   if (!guildId) return;
 
-  const colour = await dominantColor(guildId, ctx.authorId);
+  // Naming somebody else takes the colour from their avatar and puts it on your
+  // own role. It never touches theirs.
+  const named = memberId(words(ctx.argument)[0] ?? "");
+  const whose = named ?? ctx.authorId;
+
+  const colour = await dominantColor(guildId, whose);
   if (colour === null) {
     await card(
       ctx,
-      [`### ${HEADING}`, "I could not read a colour from your avatar."].join("\n"),
+      [
+        `### ${HEADING}`,
+        named
+          ? `I could not read a colour from <@${named}>'s avatar.`
+          : "I could not read a colour from your avatar.",
+      ].join("\n"),
     );
     return;
   }
@@ -266,7 +282,7 @@ export async function setIcon(ctx: PrefixContext): Promise<void> {
   }
 
   const url = ctx.argument.trim();
-  if (!url) {
+  if (!url || /^(remove|delete|del|rm|clear|none|off)$/i.test(url)) {
     const cleared = await editRole(guildId, role.id, { icon: null }, "Booster role icon cleared");
     await card(
       ctx,
@@ -337,4 +353,14 @@ export async function removeOwn(ctx: PrefixContext): Promise<void> {
       gone.ok ? `**${role.name}** is gone.` : `Removed from my records, but Discord refused to delete **${role.name}**.`,
     ].join("\n"),
   );
+}
+
+/**
+ * The same clearing the bare `icon` does, as its own command.
+ *
+ * It delegates rather than repeating the hierarchy and ownership checks, which
+ * is the whole reason `setIcon` treats a removal word as an empty argument.
+ */
+export async function iconRemove(ctx: PrefixContext): Promise<void> {
+  await setIcon({ ...ctx, argument: "" });
 }

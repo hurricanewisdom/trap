@@ -924,6 +924,17 @@ export async function migrate(): Promise<void> {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS booster_include (
+      guild_id TEXT NOT NULL,
+      role_id  TEXT NOT NULL,
+      added_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (guild_id, role_id)
+    )
+  `;
+
+  await sql`ALTER TABLE booster_config ADD COLUMN IF NOT EXISTS base_above BOOLEAN NOT NULL DEFAULT false`;
+
   console.log("db: schema ready");
 }
 

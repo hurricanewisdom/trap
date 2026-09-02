@@ -9,12 +9,14 @@ import { requireGuild } from "../../../core/permissions.js";
 import { onBoost } from "../../../core/hooks.js";
 import { memberOf } from "../../../core/discord.js";
 import { HEADING, awardIfDue, card, words } from "./shared.js";
-import { removeOwn, rename, setColor, setDominant, setIcon, setRandom } from "./member.js";
+import { iconRemove, removeOwn, rename, setColor, setDominant, setIcon, setRandom } from "./member.js";
 import {
   award,
   awardClear,
   awardShow,
   cleanup,
+  clearAll,
+  sync,
   filter,
   filterList,
   link,
@@ -22,7 +24,8 @@ import {
   setBase,
   setLimit,
 } from "./admin.js";
-import { share, shareLimit, shareList, shareMax, shareRemove } from "./share.js";
+import { share, shareClear, shareLimit, shareList, shareMax, shareRemove } from "./share.js";
+import { includeAdd, includeClear, includeList, includeRemove } from "./include.js";
 
 function dispatcher(path: string, fallback: PrefixHandler): PrefixHandler {
   return async (ctx: PrefixContext) => {
@@ -76,7 +79,10 @@ export function registerBoosterRole(): void {
 
   register({
     name: "boosterrole",
-    aliases: ["br", "boostrole"],
+    // `color` is not among these on purpose: Last.fm already answers to it for
+    // `,lfcolor`, and the config cog loads first, so claiming it here would
+    // silently take that command away. `,boosterrole color` still works.
+    aliases: ["br", "cr", "boostrole"],
     description: "Give boosters a personal colour role",
     handler: dispatcher("boosterrole", root),
   });
@@ -97,37 +103,42 @@ export function registerBoosterRole(): void {
 
     register({
       name: "dominant",
+      aliases: ["avatar", "pfp", "av"],
       description: "Take your booster role colour from your avatar",
       handler: setDominant,
     });
 
     register({
       name: "rename",
+      aliases: ["name"],
       description: "Rename your booster role",
       handler: rename,
     });
 
     register({
       name: "icon",
+      aliases: ["image", "img"],
       description: "Set or clear your booster role icon",
-      handler: setIcon,
+      handler: dispatcher("boosterrole icon", setIcon),
     });
 
     register({
       name: "remove",
-      aliases: ["delete"],
+      aliases: ["delete", "del", "rm"],
       description: "Delete your booster role",
       handler: removeOwn,
     });
 
     register({
       name: "share",
+      aliases: ["give", "unshare"],
       description: "Let other members wear your booster role",
       handler: dispatcher("boosterrole share", share),
     });
 
     register({
       name: "base",
+      aliases: ["set"],
       description: "Set the role new booster roles are placed under",
       handler: setBase,
     });
@@ -152,6 +163,7 @@ export function registerBoosterRole(): void {
 
     register({
       name: "list",
+      aliases: ["ls"],
       description: "Every booster role in this server",
       handler: listRoles,
     });
@@ -163,13 +175,73 @@ export function registerBoosterRole(): void {
     });
 
     register({
+      name: "clear",
+      aliases: ["reset", "purge"],
+      description: "Delete every booster role in this server",
+      handler: clearAll,
+    });
+
+    register({
+      name: "sync",
+      aliases: ["organized"],
+      description: "Tidy the booster roles and put them back under the base",
+      handler: sync,
+    });
+
+    register({
+      name: "include",
+      aliases: ["allow", "inc", "i"],
+      description: "Let a role make booster roles without boosting",
+      handler: dispatcher("boosterrole include", includeAdd),
+    });
+
+    register({
       name: "cleanup",
       description: "Delete booster roles whose owner stopped boosting",
       handler: cleanup,
     });
   });
 
+  groupUnder("boosterrole icon", () => {
+    register({
+      name: "remove",
+      aliases: ["delete", "del", "rm"],
+      description: "Remove the icon of your booster role",
+      handler: iconRemove,
+    });
+  });
+
+  groupUnder("boosterrole include", () => {
+    register({
+      name: "list",
+      aliases: ["ls"],
+      description: "View the roles that can create booster roles",
+      handler: includeList,
+    });
+
+    register({
+      name: "remove",
+      aliases: ["delete", "del", "rm"],
+      description: "Disallow a role from creating booster roles",
+      handler: includeRemove,
+    });
+
+    register({
+      name: "clear",
+      aliases: ["reset", "purge"],
+      description: "Remove all exceptions and only allow boosters",
+      handler: includeClear,
+    });
+  });
+
   groupUnder("boosterrole share", () => {
+    register({
+      name: "clear",
+      aliases: ["reset", "purge"],
+      description: "Remove your booster role from all members with it",
+      handler: shareClear,
+    });
+
     register({
       name: "max",
       description: "How many members one booster role may hold",
@@ -184,13 +256,14 @@ export function registerBoosterRole(): void {
 
     register({
       name: "list",
+      aliases: ["ls"],
       description: "Who is wearing your booster role",
       handler: shareList,
     });
 
     register({
       name: "remove",
-      aliases: ["leave"],
+      aliases: ["leave", "delete", "del", "rm"],
       description: "Leave a booster role someone shared with you",
       handler: shareRemove,
     });

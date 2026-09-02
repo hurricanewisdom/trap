@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 518 commands across four cogs,
+(TypeScript strict, Node 22), run bare with pm2. 526 commands across four cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -95,23 +95,45 @@ unreachable the last known value is used, so the bot does not go silent.
 
 Each booster gets one role of their own, coloured and named by them.
 
+Thirty commands.
+
 ```
 ,boosterrole #1db954 night owl   make or update yours
 ,br blue purple                  a two-colour gradient
 ,br random                       a random colour
-,br dominant                     the main colour out of your avatar
+,br dominant [@member]           the main colour out of an avatar
 ,br rename <name>                rename it
-,br icon <url>                   set its icon, or clear it with no url
+,br icon <url>                   set its icon
+,br icon remove                  clear it
 ,br share @someone               let someone else wear it
+,br share clear                  take it back off everyone
 ,br remove                       delete it
 ```
 
-Admin side, all Manage Server: `base` (what new roles sit under), `limit`
-(how many the server can hold), `award` (a role handed to anyone who boosts),
-`filter` (blocked words in names), `list`, `link` (adopt an existing role) and
-`cleanup` (delete roles whose owner stopped boosting). `share max` and
-`share limit` cap how many members a role holds and how many roles a member
-wears.
+Admin side, all Manage Server: `base` (where new roles sit, `above` or `below`
+a role of your choosing), `include` (a role that may make one without
+boosting), `limit` (how many the server can hold), `award` (a role handed to
+anyone who boosts), `filter` (blocked words in names), `list`, `link` (adopt an
+existing role), `cleanup` (delete roles whose owner stopped boosting), `sync`
+(put them all back where they belong) and `clear` (delete every one of them).
+
+⚠️ **`share max` and `share limit` are two different settings and the names do
+not help.** `share max` is how many members one role may be shared with;
+`share limit` is how many shared roles a single member may wear. A spec that
+calls the first of those `limit` therefore means this bot's `max` — the `max`
+spelling is kept as the primary, because renaming it would silently change what
+`share limit` does for every server already using it.
+
+⚠️ **`,color` is not an alias for this.** Last.fm already answers to it for
+`,lfcolor`, and the configuration cog loads first, so claiming it here would
+quietly take that command away. `,br`, `,cr` and `,boosterrole color` all
+work.
+
+**`include` opens the whole member side at once.** The check lives in
+`requireBooster()` rather than in each command, so a server that includes a
+role does not have to remember which of the nine member commands were updated.
+Roles already made are kept when the exception is removed; `sync` is what tidies
+them.
 
 Three things bound what the bot can do here, and each says so rather than
 failing quietly:
@@ -1427,12 +1449,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 424 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 432 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`automod caps whitelist view`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help automod links ignore` opens that exact command.
 
-The check that keeps this honest renders **all 698 views** and asserts unique
+The check that keeps this honest renders **all 709 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.
