@@ -1,5 +1,15 @@
 import { botId, editSelfMember, memberOf } from "../../../core/discord.js";
 import { notice, requireOwner } from "../../../core/permissions.js";
+import { KINDS, provideStyle } from "../../../core/style.js";
+import {
+  resetDisplay,
+  resetEverything,
+  responseOverview,
+  responseSetter,
+  setDisplay,
+  toggle,
+} from "./profile.js";
+import { styleOf } from "./settings.js";
 import {
   groupUnder,
   lookupIn,
@@ -139,6 +149,10 @@ async function overview(ctx: PrefixContext): Promise<void> {
 }
 
 export function registerCustomize(): void {
+  // core asks for the style, this cog answers. The reply path never imports a
+  // cog, so the styling works with the cog absent and simply does nothing.
+  provideStyle(styleOf);
+
   const handler: PrefixHandler = async (ctx) => {
     const sub = ctx.argument.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
     const found = sub ? lookupIn("customize", sub) : undefined;
@@ -157,17 +171,132 @@ export function registerCustomize(): void {
     handler,
   });
 
+  // Every one of these is Server Owner, like the three that were here first.
+  const owned =
+    (what: string, run: (ctx: PrefixContext, guildId: string) => Promise<void>): PrefixHandler =>
+    async (ctx) => {
+      const guildId = await requireOwner(ctx, what);
+      if (!guildId) return;
+      await run(ctx, guildId);
+    };
+
+  const sub = (path: string, fallback: PrefixHandler): PrefixHandler => async (ctx) => {
+    const first = ctx.argument.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+    const found = first ? lookupIn(path, first) : undefined;
+
+    if (found) {
+      await found.handler({ ...ctx, argument: ctx.argument.replace(/^\s*\S+\s*/, "") });
+      return;
+    }
+    await fallback(ctx);
+  };
+
   groupUnder("customize", () => {
     register({
       name: "avatar",
-      description: "Customize the bot's server avatar",
-      handler: picture("avatar"),
+      aliases: ["pfp", "av"],
+      description: "Change the bot's avatar",
+      handler: sub("customize avatar", picture("avatar")),
     });
     register({
       name: "banner",
-      description: "Customize the bot's server banner",
-      handler: picture("banner"),
+      description: "Change the bot's banner",
+      handler: sub("customize banner", picture("banner")),
     });
-    register({ name: "bio", description: "Customize the bot's server bio", handler: setBio });
+    register({
+      name: "bio",
+      aliases: ["about", "description"],
+      description: "Change the bot's bio",
+      handler: setBio,
+    });
+    register({
+      name: "display",
+      aliases: ["style", "effect", "font", "name"],
+      description: "Change the bot's display name",
+      handler: sub("customize display", owned("change my name here", setDisplay)),
+    });
+    register({
+      name: "ping",
+      aliases: ["mention", "pings", "mentions"],
+      description: "Toggle whether the bot mentions users in its responses",
+      handler: owned("change whether I ping people", toggle("ping", "Pinging people in my replies")),
+    });
+    register({
+      name: "punctuation",
+      aliases: ["punctuate", "periods", "fullstops", "fullstop", "grammar", "punc"],
+      description: "Toggle whether responses end in a full stop",
+      handler: owned(
+        "change my punctuation",
+        toggle("punctuation", "A full stop at the end of a reply"),
+      ),
+    });
+    register({
+      name: "reset",
+      aliases: ["clear", "default"],
+      description: "Reset the bot's profile to default",
+      handler: owned("reset my profile here", resetEverything),
+    });
+    register({
+      name: "response",
+      aliases: ["msgs", "invoke"],
+      description: "Customize the responses by the bot",
+      handler: sub("customize response", owned("see my responses", responseOverview)),
+    });
+  });
+
+  groupUnder("customize avatar", () => {
+    register({
+      name: "remove",
+      aliases: ["delete", "del", "rm"],
+      description: "Reset the bot's avatar to default",
+      handler: (ctx) => picture("avatar")({ ...ctx, argument: "clear" }),
+    });
+  });
+
+  groupUnder("customize banner", () => {
+    register({
+      name: "remove",
+      aliases: ["delete", "del", "rm"],
+      description: "Remove the bot's banner",
+      handler: (ctx) => picture("banner")({ ...ctx, argument: "clear" }),
+    });
+  });
+
+  groupUnder("customize display", () => {
+    register({
+      name: "reset",
+      aliases: ["default", "normal"],
+      description: "Reset the bot's display name to default",
+      handler: owned("reset my name here", resetDisplay),
+    });
+  });
+
+  groupUnder("customize response", () => {
+    for (const kind of KINDS) {
+      register({
+        name: kind,
+        aliases:
+          kind === "approve"
+            ? ["success", "approval", "tick"]
+            : kind === "default"
+              ? ["neutral", "info"]
+              : kind === "loading"
+                ? ["progress", "wait", "working"]
+                : ["warning", "error", "cross"],
+        description: `Customize the response used for ${kind} messages`,
+        handler: owned(`change my ${kind} responses`, responseSetter(kind)),
+      });
+    }
+
+    register({
+      name: "reset",
+      aliases: ["clear", "normal"],
+      description: "Reset the custom responses to their default values",
+      handler: owned("reset my responses", async (ctx, guildId) => {
+        const { clearStyles } = await import("./settings.js");
+        await clearStyles(guildId);
+        await ctx.reply(notice(["### Bot appearance", "My responses look ordinary again."].join("\n")));
+      }),
+    });
   });
 }

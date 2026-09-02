@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 614 commands across four cogs,
+(TypeScript strict, Node 22), run bare with pm2. 627 commands across four cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -44,7 +44,7 @@ rather than turning it into a three-word path with named fields.
 - `,fakepermissions` — let a role use the bot without the real permission
 - `,badge` — reward members who wear the server tag on their profile
 - `,suggest` — members suggest ideas, staff move them through statuses
-- `,customize` — the bot's own avatar, banner and bio in one server
+- `,customize` — the bot's look, and the emoji and colour of every card it sends
 - `,automod` — ten chat filters, five of them enforced by Discord's AutoMod (was `,filter`)
 - `,ban`, `,tempban`, `,softban`, `,hardban`, `,warn`, `,timeout` — punishments, each writing a case
 - `,history`, `,caselog`, `,reason`, `,proof`, `,notes` — the case log and what is on it
@@ -272,6 +272,45 @@ on the submit button. It can also be removed entirely with
 Numbers are handed out by the insert itself (`MAX(number) + 1` inside the
 statement) rather than by counting rows first, so two confessions submitted in
 the same moment cannot get the same number.
+
+## Bot appearance
+
+`,customize` changes what the bot looks and sounds like **in one server only**.
+Seventeen commands, all **Server Owner**.
+
+```
+,customize avatar <attachment>       its face here
+,customize display Trap Bot          its name here
+,customize bio here to help          its bio here
+,customize response warn ⛔ red      how a refusal looks
+,customize response default 🔷 blurple
+,customize ping on                   let replies mention people
+,customize punctuation off           no full stop at the end
+,customize reset                     all of it back to normal
+```
+
+**`customize response` gives four kinds of card their own emoji and colour.**
+Two of them are visible everywhere at once: `default` is nearly every card the
+bot sends, and `warn` is every permission refusal in the bot — both are applied
+in `core/permissions.ts`, so no command had to opt in. `approve` and `loading`
+are used by commands that report those states. Every one of them **renders its
+own confirmation card in the style being set**, so what it looks like is the
+answer to what it does.
+
+`warn` also takes `soft=true`, which keeps the emoji and drops the red.
+
+⚠️ **The style is a scope, not a lookup.** It is read once at dispatch and
+carried through the command in an `AsyncLocalStorage`, next to the Last.fm
+accent — one read per command rather than one per card. The command that
+*changes* the style therefore starts inside the old one, which is why the
+confirmation re-enters the scope before rendering: otherwise it would show what
+it had just replaced.
+
+⚠️ **`${JSON.stringify(obj)}::jsonb` stores a jsonb *string*, not an object.**
+The driver sends a string parameter as a JSON string literal, so the cast wraps
+it rather than parsing it: every style wrote fine, read back empty, and said
+nothing. Measured three ways against the real database — `sql.json(obj)` and a
+server-side `jsonb_build_object` both write an object, the cast does not.
 
 ## Counting
 
@@ -1671,12 +1710,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 515 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 528 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`automod caps whitelist view`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help automod links ignore` opens that exact command.
 
-The check that keeps this honest renders **all 826 views** and asserts unique
+The check that keeps this honest renders **all 843 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

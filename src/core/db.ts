@@ -849,6 +849,11 @@ export async function migrate(): Promise<void> {
     )
   `;
 
+  await sql`ALTER TABLE customize ADD COLUMN IF NOT EXISTS ping BOOLEAN NOT NULL DEFAULT false`;
+  await sql`ALTER TABLE customize ADD COLUMN IF NOT EXISTS punctuation BOOLEAN NOT NULL DEFAULT true`;
+  await sql`ALTER TABLE customize ADD COLUMN IF NOT EXISTS warn_soft BOOLEAN NOT NULL DEFAULT false`;
+  await sql`ALTER TABLE customize ADD COLUMN IF NOT EXISTS styles JSONB NOT NULL DEFAULT '{}'::jsonb`;
+
   await sql`
     CREATE TABLE IF NOT EXISTS suggest_config (
       guild_id   TEXT NOT NULL,

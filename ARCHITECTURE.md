@@ -2,7 +2,7 @@
 
 Trap is a prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno) v21,
 TypeScript strict, Node 22, run bare under pm2. Postgres holds state; Redis is
-the read path and the cache. 189 source files, no comments — the names and the
+the read path and the cache. 192 source files, no comments — the names and the
 shape carry it.
 
 ## Layout
@@ -19,6 +19,8 @@ src/
     prefixes.ts         which prefixes a guild answers to
     permissions.ts      guild and Manage Server gates, and the denial card
     accent.ts           the ambient per-viewer card colour
+    style.ts            the emoji, colour, pinging and punctuation one server
+                        chose, carried through a command in a scope
     slash.ts            slash payloads, autocomplete, and command mentions
     restrict.ts         a command handed to one role, asked at dispatch
     throttle.ts         one rate limit across every command, in memory; the
@@ -271,7 +273,7 @@ is why `,about` reaches `botinfo` while `,lf about` reaches `bio`. A flat
 registry silently dropped the second one and warned about it on every boot.
 
 Which means **a bare name is not an identity**, and anything that stores or
-compares one is a bug waiting to happen. With 515 subcommands, `exempt`, `list`,
+compares one is a bug waiting to happen. With 528 subcommands, `exempt`, `list`,
 `add`, `remove`, `view` and `filter` each belong to several owners. Use the path
 (`pathOf(entry)` in help, `lookupPath()` in core) anywhere a command has to be
 named to something outside the function that already has it.

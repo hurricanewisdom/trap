@@ -1,6 +1,7 @@
 import { PERMISSION, getGuild, hasPermission, memberOf } from "./discord.js";
 import { fakeBits } from "./fakeperms.js";
 import { accented, IS_COMPONENTS_V2 } from "../helpers/components.js";
+import { colorFor, decorate, type Kind } from "./style.js";
 import type { PrefixContext, ReplyPayload } from "./prefix.js";
 
 export const MANAGE_GUILD = "Manage Server";
@@ -31,18 +32,45 @@ export async function isOwner(guildId: string, userId: string): Promise<boolean>
   return Boolean(guild) && guild?.owner_id === userId;
 }
 
-export function notice(body: string): ReplyPayload {
+/**
+ * One card, in one of the four kinds `,customize response` knows about.
+ *
+ * The kind picks the emoji and the colour the server chose. `notice` is the
+ * neutral one and is what almost everything sends; `warned` is every refusal in
+ * this file, which is what makes `customize response warn` mean something
+ * across the whole bot without a call site having to opt in.
+ */
+export function styled(body: string, kind: Kind): ReplyPayload {
+  const text = decorate(body, kind);
   return {
     flags: IS_COMPONENTS_V2,
-    components: [accented({ type: 17, components: [{ type: 10, content: body }] })],
+    components: [
+      accented({ type: 17, components: [{ type: 10, content: text }] }, colorFor(kind)),
+    ],
   };
+}
+
+export function notice(body: string): ReplyPayload {
+  return styled(body, "default");
+}
+
+export function warned(body: string): ReplyPayload {
+  return styled(body, "warn");
+}
+
+export function approved(body: string): ReplyPayload {
+  return styled(body, "approve");
+}
+
+export function loading(body: string): ReplyPayload {
+  return styled(body, "loading");
 }
 
 export async function requireGuild(ctx: PrefixContext, action: string): Promise<string | null> {
   if (ctx.guildId) return ctx.guildId;
 
   await ctx.reply(
-    notice(
+    warned(
       `### Server only\nYou can only ${action} inside a server, not in a direct message.`,
     ),
   );
@@ -59,7 +87,7 @@ export async function requireManageGuild(
   if (await holds(guildId, ctx.authorId, PERMISSION.manageGuild)) return guildId;
 
   await ctx.reply(
-    notice(
+    warned(
       `### Missing permission\nYou need the **${MANAGE_GUILD}** permission to ${action}.` +
         `\n-# Ask a server administrator, or someone who has it.`,
     ),
@@ -77,7 +105,7 @@ export async function requireManageChannels(
   if (await holds(guildId, ctx.authorId, PERMISSION.manageChannels)) return guildId;
 
   await ctx.reply(
-    notice(
+    warned(
       `### Missing permission\nYou need the **${MANAGE_CHANNELS}** permission to ${action}.` +
         `\n-# Ask a server administrator, or someone who has it.`,
     ),
@@ -95,7 +123,7 @@ export async function requireManageMessages(
   if (await holds(guildId, ctx.authorId, PERMISSION.manageMessages)) return guildId;
 
   await ctx.reply(
-    notice(
+    warned(
       `### Missing permission
 You need the **${MANAGE_MESSAGES}** permission to ${action}.` +
         `
@@ -115,7 +143,7 @@ export async function requireAdministrator(
   if (await holds(guildId, ctx.authorId, PERMISSION.administrator)) return guildId;
 
   await ctx.reply(
-    notice(
+    warned(
       `### Missing permission
 You need the **${ADMINISTRATOR}** permission to ${action}.` +
         `
@@ -135,7 +163,7 @@ export async function requireManageWebhooks(
   if (await holds(guildId, ctx.authorId, PERMISSION.manageWebhooks)) return guildId;
 
   await ctx.reply(
-    notice(
+    warned(
       `### Missing permission
 You need the **${MANAGE_WEBHOOKS}** permission to ${action}.` +
         `
@@ -154,7 +182,7 @@ export async function requireOwner(ctx: PrefixContext, action: string): Promise<
   if (await isOwner(guildId, ctx.authorId)) return guildId;
 
   await ctx.reply(
-    notice(
+    warned(
       `### Missing permission
 Only the **${OWNER}** can ${action}.` +
         `
@@ -176,7 +204,7 @@ export async function requireBanMembers(
   if (await holds(guildId, ctx.authorId, PERMISSION.banMembers)) return guildId;
 
   await ctx.reply(
-    notice(
+    warned(
       `### Missing permission
 You need the **${BAN_MEMBERS}** permission to ${action}.`,
     ),
@@ -196,7 +224,7 @@ export async function requireModerateMembers(
   if (await holds(guildId, ctx.authorId, PERMISSION.moderateMembers)) return guildId;
 
   await ctx.reply(
-    notice(
+    warned(
       `### Missing permission
 You need the **${MODERATE_MEMBERS}** permission to ${action}.`,
     ),
@@ -216,7 +244,7 @@ export async function requireManageRoles(
   if (await holds(guildId, ctx.authorId, PERMISSION.manageRoles)) return guildId;
 
   await ctx.reply(
-    notice(
+    warned(
       `### Missing permission
 You need the **${MANAGE_ROLES}** permission to ${action}.`,
     ),
@@ -236,7 +264,7 @@ export async function requireManageNicknames(
   if (await holds(guildId, ctx.authorId, PERMISSION.manageNicknames)) return guildId;
 
   await ctx.reply(
-    notice(
+    warned(
       `### Missing permission
 You need the **${MANAGE_NICKNAMES}** permission to ${action}.`,
     ),
@@ -256,7 +284,7 @@ export async function requireMoveMembers(
   if (await holds(guildId, ctx.authorId, PERMISSION.moveMembers)) return guildId;
 
   await ctx.reply(
-    notice(
+    warned(
       `### Missing permission
 You need the **${MOVE_MEMBERS}** permission to ${action}.`,
     ),
@@ -276,7 +304,7 @@ export async function requireManageThreads(
   if (await holds(guildId, ctx.authorId, PERMISSION.manageThreads)) return guildId;
 
   await ctx.reply(
-    notice(
+    warned(
       `### Missing permission
 You need the **${MANAGE_THREADS}** permission to ${action}.`,
     ),

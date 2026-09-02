@@ -41,6 +41,7 @@ import { startProtectionLog } from "./core/protection.js";
 import { router, startWebServer } from "./web/server.js";
 import { provideRunner } from "./core/runner.js";
 import { accentFor, withAccent } from "./core/accent.js";
+import { currentStyle, provideStyle, styleFor, withStyle } from "./core/style.js";
 
 const LASTFM_COG = "lastfm";
 import { provideMessageEditor } from "./core/expiry.js";
@@ -405,7 +406,13 @@ async function runPrefixCommand(message: any, muted?: boolean): Promise<void> {
     }
     emitCommandRan(guildId ?? "", command.name, authorId);
     const accent = command.cog === LASTFM_COG ? await accentFor(authorId) : null;
-    await withAccent(accent, () => command.handler({ ...context, argument }));
+    // Two scopes, because they answer different questions: the accent is this
+    // viewer's Last.fm colour, the style is what this server chose for every
+    // card the bot sends.
+    const style = await styleFor(guildId);
+    await withStyle(style, () =>
+      withAccent(accent, () => command.handler({ ...context, argument })),
+    );
     return;
   }
 
@@ -416,7 +423,8 @@ async function runPrefixCommand(message: any, muted?: boolean): Promise<void> {
   if (!(await withinLimit(context, guildId, authorId))) return;
 
   const accent = await accentFor(authorId);
-  await withAccent(accent, () => fallback({ ...context, argument }));
+  const style = await styleFor(guildId);
+  await withStyle(style, () => withAccent(accent, () => fallback({ ...context, argument })));
 }
 
 // Told once, then dropped in silence. Replying to every command in a flood makes
@@ -602,7 +610,9 @@ async function send(
       // The default goes first so a payload that names who to ping wins. The
       // other way round -- which this was -- silently threw away every
       // allowed_mentions a command set, so nothing could ever be pinged.
-      allowed_mentions: { parse: [] },
+      // `customize ping` moves that default: on, an ordinary reply may mention
+      // the person it is answering; off, it stays silent.
+      allowed_mentions: { parse: currentStyle().ping ? ["users"] : [] },
       ...payload,
       ...(replyTo ? { message_reference: { message_id: replyTo, fail_if_not_exists: false } } : {}),
     } as any,
