@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 533 commands across four cogs,
+(TypeScript strict, Node 22), run bare with pm2. 551 commands across four cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -27,6 +27,7 @@ rather than turning it into a three-word path with named fields.
 - `,alias` — server shortcuts for existing commands
 - `,stickymessage` — keep a message at the bottom of a channel
 - `,imgonly` — make a channel take images only
+- `,counter` — channels whose name is a live figure
 - `,button` — buttons on a message that answer whoever presses them
 - `,buttonrole` — roles members give themselves by pressing a button
 - `,autorole` — roles handed out to members as they join
@@ -227,6 +228,56 @@ The `onMessage` hook it rides on runs for every guild message, so the check in
 front of it is a cached set of channel ids rather than a query. Bot messages are
 ignored before the hook is reached, which is also what stops the sticky
 retriggering on itself.
+
+## Counters
+
+`,counter` renames a channel on a timer so its name is always a current number.
+Eighteen commands, all **Manage Server**.
+
+```
+,counter add #stats {members} members · {roles} roles
+,counter youtube #subs @MrBeast
+,counter twitch #live shroud
+,counter preview {members|human} members     try one without making anything
+,counter variables                           what a template can use
+,counter socialvars                          what each platform adds
+,counter refresh #stats                      update it now
+```
+
+Templates take `{tokens}`, a `|human` or `|comma` filter on any number
+(`1.2K` or `1,234`), and `{if: condition && when true && when false}` — which is
+how the Twitch default shows viewers while live and a link when not.
+
+⚠️ **Discord allows two channel renames per ten minutes.** That is measured, not
+documented: the third `PATCH` returns 429 with `retry-after: 600`, while the
+rate-limit headers cheerfully report nine remaining on a ten-second window. A
+counter that trusts those headers gets throttled and stops updating. So the
+cycle is ten minutes, and a name that has not changed is never sent — which
+leaves the second rename in hand for `,counter refresh`.
+
+⚠️ **A text channel lowercases its name and turns spaces into dashes.** Counters
+belong on a voice channel or a category, and the card says so when you point one
+at a text channel.
+
+**Five platforms can be read; three cannot.** Each was probed from the box
+before a line was written:
+
+| | |
+| --- | --- |
+| YouTube, SoundCloud, SoundCloud tracks, TikTok | read straight off the page |
+| Twitch | its own public GraphQL endpoint, live state and viewers |
+| Spotify | ⚠️ monthly listeners are drawn by the page's scripts and are in no API, official or otherwise |
+| Instagram | ⚠️ signed out, the profile endpoints answer 400 and 429 |
+| Twitter / X | ⚠️ needs a paid key; the old public widget endpoints are gone |
+
+The three that cannot be read still have their commands, and those commands say
+why rather than making a channel that never changes. `,counter socialvars` lists
+the same thing.
+
+**There is deliberately no `{humans}` or `{bots}`.** Discord's member count does
+not split them, and the only way to is to walk every member — far too much work
+to repeat on a timer. A wrong number in a channel name is worse than a missing
+variable, because nobody ever checks a counter.
 
 ## Response buttons
 
@@ -1540,12 +1591,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 437 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 454 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`automod caps whitelist view`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help automod links ignore` opens that exact command.
 
-The check that keeps this honest renders **all 719 views** and asserts unique
+The check that keeps this honest renders **all 744 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

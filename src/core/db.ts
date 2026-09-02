@@ -969,6 +969,28 @@ export async function migrate(): Promise<void> {
 
   await sql`CREATE INDEX IF NOT EXISTS button_roles_message ON button_roles (message_id, position)`;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS counters (
+      guild_id   TEXT NOT NULL,
+      channel_id TEXT PRIMARY KEY,
+      kind       TEXT NOT NULL DEFAULT 'server',
+      handle     TEXT,
+      template   TEXT NOT NULL,
+      last_name  TEXT,
+      updated_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS counter_joins (
+      guild_id TEXT NOT NULL,
+      day      DATE NOT NULL,
+      joins    INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (guild_id, day)
+    )
+  `;
+
   console.log("db: schema ready");
 }
 

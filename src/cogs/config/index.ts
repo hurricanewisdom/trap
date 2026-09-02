@@ -9,6 +9,7 @@ import { registerAlias } from "./alias/index.js";
 import { registerSticky } from "./sticky/index.js";
 import { registerGallery } from "./gallery/index.js";
 import { registerFilter } from "./filter/index.js";
+import { registerCounters } from "./counter/index.js";
 import { registerButtons } from "./button/index.js";
 import { registerButtonRoles } from "./buttonrole/index.js";
 import { registerAutorole } from "./autorole/index.js";
@@ -45,6 +46,7 @@ export const configCog: Cog = {
     inCategory("sticky", registerSticky);
     inCategory("gallery", registerGallery);
     inCategory("automod", registerFilter);
+    inCategory("counter", registerCounters);
     inCategory("button", registerButtons);
     inCategory("buttonrole", registerButtonRoles);
     inCategory("autorole", registerAutorole);
