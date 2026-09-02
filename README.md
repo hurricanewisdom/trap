@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 515 commands across four cogs,
+(TypeScript strict, Node 22), run bare with pm2. 527 commands across four cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -27,6 +27,7 @@ rather than turning it into a three-word path with named fields.
 - `,alias` — server shortcuts for existing commands
 - `,stickymessage` — keep a message at the bottom of a channel
 - `,imgonly` — make a channel take images only
+- `,button` — buttons on a message that answer whoever presses them
 - `,autorole` — roles handed out to members as they join
 - `,autothread` — a thread started on every message in a channel
 - `,autoresponder` — automatic replies when a message matches a trigger
@@ -225,6 +226,52 @@ The `onMessage` hook it rides on runs for every guild message, so the check in
 front of it is a cached set of channel ids rather than a query. Bot messages are
 ignored before the hook is reached, which is also what stops the sticky
 retriggering on itself.
+
+## Response buttons
+
+`,button` puts buttons on one of my messages. Pressing one replies **only to
+whoever pressed it**, so a single message can answer a whole channel without
+filling it. Twelve commands, all **Manage Server**.
+
+```
+,button add <link> success ✅ Rules | be nice to each other
+,button add danger 🚫 Bans | ask a mod
+,button list                      every button in the server
+,button style 1 primary           restyle one
+,button label 1 Read this         relabel it
+,button move 1 2                  reorder it
+,button edit 1 <new reply>        change what it says
+,button remove 1                  take it off
+,button render                    put them back on the message
+```
+
+**The message is optional after the first time.** Give a link once and the
+channel remembers it — derived from what is configured there, not held in
+memory, so it survives a restart and two people working at once do not
+overwrite each other's idea of "the message".
+
+**In `add`, the style and emoji come first if you want them, then a `|` splits
+the label from the reply.** With no `|` the whole thing is the reply, and the
+button then needs an emoji to be identifiable at all. The separator is a pipe
+rather than a comma because a reply routinely contains commas.
+
+The reply takes the same variables as the greetings, filled in for **the person
+who pressed**, not the person who set it up.
+
+⚠️ **Re-rendering keeps components it did not write.** The components array is
+rewritten on every change, and on a Components V2 message that array *is* the
+message — replacing it wholesale would delete the text. So the message is read
+back first and every row that is not ours is kept in place. That is also what
+stops a paginated message losing its arrows.
+
+⚠️ **`button clear` with no link clears the whole server.** It returns each
+message's channel from the same statement that deletes the rows, because once
+they are gone nothing remembers where each message lived and every re-render
+would aim at the channel the command was typed in.
+
+Twenty-five buttons per message, five to a row: Discord's ceiling, not one of
+ours. A message that already has five rows of something else has no room, and
+the card says so rather than letting the edit fail.
 
 ## Autorole
 
@@ -1457,12 +1504,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 421 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 432 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`automod caps whitelist view`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help automod links ignore` opens that exact command.
 
-The check that keeps this honest renders **all 695 views** and asserts unique
+The check that keeps this honest renders **all 711 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

@@ -431,6 +431,8 @@ export interface PostedMessage {
   sticker_items?: { id: string }[];
   mentions?: { id: string }[];
   reactions?: { count: number }[];
+  components?: unknown[];
+  flags?: number;
 }
 
 // Discord refuses this for anything older than two weeks, and refuses a batch of

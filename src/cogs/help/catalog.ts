@@ -128,6 +128,12 @@ export const CATEGORIES: CategoryDoc[] = [
     blurb: "What the bot posts when somebody boosts",
   },
   {
+    slug: "button",
+    label: "Response buttons",
+    emoji: "",
+    blurb: "Buttons on a message that answer whoever presses them",
+  },
+  {
     slug: "autorole",
     label: "Autorole",
     emoji: "",
@@ -432,6 +438,30 @@ export const DOCS: CommandDoc[] = [
       { name: "remove", usage: ",goodbye remove <channel>", summary: "Stop a channel posting", permission: "Manage Server" },
       { name: "list", usage: ",goodbye list", summary: "Every channel with a goodbye message", permission: "Manage Server" },
       { name: "variables", usage: ",goodbye variables", summary: "Every variable a message can use", permission: "Manage Server" },
+    ],
+  },
+  {
+    name: "button",
+    category: "button",
+    usage: ",button",
+    summary: "Attach response buttons to messages",
+    details:
+      "A response button sits on one of my messages and replies to whoever presses it, privately: nobody else in the channel sees the answer, so one message can serve everybody. Give a message link once and this channel remembers it, so the link is optional on every command after that. In `button add` the style and emoji come first if you want them, then everything before a `|` is the label and everything after is the reply; with no `|` it is all reply. Twenty-five buttons per message, five to a row, which is Discord's ceiling. Re-rendering keeps any components on the message that are not mine, so a paginated message does not lose its arrows. Aliases: ,responsebutton, ,rbutton and ,rb.",
+    examples: [",button list", ",button add <link> success ✅ Rules | be nice to each other", ",button style 1 danger"],
+    permission: "Manage Server",
+    guildOnly: true,
+    subcommands: [
+      { name: "add", usage: ",button add [message] [style] [emoji] <label | script>", summary: "Add an ephemeral-response button to a message", permission: "Manage Server" },
+      { name: "clear", usage: ",button clear [message]", summary: "Remove all response buttons from a message, or from every message", permission: "Manage Server" },
+      { name: "edit", usage: ",button edit [message] <index> <script>", summary: "Replace the script a button responds with", permission: "Manage Server" },
+      { name: "emoji", usage: ",button emoji [message] <index> [emoji]", summary: "Set or clear the emoji on a response button", permission: "Manage Server" },
+      { name: "label", usage: ",button label [message] <index> [label]", summary: "Set or clear the text label on a response button", permission: "Manage Server" },
+      { name: "list", usage: ",button list", summary: "View every response button configured in this server", permission: "Manage Server" },
+      { name: "move", usage: ",button move [message] <index> <position>", summary: "Re-order a response button", permission: "Manage Server" },
+      { name: "remove", usage: ",button remove [message] <index>", summary: "Remove a button by its index", permission: "Manage Server" },
+      { name: "render", usage: ",button render [message]", summary: "Re-apply all response buttons to a message", permission: "Manage Server" },
+      { name: "style", usage: ",button style [message] <index> <style>", summary: "Change the style of a response button", permission: "Manage Server" },
+      { name: "view", usage: ",button view [message] <index>", summary: "View the response script a button is configured with", permission: "Manage Server" },
     ],
   },
   {
