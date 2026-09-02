@@ -1,7 +1,7 @@
 # Trap
 
 Prefix-command Discord bot on [Discordeno](https://github.com/discordeno/discordeno)
-(TypeScript strict, Node 22), run bare with pm2. 597 commands across four cogs,
+(TypeScript strict, Node 22), run bare with pm2. 614 commands across four cogs,
 covering every live method of the Last.fm API.
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)** describes the layout, the cog system and
@@ -28,6 +28,7 @@ rather than turning it into a three-word path with named fields.
 - `,stickymessage` — keep a message at the bottom of a channel
 - `,imgonly` — make a channel take images only
 - `,confessions` — anonymous confessions submitted through a button
+- `,counting` — a counting game in a channel
 - `,counter` — channels whose name is a live figure
 - `,button` — buttons on a message that answer whoever presses them
 - `,buttonrole` — roles members give themselves by pressing a button
@@ -271,6 +272,42 @@ on the submit button. It can also be removed entirely with
 Numbers are handed out by the insert itself (`MAX(number) + 1` inside the
 statement) rather than by counting rows first, so two confessions submitted in
 the same moment cannot get the same number.
+
+## Counting
+
+`,counting` runs the counting game: members count upwards, one number per
+message, a tick for a correct one and a broken count for a wrong one. Seventeen
+commands, all **Manage Server**.
+
+```
+,counting setup #counting             start, from 0, stepping by 1
+,counting toggle #counting math       let 5+6 count as 11
+,counting set lives #counting 3       absorb three mistakes
+,counting set goal #counting 1000 @Counter
+,counting set milestone #counting 100 {count} reached!
+,counting leaderboard                 who has counted most
+,counting view #counting              where it is up to
+```
+
+**Nine toggles**, each on or off per channel: `math`, `repeat`,
+`deleteinvalid`, `deleteothers`, `editprotection`, `resetonfail`,
+`announceresets`, `announcerecords` and `pinmilestones`. `resetonfail`,
+`announceresets` and `announcerecords` start on; the rest start off.
+
+⚠️ **`math` never evaluates anything.** Reading `5+6` from a public channel with
+an evaluator would be handing a stranger a shell, so it is a recursive-descent
+parser over digits and five operators. `process.exit(1)`, `require('fs')` and
+`1;2` all come back as "not a number" rather than as anything at all.
+
+**Counting twice in a row breaks the count** unless `repeat` is on — it is a
+rule violation like any other, so `resetonfail` and lives apply to it too.
+
+⚠️ **`,count` is not an alias.** Last.fm already answers to it, and the
+configuration cog loads first, so taking it would quietly remove that command
+from the bot. `,counting`, `,number` and `,numb` all work.
+
+`,disableevent #channel counting` switches the game off in a channel without
+unconfiguring it.
 
 ## Counters
 
@@ -1097,8 +1134,8 @@ carry their own `list`. Sixteen commands, all **Manage Channels**.
 **A module is a cog** — `configuration`, `moderation`, `lastfm`, `help` — so switching one off takes every command in it with it.
 
 **An event is something the bot does that nobody typed**: `autoresponder`,
-`autothread`, `filter`, `gallery`, `sticky`, `reactions`, `editrerun`,
-`welcome`, `goodbye` and `boost`. Ten of them.
+`autothread`, `counting`, `filter`, `gallery`, `sticky`, `reactions`,
+`editrerun`, `welcome`, `goodbye` and `boost`. Eleven of them.
 
 Ten are enforced in `core/hooks.ts` rather than in each feature: a handler
 registers with a name (`onMessage(police, "filter")`), and the emitter skips a
@@ -1634,12 +1671,12 @@ command, not to every command sharing its name: `,filter` and
 wore the first's documentation and filed itself under the wrong group.
 
 **Nothing in help identifies a command by its bare name.** Names are unique only
-within a group, and with 499 subcommands `exempt`, `list`, `add` and `remove`
+within a group, and with 515 subcommands `exempt`, `list`, `add` and `remove`
 each belong to a dozen owners. Every id, option value and lookup carries the
 full path (`automod caps whitelist view`), resolved by `lookupPath()`. `,help` takes
 a path too, so `,help automod links ignore` opens that exact command.
 
-The check that keeps this honest renders **all 804 views** and asserts unique
+The check that keeps this honest renders **all 826 views** and asserts unique
 option values, unique ids, 25 options, 4000 characters and 5 rows per view, then
 posts the ones that changed to a real channel. Space those posts out: Discord
 answers a burst with 429s that read exactly like component failures.

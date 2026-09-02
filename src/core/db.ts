@@ -1037,6 +1037,40 @@ export async function migrate(): Promise<void> {
 
   await sql`CREATE INDEX IF NOT EXISTS confessions_guild ON confessions (guild_id, created_at DESC)`;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS counting_channels (
+      guild_id           TEXT NOT NULL,
+      channel_id         TEXT PRIMARY KEY,
+      current            INTEGER NOT NULL DEFAULT 0,
+      step               INTEGER NOT NULL DEFAULT 1,
+      last_user_id       TEXT,
+      lives              INTEGER NOT NULL DEFAULT 0,
+      lives_left         INTEGER NOT NULL DEFAULT 0,
+      cooldown_secs      INTEGER NOT NULL DEFAULT 0,
+      required_role_id   TEXT,
+      success_emoji      TEXT NOT NULL DEFAULT '✅',
+      fail_emoji         TEXT NOT NULL DEFAULT '❌',
+      goal_number        INTEGER,
+      goal_role_id       TEXT,
+      goal_message       TEXT,
+      milestone_interval INTEGER,
+      milestone_template TEXT,
+      record             INTEGER NOT NULL DEFAULT 0,
+      flags              JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS counting_scores (
+      channel_id TEXT NOT NULL,
+      user_id    TEXT NOT NULL,
+      counts     INTEGER NOT NULL DEFAULT 0,
+      last_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (channel_id, user_id)
+    )
+  `;
+
   console.log("db: schema ready");
 }
 
